@@ -9,6 +9,18 @@ Cette première distribution fonctionne en local, sans compte EsaySoft ni synchr
 | **EasyTile** | Placer les fenêtres avec une palette, des raccourcis ou un menu pendant leur déplacement. | [app/EasyTile](app/EasyTile) |
 | **EasyPaste** | Retrouver ses copies, organiser ses favoris et capturer des images, du texte ou des vidéos dans le presse-papiers. | [app/EasyPaste](app/EasyPaste) |
 
+## Télécharger et installer
+
+Les installateurs de la [distribution locale du 17 octobre 2026](https://github.com/k2r59/EsaySoft/releases/tag/local-2026-10-17) sont signés avec Developer ID et notarisés par Apple :
+
+- [EasyShoot 0.2.2 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/local-2026-10-17/EasyShoot-0.2.2-universal.dmg)
+- [EasyTile 1.1.0 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/local-2026-10-17/EasyTile-1.1.0-universal.dmg)
+- [EasyPaste 0.2.0 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/local-2026-10-17/EasyPaste-0.2.0-universal.dmg)
+
+Ouvrir le DMG, glisser l’application dans **Applications**, puis l’ouvrir depuis ce dossier. Autoriser les fonctions souhaitées lorsque macOS le demande. Aucun compte développeur ni Xcode n’est nécessaire pour utiliser ces installateurs.
+
+La release contient les empreintes `SHA256SUMS` et la licence MIT. Les archives « Source code » contiennent les projets à compiler, tandis que les fichiers `.dmg` contiennent les applications à installer.
+
 ## Compatibilité
 
 Les trois applications nécessitent **macOS 15 ou ultérieur**. Les scripts produisent des applications universelles pour Apple Silicon et Intel. Les essais manuels ont été réalisés sur un Mac Apple Silicon ; l’exécution sur un Mac Intel reste à vérifier.
