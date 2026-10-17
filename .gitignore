@@ -1,0 +1,32 @@
+# Build products and local verification files
+.build/
+dist/
+build/
+output/
+.swiftpm/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.DS_Store
+._*
+__pycache__/
+
+# Local configuration and signing material
+.env
+.env.*
+!.env.example
+*.p12
+*.pfx
+*.key
+*.pem
+*.cer
+*.certSigningRequest
+*.mobileprovision
+*.provisionprofile
+*.keychain
+*.keychain-db
+
+# Installers belong in releases, not the source tree
+*.dmg
+*.pkg
+*.zip
