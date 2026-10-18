@@ -4,7 +4,7 @@ Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT.
 
 ## Installation
 
-1. Ouvrir `dist/EasyPaste-0.2.3-universal.dmg`.
+1. Ouvrir `dist/EasyPaste-0.2.4-universal.dmg`.
 2. Glisser EasyPaste dans Applications, puis l’ouvrir.
 3. Cliquer sur **Activer mon historique**. Les prochaines copies seront enregistrées.
 4. Depuis une autre application, ouvrir la barre rapide avec **Maj + Commande + V**.
@@ -175,7 +175,7 @@ Les pistes fonctionnelles ont été comparées à la documentation officielle de
 
 ## Illustration
 
-L’illustration décorative originale a été créée avec l’outil imagegen intégré. Elle est embarquée dans l’app et décodée une seule fois à une taille limitée. Le fichier source est `Sources/EasyPaste/Resources/clipboard-studio.png` ; le prompt de création figure dans [ASSET-PROMPT.txt](ASSET-PROMPT.txt). Les commandes et les textes restent des composants natifs.
+L’illustration décorative originale a été créée avec l’outil imagegen intégré. Elle reste disponible dans les sources ; la bibliothèque 0.2.4 donne désormais cette place aux copies. Le fichier source est `Sources/EasyPaste/Resources/clipboard-studio.png` ; le prompt de création figure dans [ASSET-PROMPT.txt](ASSET-PROMPT.txt). Les commandes et les textes restent des composants natifs.
 
 ## Licence
 
@@ -184,3 +184,5 @@ L’illustration décorative originale a été créée avec l’outil imagegen i
 Les contrôles de netteté, de copie et de réactivité de la version 0.2.2 sont détaillés dans [QA-0.2.2.md](QA-0.2.2.md).
 
 Les corrections vidéo, les commandes flottantes, la webcam et le remplacement des images de la version 0.2.3 sont décrits dans [QA-0.2.3.md](QA-0.2.3.md).
+
+La refonte de la bibliothèque et de l’annotation de la version 0.2.4 est décrite dans [QA-0.2.4.md](QA-0.2.4.md).

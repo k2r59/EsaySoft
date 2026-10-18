@@ -54,7 +54,10 @@ import CryptoKit
         captures.hideApp = { [weak self] in self?.window.orderOut(nil); self?.closeShelf(restore: false) }
         captures.showResult = { [weak self] in self?.revealShelf() }
         captures.statusChanged = { [weak self] text in self?.recordingStatus(text) }
-        annotations.onSaved = { [weak self] in self?.revealShelf() }
+        annotations.onSaved = { [weak self] in
+            guard let self else { return }
+            if self.history.surface == "library" { self.showMain() } else { self.revealShelf() }
+        }
         history.openShelf = { [weak self] in self?.toggleShelf() }
         history.closeShelf = { [weak self] in self?.closeShelf() }
         history.showLibrary = { [weak self] in self?.showMain() }
@@ -135,7 +138,7 @@ import CryptoKit
         rememberTarget(); closeShelf(restore: false); history.surface = "library"; window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
     }
     @objc func settings() { history.page = "settings"; showMain() }
-    @objc func about() { let alert = NSAlert(); alert.messageText = "EasyPaste"; alert.informativeText = "Version 0.2.3\nTon historique, sur ton Mac.\nLogiciel libre sous licence MIT.\nmacOS 15 ou ultérieur."; alert.addButton(withTitle: "Fermer"); alert.runModal() }
+    @objc func about() { let alert = NSAlert(); alert.messageText = "EasyPaste"; alert.informativeText = "Version 0.2.4\nTon historique, sur ton Mac.\nLogiciel libre sous licence MIT.\nmacOS 15 ou ultérieur."; alert.addButton(withTitle: "Fermer"); alert.runModal() }
     @objc func quit() { NSApp.terminate(nil) }
     @objc func toggleMonitoring() { guard !history.fault else { showMain(); return }; history.enabled.toggle() }
     @objc func copyNext() {
@@ -216,6 +219,7 @@ import CryptoKit
         }
     }
     private func key(_ event: NSEvent) -> NSEvent? {
+        if annotations.isKeyWindow { return annotations.key(event) }
         guard window.isKeyWindow || shelf?.isKeyWindow == true else { return event }
         guard NSApp.keyWindow?.attachedSheet == nil, history.editing == nil, history.previewing == nil, !history.newSnippet, !history.showNewBoard else { return event }
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
@@ -231,6 +235,8 @@ import CryptoKit
         if cmd, event.charactersIgnoringModifiers == "o", let clip = history.selectedClip { openClip(clip); return nil }
         if cmd, event.charactersIgnoringModifiers == "t" { toggleMonitoring(); return nil }
         if !(NSApp.keyWindow?.firstResponder is NSTextView) {
+            if cmd, event.charactersIgnoringModifiers == "c", !history.selection.isEmpty { Task { _ = await history.copy(history.selection) }; return nil }
+            if event.keyCode == 49, let clip = history.selectedClip { history.previewing = clip; return nil }
             if event.keyCode == 51, history.collection != "trash", !history.selection.isEmpty { history.trashItems(history.selection); return nil }
             if cmd, event.charactersIgnoringModifiers == "z", !history.recentlyTrashed.isEmpty { history.undoTrash(); return nil }
         }

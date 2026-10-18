@@ -5,6 +5,7 @@ import ImageIO
 enum Theme {
     static let bg = Color(red: 0.050, green: 0.055, blue: 0.075)
     static let panel = Color(red: 0.085, green: 0.095, blue: 0.120)
+    static let border = Color.white.opacity(0.09)
     static let raised = Color(red: 0.125, green: 0.140, blue: 0.175)
     static let ink = Color(red: 0.95, green: 0.96, blue: 0.98)
     static let muted = Color(red: 0.61, green: 0.65, blue: 0.73)

@@ -2,132 +2,6 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
-struct MainView: View {
-    @ObservedObject var history: History
-    var body: some View {
-        HStack(spacing: 0) {
-            sidebar.frame(width: 212)
-            Rectangle().fill(.white.opacity(0.06)).frame(width: 1)
-            if history.page == "settings" { SettingsView(history: history) }
-            else { library }
-        }
-        .background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
-        .environment(\.locale, Locale(identifier: "fr_FR"))
-        .modifier(HistorySheets(history: history))
-    }
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            HStack(spacing: 10) {
-                BrandMark(size: 34)
-                VStack(alignment: .leading, spacing: 2) { Text("EasyPaste").font(.system(size: 20, weight: .bold)); Text("GARDE LE FIL").font(.system(size: 8, weight: .semibold)).tracking(1.7).foregroundStyle(Theme.muted) }
-            }.padding(.top, 35).padding(.bottom, 10)
-            VStack(spacing: 5) {
-                nav("Historique", "clock.arrow.circlepath", "all", count: history.total)
-                nav("Favoris", "star", "pinned")
-                nav("Pile de collage", "square.stack.3d.up", "stack", count: history.stack.count)
-            }
-            HStack { eyebrow("COLLECTIONS"); Spacer(); Button { history.showNewBoard = true } label: { Image(systemName: "plus") }.buttonStyle(FullAreaButtonStyle(minimumSize: 24)).help("Créer une collection") }
-            ScrollView {
-                VStack(spacing: 5) {
-                    ForEach(history.boards) { board in
-                        Button { history.page = "library"; history.collection = board.id.uuidString } label: {
-                            HStack(spacing: 10) { Circle().fill(Theme.colors[board.color % 4]).frame(width: 7, height: 7); Text(board.name).lineLimit(1); Spacer(); if board.shared { Image(systemName: "point.3.connected.trianglepath.dotted").font(.system(size: 10)) } }
-                                .padding(11).background(history.collection == board.id.uuidString && history.page == "library" ? Color.white.opacity(0.06) : .clear, in: RoundedRectangle(cornerRadius: 9))
-                        }.buttonStyle(FullAreaButtonStyle()).contextMenu {
-                            Button("Renommer…") { rename(board) }
-                            Button("Supprimer la collection…") { confirmDelete(board) }
-                        }
-                    }
-                    if history.boards.isEmpty { Text("Tes modèles, liens et idées,\nà garder à portée de main.").font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(4).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 10) }
-                }
-            }
-            Spacer(minLength: 0)
-            VStack(spacing: 5) {
-                nav("Corbeille", "trash", "trash")
-                Button { history.page = "settings" } label: { HStack(spacing: 10) { Image(systemName: "slider.horizontal.3").frame(width: 18); Text("Réglages"); Spacer() }.padding(11).background(history.page == "settings" ? Color.white.opacity(0.07) : .clear, in: RoundedRectangle(cornerRadius: 9)) }.buttonStyle(FullAreaButtonStyle())
-            }
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 7) { Circle().fill(history.enabled ? Theme.mint : Theme.muted).frame(width: 6, height: 6); Text(history.enabled ? "Collecte active" : "Collecte en pause").font(.system(size: 11, weight: .medium)).lineLimit(1).minimumScaleFactor(0.9); Spacer(); Button { history.enabled.toggle() } label: { Image(systemName: history.enabled ? "pause.fill" : "play.fill") }.buttonStyle(FullAreaButtonStyle(minimumSize: 24)).disabled(history.fault || history.loading).help(history.enabled ? "Mettre en pause" : "Reprendre la collecte") }
-                Text("Sur ce Mac. Rien dans le cloud.").font(.system(size: 10)).foregroundStyle(Theme.muted)
-            }.padding(13).background(Theme.raised.opacity(0.65), in: RoundedRectangle(cornerRadius: 13))
-        }.padding(.horizontal, 17).padding(.bottom, 18).background(Theme.panel.opacity(0.55)).font(.system(size: 12))
-    }
-    private func nav(_ title: String, _ icon: String, _ id: String, count: Int? = nil) -> some View {
-        Button { history.page = "library"; history.collection = id; history.query = "" } label: {
-            HStack(spacing: 10) { Image(systemName: icon).frame(width: 18); Text(title); Spacer(); if let count, count > 0 { Text("\(count)").font(.system(size: 10, design: .monospaced)).opacity(0.65) } }
-                .padding(11).foregroundStyle(history.collection == id && history.page == "library" ? Theme.mint : Theme.ink.opacity(0.8))
-                .background(history.collection == id && history.page == "library" ? Theme.mint.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 9))
-        }.buttonStyle(FullAreaButtonStyle())
-    }
-    private var title: String {
-        switch history.collection { case "pinned": return "Toujours à portée."; case "stack": return "Dans le bon ordre."; case "trash": return "Une seconde chance."; case "all": return "Copie. Retrouve.\nReprends le fil."; default: return history.boards.first { $0.id.uuidString == history.collection }?.name ?? "Ta collection" }
-    }
-    private var library: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                HStack(spacing: 7) { Circle().fill(Theme.mint).frame(width: 5, height: 5); Text("TON ESPACE, SUR CE MAC").tracking(1.4) }.font(.system(size: 9, weight: .medium)).foregroundStyle(Theme.muted)
-                Spacer()
-                Button { history.openShelf?() } label: { HStack(spacing: 9) { Image(systemName: "rectangle.bottomthird.inset.filled"); Text("Barre rapide"); KeyCap(text: "⇧⌘V") } }.buttonStyle(FullAreaButtonStyle()).font(.system(size: 11))
-            }.padding(.top, 42).padding(.bottom, 21)
-            if !history.compact { HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 13) {
-                    Text(title).font(.system(size: history.collection == "all" ? 33 : 29, weight: .semibold, design: .rounded)).tracking(-1.2).lineSpacing(-1)
-                    Text(history.collection == "trash" ? "Les éléments restent ici pendant 7 jours." : "Tes textes, tes images, tes bonnes idées. Toujours là.").font(.system(size: 12)).foregroundStyle(Theme.muted)
-                }.padding(.leading, 25)
-                Spacer(minLength: 0)
-                HeroArtwork().scaleEffect(0.88).padding(.trailing, 5)
-            }.frame(height: 146)
-                .background(LinearGradient(colors: [Theme.panel, Theme.mint.opacity(0.055), Theme.colors[1].opacity(0.08)], startPoint: .leading, endPoint: .trailing), in: RoundedRectangle(cornerRadius: 22))
-                .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(LinearGradient(colors: [.white.opacity(0.12), Theme.mint.opacity(0.12), .white.opacity(0.035)], startPoint: .topLeading, endPoint: .bottomTrailing)))
-                .padding(.bottom, 22) }
-            HStack {
-                Text(history.collection == "all" ? "Dernières copies" : history.collection == "pinned" ? "Tes essentiels" : "Tes éléments").font(.system(size: 16, weight: .semibold)).tracking(-0.3)
-                Text("\(history.visible.count)").font(.system(size: 10, weight: .medium, design: .monospaced)).foregroundStyle(Theme.muted).padding(.horizontal, 7).padding(.vertical, 4).background(.white.opacity(0.05), in: Capsule())
-                Spacer()
-                CaptureMenu(history: history)
-                Button { history.compact.toggle() } label: { Image(systemName: history.compact ? "rectangle.grid.2x2" : "rectangle.compress.vertical").frame(width: 16) }.buttonStyle(PasteButtonStyle()).help(history.compact ? "Vue détaillée" : "Vue compacte")
-                Button { history.newSnippet = true } label: { Label("Créer un texte", systemImage: "plus") }.buttonStyle(PasteButtonStyle(primary: true))
-            }.padding(.bottom, 14)
-            SearchBar(history: history).padding(.bottom, 15)
-            FilterBar(history: history).padding(.bottom, 19)
-            if history.collection == "stack" { stackControls.padding(.bottom, 16) }
-            if history.collection == "trash", !history.visible.isEmpty { HStack { Spacer(); Button("Vider la corbeille…") { confirmEmpty() }.buttonStyle(PasteButtonStyle()) }.padding(.bottom, 12) }
-            if history.loading { ProgressView("Ouverture de l’historique…").frame(maxWidth: .infinity, maxHeight: .infinity) }
-            else if history.visible.isEmpty { ScrollView { EmptyState(history: history).frame(maxWidth: .infinity) }.frame(maxHeight: .infinity) }
-            else { ClipGrid(history: history) }
-            HStack(spacing: 8) {
-                Image(systemName: history.fault ? "exclamationmark.circle" : "checkmark.circle").foregroundStyle(history.fault ? .orange : Theme.mint)
-                Text(history.notice).lineLimit(2)
-                if !history.recentlyTrashed.isEmpty { Button("Annuler") { history.undoTrash() }.buttonStyle(FullAreaButtonStyle()).foregroundStyle(Theme.mint) }
-                Spacer(minLength: 10)
-                if !history.selection.isEmpty { Button("Copier\(history.selection.count > 1 ? " les \(history.selection.count) éléments" : "")") { Task { _ = await history.copy(history.selection) } }.buttonStyle(FullAreaButtonStyle()).foregroundStyle(Theme.mint) }
-                if !history.selection.isEmpty, history.collection == "trash" {
-                    Button("Restaurer") { for clip in history.selection { history.restore(clip) } }.buttonStyle(FullAreaButtonStyle()).foregroundStyle(Theme.mint)
-                    Button("Supprimer définitivement…") { confirmPermanentDeletion(history, items: history.selection) }.buttonStyle(FullAreaButtonStyle())
-                }
-                if !history.selection.isEmpty, history.collection != "trash" { Button { history.trashItems(history.selection) } label: { Image(systemName: "trash").font(.system(size: 12)) }.buttonStyle(FullAreaButtonStyle(minimumSize: 24)).help("Supprimer la sélection").accessibilityLabel("Supprimer la sélection") }
-            }.font(.system(size: 10)).foregroundStyle(Theme.muted).padding(.vertical, 16)
-        }.padding(.horizontal, 28)
-    }
-    private var stackControls: some View {
-        HStack(spacing: 10) {
-            Toggle("Collecter dans la pile", isOn: $history.stackRecording).toggleStyle(.switch).controlSize(.mini)
-            Spacer()
-            Button("Inverser") { history.stack.reverse() }.buttonStyle(PasteButtonStyle())
-            Button("Copier le suivant") { Task { if let id = history.stack.first, let c = history.clips.first(where: { $0.id == id }), await history.copy([c]) { history.consumeStack([c]) } } }.buttonStyle(PasteButtonStyle(primary: true)).disabled(history.stack.isEmpty)
-        }.font(.system(size: 11)).padding(12).surface()
-    }
-    private func rename(_ board: Pinboard) {
-        let alert = NSAlert(); alert.messageText = "Renommer la collection"; let field = NSTextField(string: board.name); field.frame = NSRect(x: 0, y: 0, width: 260, height: 26); alert.accessoryView = field; alert.addButton(withTitle: "Renommer"); alert.addButton(withTitle: "Annuler")
-        if alert.runModal() == .alertFirstButtonReturn { history.renameBoard(board.id, name: field.stringValue) }
-    }
-    private func confirmDelete(_ board: Pinboard) {
-        let alert = NSAlert(); alert.messageText = "Supprimer « \(board.name) » ?"; alert.informativeText = "Ses éléments restent dans l’historique. La durée de conservation s’appliquera à nouveau aux éléments sans collection ni favori."; alert.addButton(withTitle: "Supprimer"); alert.addButton(withTitle: "Annuler")
-        if alert.runModal() == .alertFirstButtonReturn { history.deleteBoard(board) }
-    }
-    private func confirmEmpty() { let alert = NSAlert(); alert.messageText = "Vider définitivement la corbeille ?"; alert.addButton(withTitle: "Vider"); alert.addButton(withTitle: "Annuler"); if alert.runModal() == .alertFirstButtonReturn { history.emptyTrash() } }
-}
-
 struct SearchBar: View {
     @ObservedObject var history: History
     @FocusState private var focused: Bool
@@ -135,7 +9,7 @@ struct SearchBar: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass").foregroundStyle(Theme.muted)
-            TextField("Rechercher un texte, une image, une idée…", text: $history.query).textFieldStyle(.plain).focused($focused).font(.system(size: 13))
+            TextField("Rechercher dans l’historique…", text: $history.query).textFieldStyle(.plain).focused($focused).font(.system(size: 13)).accessibilityLabel("Rechercher dans l’historique")
             if !history.query.isEmpty { Button { history.query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.muted).frame(width: 24, height: 24) }.buttonStyle(FullAreaButtonStyle()) }
             KeyCap(text: "⌘F")
         }.padding(.horizontal, 14).padding(.vertical, 10).background(Theme.raised.opacity(0.75), in: RoundedRectangle(cornerRadius: 11)).overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(.white.opacity(0.05)))
@@ -162,12 +36,19 @@ func eyebrow(_ title: String) -> some View { Text(title).font(.system(size: 9, w
 
 struct ClipGrid: View {
     @ObservedObject var history: History
+    var listLayout = false
     @State private var limit = 80
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 215, maximum: 340), spacing: 15)], spacing: 15) {
-                ForEach(history.visible.prefix(limit)) { clip in ClipCard(history: history, clip: clip, compact: history.compact) }
-            }.padding(3)
+            if listLayout {
+                LazyVStack(spacing: 10) {
+                    ForEach(history.visible.prefix(limit)) { clip in LibraryClipCard(history: history, clip: clip, list: true) }
+                }.padding(3)
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 235, maximum: 420), spacing: 14)], spacing: 14) {
+                    ForEach(history.visible.prefix(limit)) { clip in LibraryClipCard(history: history, clip: clip) }
+                }.padding(3)
+            }
             if history.visible.count > limit { Button("Afficher la suite (\(history.visible.count - limit))") { limit += 80 }.buttonStyle(PasteButtonStyle()).padding(18) }
         }.onChange(of: history.collection) { _, _ in limit = 80 }.onChange(of: history.query) { _, _ in limit = 80 }
     }
@@ -371,7 +252,7 @@ struct ShelfView: View {
     }
 }
 
-private enum ClipDate {
+enum ClipDate {
     static func label(_ date: Date) -> String {
         let seconds = max(0, Int(Date().timeIntervalSince(date)))
         if seconds < 60 { return "à l’instant" }

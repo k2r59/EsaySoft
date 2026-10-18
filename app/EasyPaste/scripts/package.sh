@@ -23,7 +23,7 @@ EASYPASTE
 macOS 15 ou ultérieur. Mac Intel et Apple Silicon.
 Code source sous licence MIT.
 TEXT
-dmg=dist/EasyPaste-0.2.3-universal.dmg
+dmg=dist/EasyPaste-0.2.4-universal.dmg
 hdiutil create -volname EasyPaste -srcfolder "$staging" -format UDZO -fs HFS+ -ov "$dmg"
 if [[ -n "${CODE_SIGN_IDENTITY:-}" ]]; then
  codesign --force --timestamp --sign "$CODE_SIGN_IDENTITY" "$dmg"
@@ -36,12 +36,12 @@ if [[ -n "${NOTARY_PROFILE:-}" ]]; then
  spctl --assess --type execute --verbose=2 dist/EasyPaste.app
  spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
 fi
-ditto -c -k --sequesterRsrc --keepParent dist/EasyPaste.app dist/EasyPaste-0.2.3-universal.zip
+ditto -c -k --sequesterRsrc --keepParent dist/EasyPaste.app dist/EasyPaste-0.2.4-universal.zip
 mkdir -p "$staging/EasyPaste-source"
-cp Package.swift LICENSE README.md QA-0.2.2.md QA-0.2.3.md ASSET-PROMPT.txt .gitignore "$staging/EasyPaste-source/"
+cp Package.swift LICENSE README.md QA-0.2.2.md QA-0.2.3.md QA-0.2.4.md ASSET-PROMPT.txt .gitignore "$staging/EasyPaste-source/"
 ditto Sources "$staging/EasyPaste-source/Sources"
 ditto Tests "$staging/EasyPaste-source/Tests"
 ditto scripts "$staging/EasyPaste-source/scripts"
-ditto -c -k --keepParent "$staging/EasyPaste-source" dist/EasyPaste-0.2.3-source.zip
-shasum -a 256 "$dmg" dist/EasyPaste-0.2.3-universal.zip dist/EasyPaste-0.2.3-source.zip > dist/SHA256SUMS
+ditto -c -k --keepParent "$staging/EasyPaste-source" dist/EasyPaste-0.2.4-source.zip
+shasum -a 256 "$dmg" dist/EasyPaste-0.2.4-universal.zip dist/EasyPaste-0.2.4-source.zip > dist/SHA256SUMS
 print "Installateur : $PWD/$dmg"
