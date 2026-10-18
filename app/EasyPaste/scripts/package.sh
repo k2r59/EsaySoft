@@ -38,7 +38,7 @@ if [[ -n "${NOTARY_PROFILE:-}" ]]; then
 fi
 ditto -c -k --sequesterRsrc --keepParent dist/EasyPaste.app dist/EasyPaste-0.3.0-universal.zip
 mkdir -p "$staging/EasyPaste-source"
-cp Package.swift LICENSE README.md ICLOUD.md ASSET-PROMPT.txt project.yml .gitignore "$staging/EasyPaste-source/"
+cp Package.swift LICENSE README.md QA-0.2.2.md ICLOUD.md ASSET-PROMPT.txt project.yml .gitignore "$staging/EasyPaste-source/"
 ditto Configuration "$staging/EasyPaste-source/Configuration"
 ditto Sources "$staging/EasyPaste-source/Sources"
 ditto Tests "$staging/EasyPaste-source/Tests"

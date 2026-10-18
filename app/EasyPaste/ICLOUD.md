@@ -1,6 +1,6 @@
 # Synchronisation iCloud d’EasyPaste
 
-La branche 0.3.0 ajoute une synchronisation facultative de l’historique avec CloudKit. La version publique 0.2.1 reste locale. **La connexion au service Apple n’est pas encore validée : le compte Xcode a refusé la création du conteneur faute de droits.**
+La branche 0.3.0 ajoute une synchronisation facultative de l’historique avec CloudKit. La version publique 0.2.2 reste locale. **La connexion au service Apple n’est pas encore validée : le compte Xcode a refusé la création du conteneur faute de droits.**
 
 ## Ce qui se synchronise
 

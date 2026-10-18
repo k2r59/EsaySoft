@@ -15,7 +15,7 @@ Les installateurs de la [distribution locale du 17 octobre 2026](https://github.
 
 - [EasyShoot 0.2.2 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/local-2026-10-17/EasyShoot-0.2.2-universal.dmg)
 - [EasyTile 1.1.0 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/local-2026-10-17/EasyTile-1.1.0-universal.dmg)
-- [EasyPaste 0.2.1 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.2.1/EasyPaste-0.2.1-universal.dmg)
+- [EasyPaste 0.2.2 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.2.2/EasyPaste-0.2.2-universal.dmg)
 
 Ouvrir le DMG, glisser l’application dans **Applications**, puis l’ouvrir depuis ce dossier. Autoriser les fonctions souhaitées lorsque macOS le demande. Aucun compte développeur ni Xcode n’est nécessaire pour utiliser ces installateurs.
 
@@ -59,8 +59,16 @@ Les connecteurs MCP d’EasyShoot et d’EasyPaste sont documentés dans leurs g
 
 Les certificats, clés privées, identifiants Apple, historiques personnels et fichiers des essais manuels ne font pas partie du dépôt. Les limitations fonctionnelles et les commandes de test figurent dans le guide de chaque application.
 
-## Licence
+## Développement en cours
+
+La branche `main` contient les versions locales distribuées. Le [rapport de validation d’EasyPaste 0.2.2](app/EasyPaste/QA-0.2.2.md) détaille les essais et leurs limites.
+
+Le code de synchronisation iCloud d’EasyPaste 0.3.0 est disponible sur la branche [codex/easypaste-icloud](https://github.com/k2r59/EsaySoft/tree/codex/easypaste-icloud). La configuration Apple et les essais CloudKit entre deux Macs restent à terminer. Cette version en développement n’est pas incluse dans les installateurs publics.
+
+## Licence et attributions
 
 Le code et les ressources originales de ce dépôt sont publiés sous [licence MIT](LICENSE). Chaque application conserve également sa licence et ses mentions d’attribution dans son propre dossier.
 
-La licence permet l’utilisation, la modification et la redistribution, y compris commerciale, en conservant les mentions requises. Les marques de tiers citées dans les guides appartiennent à leurs propriétaires respectifs.
+La [licence MIT](https://opensource.org/license/mit) permet l’utilisation, la modification et la redistribution, y compris commerciale, en conservant les mentions de copyright et le texte de la licence. Les scripts de distribution d’EasyPaste et d’EasyTile conservent l’attribution à EasyShoot dont ils sont adaptés. Les scripts incluent la licence de chaque application dans son paquet, son DMG et son archive de sources.
+
+Les icônes des applications sont dessinées par les scripts `generate-icon.swift`. L’illustration d’EasyPaste a été créée avec imagegen ; sa provenance et son prompt figurent dans [ASSET-PROMPT.txt](app/EasyPaste/ASSET-PROMPT.txt). Aucun paquet Swift externe n’est embarqué. Les composants système Apple appelés par les applications et les marques citées dans les guides ne sont pas placés sous la licence MIT du projet.
