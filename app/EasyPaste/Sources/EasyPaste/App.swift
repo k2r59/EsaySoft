@@ -27,6 +27,7 @@ import CryptoKit
     private var isPasting = false
     private lazy var captures = CaptureController(history: history)
     private lazy var annotations = AnnotationController(history: history)
+    private lazy var previews = PreviewController(history: history)
     private var recordingStatus: NSStatusItem?
     override init() {
         if CommandLine.arguments.contains("--demo") || Bundle.main.object(forInfoDictionaryKey: "EasyPasteDemo") as? Bool == true {
@@ -48,6 +49,7 @@ import CryptoKit
         buildMenu(); registerHotkeys()
         history.capture = { [weak self] action in self?.rememberTarget(); self?.captures.run(action) }
         history.annotate = { [weak self] clip in self?.annotations.open(clip) }
+        history.previewChanged = { [weak self] clip in self?.previews.present(clip) }
         history.stopRecording = { [weak self] in self?.captures.stop() }
         captures.hideApp = { [weak self] in self?.window.orderOut(nil); self?.closeShelf(restore: false) }
         captures.showResult = { [weak self] in self?.revealShelf() }
@@ -79,7 +81,9 @@ import CryptoKit
             let alert = NSAlert(); alert.messageText = history.recording ? "Un enregistrement est en cours." : "Une capture est en cours."
             alert.informativeText = "Termine la capture avant de quitter pour conserver ton contenu."
             alert.addButton(withTitle: history.recording ? "Arrêter et enregistrer" : "Revenir à la capture"); alert.addButton(withTitle: "Continuer")
-            if alert.runModal() == .alertFirstButtonReturn, history.recording { captures.stop() }
+            if alert.runModal() == .alertFirstButtonReturn {
+                if history.recording { captures.stop() } else { captures.revealActiveControls() }
+            }
             return .terminateCancel
         }
         if history.annotating { annotations.requestClose(); if history.annotating { return .terminateCancel } }
@@ -92,6 +96,7 @@ import CryptoKit
         let main = NSMenu(); let root = NSMenuItem(); let appMenu = NSMenu(); root.submenu = appMenu; main.addItem(root)
         appMenu.addItem(withTitle: "À propos d’EasyPaste", action: #selector(about), keyEquivalent: "")
         appMenu.addItem(withTitle: "Réglages…", action: #selector(settings), keyEquivalent: ",")
+        appMenu.addItem(withTitle: "Arrêter la vidéo", action: #selector(stopVideo), keyEquivalent: "")
         appMenu.addItem(.separator()); appMenu.addItem(withTitle: "Quitter EasyPaste", action: #selector(quit), keyEquivalent: "q")
         for item in appMenu.items { item.target = self }
         let editRoot = NSMenuItem(title: "Édition", action: nil, keyEquivalent: ""); let editMenu = NSMenu(title: "Édition")
@@ -125,7 +130,10 @@ import CryptoKit
     private func rememberTarget() {
         if let app = NSWorkspace.shared.frontmostApplication, app.processIdentifier != ProcessInfo.processInfo.processIdentifier { target = app }
     }
-    @objc func showMain() { rememberTarget(); closeShelf(restore: false); history.surface = "library"; window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
+    @objc func showMain() {
+        if (history.captureBusy || history.recording), captures.revealActiveControls() { return }
+        rememberTarget(); closeShelf(restore: false); history.surface = "library"; window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+    }
     @objc func settings() { history.page = "settings"; showMain() }
     @objc func about() { let alert = NSAlert(); alert.messageText = "EasyPaste"; alert.informativeText = "Version 0.2.3\nTon historique, sur ton Mac.\nLogiciel libre sous licence MIT.\nmacOS 15 ou ultérieur."; alert.addButton(withTitle: "Fermer"); alert.runModal() }
     @objc func quit() { NSApp.terminate(nil) }

@@ -15,7 +15,6 @@ struct HistorySheets: ViewModifier {
     func body(content: Content) -> some View {
         content
             .sheet(item: item(\.editing)) { clip in EditorView(history: history, clip: clip) }
-            .sheet(item: item(\.previewing)) { clip in PreviewView(history: history, clip: clip) }
             .sheet(isPresented: flag(\.newSnippet)) { EditorView(history: history, clip: nil) }
             .sheet(isPresented: flag(\.showNewBoard)) { NewBoardView(history: history) }
     }
@@ -148,7 +147,8 @@ struct NativeVideoPreview: NSViewRepresentable {
     let player: AVPlayer
     func makeNSView(context: Context) -> AVPlayerView {
         let view = AVPlayerView()
-        view.controlsStyle = .inline
+        view.controlsStyle = .none
+        view.allowsVideoFrameAnalysis = false
         view.videoGravity = .resizeAspect
         view.player = player
         return view
@@ -160,21 +160,102 @@ struct NativeVideoPreview: NSViewRepresentable {
         view.player?.pause(); view.player = nil
     }
 }
+
+@MainActor final class VideoPlayback: ObservableObject {
+    let player: AVPlayer
+    @Published var position = 0.0
+    @Published var duration = 0.0
+    @Published var playing = false
+    @Published var scrubbing = false
+    private var resumeAfterScrubbing = false
+    private var observer: Any?
+    private var endObserver: NSObjectProtocol?
+    private var durationTask: Task<Void, Never>?
+    init(player: AVPlayer) {
+        self.player = player
+        let asset = player.currentItem?.asset
+        durationTask = Task { [weak self] in
+            guard let asset, let duration = try? await asset.load(.duration), !Task.isCancelled, duration.seconds.isFinite else { return }
+            self?.duration = max(0, duration.seconds)
+        }
+        observer = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.25, preferredTimescale: 600), queue: .main) { [weak self] time in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if !self.scrubbing, time.seconds.isFinite { self.position = max(0, time.seconds) }
+                if let seconds = self.player.currentItem?.duration.seconds, seconds.isFinite { self.duration = max(0, seconds) }
+                if !self.scrubbing { self.playing = self.player.rate > 0 }
+            }
+        }
+        endObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: player.currentItem, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.playing = false }
+        }
+    }
+    deinit {
+        durationTask?.cancel()
+        if let observer { player.removeTimeObserver(observer) }
+        if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
+    }
+    func toggle() {
+        guard !scrubbing else { return }
+        if playing { player.pause(); playing = false }
+        else {
+            if duration > 0, position >= duration - 0.05 { player.seek(to: .zero); position = 0 }
+            player.play(); playing = true
+        }
+    }
+    func scrub(_ active: Bool) {
+        if active { resumeAfterScrubbing = playing; scrubbing = true; player.pause() }
+        else {
+            let target = CMTime(seconds: min(duration, max(0, position)), preferredTimescale: 600)
+            player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
+                Task { @MainActor in
+                    guard let self, finished else { return }
+                    self.scrubbing = false
+                    if self.resumeAfterScrubbing { self.player.play() }
+                    self.playing = self.resumeAfterScrubbing
+                }
+            }
+        }
+    }
+}
+
+struct VideoPreview: View {
+    @StateObject private var playback: VideoPlayback
+    init(player: AVPlayer) { _playback = StateObject(wrappedValue: VideoPlayback(player: player)) }
+    var body: some View {
+        VStack(spacing: 12) {
+            NativeVideoPreview(player: playback.player).frame(height: 330)
+            HStack(spacing: 14) {
+                Button { playback.toggle() } label: {
+                    Label(playback.playing ? "Pause" : "Lire", systemImage: playback.playing ? "pause.fill" : "play.fill").frame(width: 70)
+                }.buttonStyle(PasteButtonStyle(primary: true)).keyboardShortcut(.space, modifiers: []).disabled(playback.scrubbing)
+                Text(clock(playback.position)).monospacedDigit().frame(width: 42)
+                Slider(value: $playback.position, in: 0...max(0.01, playback.duration), onEditingChanged: playback.scrub)
+                    .tint(Theme.mint).disabled(playback.duration <= 0).accessibilityLabel("Position de lecture")
+                Text(clock(playback.duration)).monospacedDigit().frame(width: 42)
+            }.font(.system(size: 12)).foregroundStyle(Theme.muted)
+        }
+    }
+    private func clock(_ seconds: Double) -> String {
+        let value = Int(max(0, seconds.isFinite ? seconds : 0))
+        return String(format: "%d:%02d", value / 60, value % 60)
+    }
+}
 struct PreviewView: View {
     @ObservedObject var history: History
     let clip: Clip
+    let close: () -> Void
     @State private var full: Clip?
     @State private var player: AVPlayer?
     @State private var videoWarning = ""
     @State private var error = ""
-    @Environment(\.dismiss) private var dismiss
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack { VStack(alignment: .leading, spacing: 5) { eyebrow("APERÇU"); Text(clip.title).font(.system(size: 18, weight: .semibold)).lineLimit(2) }; Spacer(); Button("Fermer") { dismiss() }.buttonStyle(PasteButtonStyle()).keyboardShortcut(.cancelAction) }
+            HStack { VStack(alignment: .leading, spacing: 5) { eyebrow("APERÇU"); Text(clip.title).font(.system(size: 18, weight: .semibold)).lineLimit(2) }; Spacer(); Button("Fermer", action: close).buttonStyle(PasteButtonStyle()).keyboardShortcut(.cancelAction) }
             if let full {
                 if !videoWarning.isEmpty { Label(videoWarning, systemImage: "exclamationmark.triangle").font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
                 if full.kind == .image, let data = full.imageData { ImagePreview(data: data) }
-                else if full.kind == .video, let player { NativeVideoPreview(player: player).frame(height: 350) }
+                else if full.kind == .video, let player { VideoPreview(player: player) }
                 else if full.kind == .file, let path = full.text.split(separator: "\n").first { FilePreview(url: URL(fileURLWithPath: String(path))).frame(height: 350) }
                 else { ScrollView { Text(full.text).textSelection(.enabled).font(.system(size: 14)).lineSpacing(6).frame(maxWidth: .infinity, alignment: .leading).padding(20) }.frame(height: 300).background(Theme.panel, in: RoundedRectangle(cornerRadius: 12)) }
                 if !full.ocr.isEmpty { ScrollView { Text(full.ocr).textSelection(.enabled).font(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 85) }
@@ -199,4 +280,29 @@ struct PreviewView: View {
             } catch { self.error = error.localizedDescription }
         }.onDisappear { player?.pause(); player?.replaceCurrentItem(with: nil); player = nil }
     }
+}
+
+/// A centered panel keeps the player controls visible even when launched from
+/// the quick bar at the bottom of the screen. The player is released on close.
+@MainActor final class PreviewController: NSObject, NSWindowDelegate {
+    private let history: History
+    private var window: NSPanel?
+    private var clipID: UUID?
+    init(history: History) { self.history = history }
+    func present(_ clip: Clip?) {
+        guard let clip else { close(); return }
+        if clipID == clip.id, let window { window.makeKeyAndOrderFront(nil); return }
+        close()
+        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main else { return }
+        let visible = screen.visibleFrame, height = min(620, visible.height - 80)
+        let panel = NSPanel(contentRect: CGRect(x: visible.midX - 325, y: visible.midY - height / 2, width: 650, height: height), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        panel.title = "Aperçu EasyPaste"; panel.isReleasedWhenClosed = false; panel.level = .floating
+        panel.hidesOnDeactivate = false; panel.delegate = self; panel.backgroundColor = NSColor(Theme.bg)
+        let content = ScrollView { PreviewView(history: history, clip: clip, close: { [weak self] in self?.history.previewing = nil }) }
+            .frame(width: 650, height: height).background(Theme.bg).preferredColorScheme(.dark)
+        panel.contentView = NSHostingView(rootView: content)
+        window = panel; clipID = clip.id; panel.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { history.previewing = nil; return false }
+    private func close() { window?.orderOut(nil); window?.contentView = nil; window = nil; clipID = nil }
 }

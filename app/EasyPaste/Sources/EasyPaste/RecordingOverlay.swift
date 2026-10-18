@@ -106,11 +106,14 @@ private struct RecordingHUDView: View {
                     Text(model.stopping ? "Enregistrement…" : model.countdown == nil ? "Arrêter" : "Annuler")
                 }.font(.system(size: 12, weight: .semibold)).padding(.horizontal, 14).frame(height: 36)
                 .foregroundStyle(.white).background(model.stopping ? Color.gray : Color(red: 0.80, green: 0.20, blue: 0.24), in: RoundedRectangle(cornerRadius: 10)).contentShape(Rectangle())
-            }.buttonStyle(FullAreaButtonStyle()).disabled(model.stopping).help("Arrêter et conserver la vidéo · ⌃⌥⌘S")
+            }.buttonStyle(FullAreaButtonStyle()).disabled(model.stopping).help(model.countdown == nil ? "Arrêter et conserver la vidéo · ⌃⌥⌘S" : "Annuler l’enregistrement avant son démarrage")
         }.padding(.horizontal, 16).frame(height: 68).background(Theme.panel).foregroundStyle(Theme.ink)
         .clipShape(RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.white.opacity(0.14)))
         .preferredColorScheme(.dark)
     }
+}
+private final class RecordingControlPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
 }
 @MainActor final class RecordingOverlay {
     let model = RecordingHUDModel()
@@ -126,13 +129,15 @@ private struct RecordingHUDView: View {
         self.area = area; model.microphone = options.microphone; model.webcam = options.webcam
         model.stopping = false; model.countdown = 3; model.title = "Prêt à enregistrer"
         let border = makePanel(frame: area.insetBy(dx: -3, dy: -3)); border.ignoresMouseEvents = true
+        border.title = "Zone d’enregistrement"
         border.contentView = NSHostingView(rootView: RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.mint, lineWidth: 3))
         border.hasShadow = false; border.orderFrontRegardless(); self.border = border
         let screen = NSScreen.screens.first { $0.frame.contains(CGPoint(x: area.midX, y: area.midY)) } ?? NSScreen.main
         let frame = RecordingOverlayGeometry.toolbarFrame(area: area, screen: screen?.visibleFrame ?? area, size: CGSize(width: options.webcam ? 470 : 430, height: 68))
-        let toolbar = makePanel(frame: frame); toolbar.isMovableByWindowBackground = true
+        let toolbar = makePanel(frame: frame, controls: true); toolbar.isMovableByWindowBackground = true
+        toolbar.title = "Commandes d’enregistrement"
         toolbar.contentView = NSHostingView(rootView: RecordingHUDView(model: model, stop: stop, placeCamera: { [weak self] corner in self?.placeCamera(corner) }))
-        toolbar.orderFrontRegardless(); self.toolbar = toolbar
+        toolbar.makeKeyAndOrderFront(nil); self.toolbar = toolbar
         if options.webcam {
             let session = WebcamSession(); self.session = session
             try await session.start(deviceID: options.cameraID)
@@ -143,14 +148,17 @@ private struct RecordingHUDView: View {
             cameraErrorObserver = NotificationCenter.default.addObserver(forName: AVCaptureSession.runtimeErrorNotification, object: session.session, queue: .main) { [weak self] _ in Task { @MainActor in self?.onCameraFailure?() } }
         }
     }
-    private func makePanel(frame: CGRect) -> NSPanel {
-        let panel = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+    private func makePanel(frame: CGRect, controls: Bool = false) -> NSPanel {
+        let panel = controls ? RecordingControlPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false) : NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = true; panel.level = .screenSaver
         panel.isReleasedWhenClosed = false; panel.hidesOnDeactivate = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         return panel
     }
     private func placeCamera(_ corner: CameraCorner) { camera?.setFrame(RecordingOverlayGeometry.cameraFrame(in: area, corner: corner), display: true) }
+    func revealControls() -> Bool {
+        guard let toolbar else { return false }; toolbar.makeKeyAndOrderFront(nil); return true
+    }
     func recording() { model.countdown = nil; model.title = "Enregistrement en cours" }
     func stopping() { model.countdown = nil; model.stopping = true; model.title = "Vidéo en préparation"; camera?.orderOut(nil); session?.stop() }
     func close() {

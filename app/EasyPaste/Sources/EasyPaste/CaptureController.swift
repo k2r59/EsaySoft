@@ -78,11 +78,19 @@ struct CaptureMenu: View {
     private func present<V: View>(_ view: V, title: String) {
         dismissPanel()
         let panel = NSPanel(contentRect: .zero, styleMask: [.titled,.closable], backing: .buffered, defer: false)
-        panel.title = title; panel.isReleasedWhenClosed = false; panel.level = .floating; panel.delegate = self
+        panel.title = title; panel.isReleasedWhenClosed = false; panel.level = .floating; panel.delegate = self; panel.hidesOnDeactivate = false
         panel.contentView = NSHostingView(rootView: view); panel.center(); self.panel = panel
         panel.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
     }
     private func dismissPanel() { panel?.orderOut(nil); panel = nil }
+    @discardableResult func revealActiveControls() -> Bool {
+        if let panel { panel.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); return true }
+        if recordingOverlay.revealControls() { return true }
+        if let overlay = overlays.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? overlays.first {
+            overlay.makeKeyAndOrderFront(nil); return true
+        }
+        return false
+    }
     func windowShouldClose(_ sender: NSWindow) -> Bool { cancel(); return false }
     func cancel() {
         operation = nil; task?.cancel(); task = nil; dismissPanel(); finishSelection(nil); recordingOverlay.close()

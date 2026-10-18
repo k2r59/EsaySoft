@@ -6,6 +6,29 @@ import CryptoKit
 @testable import EasyPaste
 
 final class RecordingWriterTests: XCTestCase {
+    @MainActor func testPreviewPlaysSeeksPausesAndReleasesItsObserver() async throws {
+        let folder = try makeFolder(); defer { try? FileManager.default.removeItem(at: folder) }
+        let writer = try RecordingWriter(url: folder.appendingPathComponent("player.mp4"), width: 128, height: 72, systemAudio: false, microphone: false)
+        let first = CMClockGetTime(CMClockGetHostTimeClock()), buffer = try pixel(red: 160)
+        writer.queue.sync { writer.appendVideo(buffer, at: first) }
+        let url = try await writer.finish(at: first + CMTime(seconds: 3, preferredTimescale: 600))
+        let player = AVPlayer(url: url)
+        var model: VideoPlayback? = VideoPlayback(player: player)
+        weak var released: VideoPlayback?
+        released = model
+        for _ in 0..<100 where model!.duration == 0 { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertGreaterThan(model!.duration, 2.9)
+        model!.toggle()
+        for _ in 0..<100 where model!.position < 0.2 { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertGreaterThan(model!.position, 0.1)
+        model!.toggle(); XCTAssertFalse(model!.playing); XCTAssertEqual(player.rate, 0)
+        model!.scrub(true); model!.position = 2; model!.scrub(false)
+        for _ in 0..<100 where model!.scrubbing { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertFalse(model!.scrubbing); XCTAssertEqual(player.currentTime().seconds, 2, accuracy: 0.08)
+        XCTAssertEqual(player.rate, 0)
+        model = nil; XCTAssertNil(released)
+        player.replaceCurrentItem(with: nil)
+    }
     func testIdleTimerKeepsFourKTrackAliveWithoutNewScreenFrames() async throws {
         let folder = try makeFolder(); defer { try? FileManager.default.removeItem(at: folder) }
         let writer = try RecordingWriter(url: folder.appendingPathComponent("4k-still.mp4"), width: 3840, height: 2160, systemAudio: false, microphone: false)

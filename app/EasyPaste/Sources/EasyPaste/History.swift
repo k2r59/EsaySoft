@@ -71,7 +71,8 @@ struct ClipQuery {
     var stopRecording: (() -> Void)?
     private var toastTask: Task<Void, Never>?
     @Published var editing: Clip?
-    @Published var previewing: Clip?
+    @Published var previewing: Clip? { didSet { previewChanged?(previewing) } }
+    var previewChanged: ((Clip?) -> Void)?
     @Published var newSnippet = false
     @Published var showNewBoard = false
     @Published var sources: [String] = []

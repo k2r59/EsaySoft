@@ -259,7 +259,7 @@ struct ClipActions: View {
             Button(clip.kind == .image ? "Copier le texte détecté" : "Copier en texte brut") { Task { _ = await history.copy([clip], plain: true) } }.disabled((clip.kind == .image && clip.ocr.isEmpty) || clip.kind == .video)
             Divider()
             Button("Aperçu") { history.previewing = clip }
-            if clip.kind == .image { Button("Annoter une copie…") { history.annotate?(clip) }.disabled(history.annotating || history.captureBusy) }
+            if clip.kind == .image { Button("Annoter l’image…") { history.annotate?(clip) }.disabled(history.annotating || history.captureBusy) }
             if clip.kind == .video { Button("Enregistrer la vidéo…") { history.exportVideo(clip) } }
             if clip.editable { Button("Modifier…") { history.editing = clip } }
             if clip.kind == .link || clip.kind == .file { Button("Ouvrir dans l’application par défaut") { openClip(clip) } }

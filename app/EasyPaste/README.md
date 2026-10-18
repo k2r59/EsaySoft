@@ -47,7 +47,7 @@ Pour extraire du texte visible, choisir **Extraire le texte d’une zone**, puis
 2. Choisir une zone ou l’écran entier. Activer le microphone, la webcam en incrustation et le son de l’ordinateur selon le besoin. Les menus **Source** permettent de choisir les périphériques.
 3. Cliquer sur **Choisir la zone** et tracer le rectangle, ou sur **Démarrer dans 3 s** pour l’écran entier. Le cadre reste visible pendant le décompte et l’enregistrement.
 4. Cliquer sur **Arrêter** dans la barre flottante, ou utiliser **Contrôle + Option + Commande + S**. Les commandes près de l’heure restent disponibles. Le menu webcam de la barre flottante déplace l’incrustation dans l’un des quatre coins.
-5. Ouvrir la carte vidéo pour la lire, la copier ou choisir **Enregistrer…** afin d’exporter le fichier MP4.
+5. Ouvrir la carte vidéo, puis utiliser **Lire/Pause** et la barre de position. Choisir **Copier** ou **Enregistrer…** pour exporter le fichier MP4.
 
 La vidéo utilise H.264 à 30 images/s au maximum. La qualité **Native · jusqu’à 4K**, activée par défaut, conserve la densité de l’écran jusqu’à 3 840 pixels sur le grand côté. Le mode **Légère · 1080p** limite le grand côté à 1 920 pixels. Les proportions de la zone sont conservées. La sélection doit tenir sur un seul écran. Prévoir au moins 2,5 Go d’espace libre. L’enregistrement s’arrête vers 800 Mo ou lorsque l’espace disponible descend sous 1,1 Go ; l’import accepte jusqu’à 1 Go. La webcam utilise une vignette 4:3 et nécessite une zone d’au moins 240 × 180 points.
 
