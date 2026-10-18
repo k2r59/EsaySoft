@@ -6,6 +6,12 @@ import Security
 final class ClipVault: Sendable {
     let directory:URL
     private let key:SymmetricKey
+    // CloudKit and the existing storage queue share this lock. No network work
+    // takes place under it, and production callers perform disk work off-main.
+    let access = NSRecursiveLock()
+    func locked<T>(_ operation: () throws -> T) rethrows -> T {
+        access.lock(); defer { access.unlock() }; return try operation()
+    }
     init(directory:URL?=nil,key:SymmetricKey?=nil)throws {
         self.directory=directory ?? FileManager.default.urls(for:.applicationSupportDirectory,in:.userDomainMask)[0].appendingPathComponent("EasyPaste/Vault",isDirectory:true)
         try FileManager.default.createDirectory(at:self.directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
@@ -24,40 +30,71 @@ final class ClipVault: Sendable {
         return key
     }
     func write<T:Encodable>(_ value:T,name:String)throws {
+        access.lock(); defer { access.unlock() }
         let clear=try JSONEncoder().encode(value)
         let box=try AES.GCM.seal(clear,using:key)
         try box.combined!.write(to:directory.appendingPathComponent(name),options:.atomic)
         try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:directory.appendingPathComponent(name).path)
     }
     func read<T:Decodable>(_ type:T.Type,name:String)throws->T {
+        access.lock(); defer { access.unlock() }
         let data=try Data(contentsOf:directory.appendingPathComponent(name))
         let clear=try AES.GCM.open(AES.GCM.SealedBox(combined:data),using:key)
         return try JSONDecoder().decode(type,from:clear)
     }
     func load(metadataOnly:Bool=false)throws->[Clip] {
+        access.lock(); defer { access.unlock() }
         let urls=try FileManager.default.contentsOfDirectory(at:directory,includingPropertiesForKeys:nil).filter{$0.pathExtension=="clip"}
-        return try urls.map{url in let c=try read(Clip.self,name:url.lastPathComponent);return metadataOnly ? c.metadata() : c}.sorted{$0.date>$1.date}
+        return try urls.compactMap{url in var c=try read(Clip.self,name:url.lastPathComponent);guard !hasCloudTombstone(CloudKey(.clip,c.id)) else {return nil};c.boards.removeAll { hasCloudTombstone(CloudKey(.board,$0)) };return metadataOnly ? c.metadata() : c}.sorted{$0.date>$1.date}
     }
     func loadBoards() throws -> [Pinboard] {
-        FileManager.default.fileExists(atPath: directory.appendingPathComponent("boards.json.enc").path) ? try read([Pinboard].self, name: "boards.json.enc") : []
+        access.lock(); defer { access.unlock() }
+        let boards = FileManager.default.fileExists(atPath: directory.appendingPathComponent("boards.json.enc").path) ? try read([Pinboard].self, name: "boards.json.enc") : []
+        return boards.filter { !hasCloudTombstone(CloudKey(.board,$0.id)) }
     }
-    func save(_ c:Clip)throws {try write(c,name:c.id.uuidString+".clip")}
+    func save(_ c:Clip)throws {
+        try locked {
+            let key = CloudKey(.clip,c.id)
+            guard !hasCloudTombstone(key) else { return }
+            var value = c
+            let previous = try cloudHeader(key)
+            value.cloudRevision = .next(after: previous?.revision)
+            try write(value,name:c.id.uuidString+".clip")
+            notifyCloud(key)
+        }
+    }
     func delete(_ id:UUID)throws {
+        access.lock(); defer { access.unlock() }
+        let key = CloudKey(.clip,id)
+        if !hasCloudTombstone(key) {
+            try writeCloudTombstone(.init(key:key, revision:.next(after: try cloudHeader(key)?.revision), deleted:true))
+        }
+        try removeClipFiles(id)
+        notifyCloud(key)
+    }
+    func removeClipFiles(_ id:UUID)throws {
         for item in [mediaURL(id), playbackDirectory.appendingPathComponent(id.uuidString + ".mp4")] where FileManager.default.fileExists(atPath: item.path) { try FileManager.default.removeItem(at: item) }
         let url=directory.appendingPathComponent(id.uuidString+".clip");if FileManager.default.fileExists(atPath:url.path){try FileManager.default.removeItem(at:url)}}
 }
 
 
 extension ClipVault {
+    func exportCloudMovie(_ id: UUID, to destination: URL) throws {
+        try MediaVault.decrypt(mediaURL(id), to: destination, id: id, key: key)
+    }
+    func encryptCloudMovie(_ source: URL, to destination: URL, id: UUID) throws -> Int {
+        try MediaVault.encrypt(source, to: destination, id: id, key: key)
+    }
     func mediaURL(_ id: UUID) -> URL { directory.appendingPathComponent(id.uuidString + ".movie.enc") }
     var playbackDirectory: URL {
         let identifier = SHA256.hash(data: Data(directory.path.utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
         return FileManager.default.temporaryDirectory.appendingPathComponent("EasyPaste-playback-" + identifier, isDirectory: true)
     }
     func importVideo(_ source: URL, id: UUID) throws -> Int {
-        try MediaVault.encrypt(source, to: mediaURL(id), id: id, key: key)
+        try locked { try MediaVault.encrypt(source, to: mediaURL(id), id: id, key: key) }
     }
     func videoURL(_ id: UUID) throws -> URL {
+        access.lock(); defer { access.unlock() }
         let folder = playbackDirectory
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let url = folder.appendingPathComponent(id.uuidString + ".mp4")

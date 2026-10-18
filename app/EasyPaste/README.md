@@ -2,6 +2,10 @@
 
 Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT. Interface en français, couleurs graphite, menthe et lavande. SwiftUI pour l’interface, AppKit pour le presse-papiers et les fenêtres.
 
+## Préparation de la version 0.3.0
+
+Cette branche ajoute la synchronisation iCloud facultative de l’historique. La configuration Apple et les essais réseau restent à terminer ; la version publique 0.2.1 conserve le fonctionnement local. Voir [la configuration iCloud et les limites de validation](ICLOUD.md).
+
 ## Installation
 
 1. Ouvrir `dist/EasyPaste-0.2.1-universal.dmg`.
@@ -91,7 +95,7 @@ Les vidéos sont chiffrées par blocs de 1 Mo, sans charger le fichier entier en
 
 Les types de presse-papiers marqués confidentiels, temporaires ou générés automatiquement sont ignorés. Plusieurs gestionnaires de mots de passe sont exclus par défaut. Une extension de navigateur qui ne marque pas un secret peut cependant le laisser enregistrer : utiliser la pause ou exclure le navigateur dans ce cas.
 
-L’app ne transmet aucune copie à un serveur. Elle ne télécharge pas d’aperçus de liens. L’ouverture volontaire d’un lien utilise le navigateur de l’utilisateur. Les références de fichiers pointent vers leur emplacement original ; EasyPaste ne sauvegarde pas leur contenu.
+Sans activation d’iCloud, l’app ne transmet aucune copie à un serveur. Dans une version configurée pour iCloud, son activation envoie les contenus compatibles dans la base privée du compte Apple ; les suppressions se synchronisent également. Elle ne télécharge pas d’aperçus de liens. L’ouverture volontaire d’un lien utilise le navigateur de l’utilisateur. Les références de fichiers pointent vers leur emplacement original ; EasyPaste ne sauvegarde pas leur contenu.
 
 La conservation est de 30 jours par défaut, réglable à 1 jour, 7 jours, 1 an ou toujours. Favoris et collections sont exemptés. Au-delà de 1 Go de contenu original, la collecte se met en pause ; une copie est limitée à 20 Mo. Le chiffrement et l’encodage ajoutent de l’espace disque. Conserver une sauvegarde du Mac incluant les données et le trousseau : cette version n’offre pas de sauvegarde portable ni de restauration intégrée.
 
@@ -127,7 +131,7 @@ Le test synthétique de recherche sur 10 000 notes prend environ 40 ms sur le Ma
 
 ## Développement
 
-Nécessite Xcode avec le SDK macOS et Swift 6. Aucune dépendance externe.
+Nécessite Xcode avec le SDK macOS et Swift 6. Aucune dépendance externe pour le moteur et l’interface. XcodeGen sert uniquement à générer le projet de configuration iCloud.
 
 ```sh
 swift test

@@ -40,8 +40,9 @@ struct SettingsView: View {
                     shortcut("Copier le prochain élément de la pile", "⌃⌥⌘V")
                     Text("Le raccourci de la pile prépare l’élément suivant. Colle-le avec ⌘V dans ton application.").font(.system(size: 10)).foregroundStyle(Theme.muted)
                 }
+                CloudSettingsView(cloud: history.cloud)
                 section("Ta vie privée", icon: "lock.shield") {
-                    Text("Historique chiffré sur ce Mac, clé protégée dans le trousseau. Aucun compte, aucune publicité, aucune requête réseau. Pour lire ou coller une vidéo, une copie temporaire est déchiffrée sur ce Mac ; elle est nettoyée après 24 h au prochain lancement.").font(.system(size: 12)).lineSpacing(4)
+                    Text("Historique chiffré sur ce Mac, clé protégée dans le trousseau. Aucune publicité. Sans activation d’iCloud, ton historique reste local. Si tu actives iCloud, il est transféré vers la base privée de ton compte Apple ; Apple protège les données en transit et au repos. Les fichiers temporaires nécessaires à la synchronisation sont nettoyés après le transfert ou au prochain démarrage de la synchronisation. Pour lire ou coller une vidéo, une copie temporaire est déchiffrée sur ce Mac et nettoyée après 24 h au prochain lancement.").font(.system(size: 12)).lineSpacing(4)
                     Text("Les contenus signalés comme confidentiels ou temporaires et les principaux gestionnaires de mots de passe sont ignorés. Une extension qui ne signale pas ses secrets peut toutefois les laisser passer.").font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(3)
                     HStack { Text("Applications exclues").fontWeight(.medium); Spacer(); Button("Ajouter…") { addExclusion() }.buttonStyle(PasteButtonStyle()) }
                     ForEach(history.exclusions, id: \.self) { id in HStack { Text(appName(id)).font(.system(size: 11)); Spacer(); Button { history.exclusions.removeAll { $0 == id } } label: { Image(systemName: "minus.circle") }.buttonStyle(FullAreaButtonStyle(minimumSize: 24)).help("Retirer cette exclusion") } }
@@ -61,7 +62,7 @@ struct SettingsView: View {
                         }.buttonStyle(PasteButtonStyle())
                     }
                 }
-                HStack { Text("EasyPaste 0.2.1 · Open source · Licence MIT"); Spacer(); Text("Pensé pour ton Mac.") }.font(.system(size: 10)).foregroundStyle(Theme.muted)
+                HStack { Text("EasyPaste 0.3.0 · Open source · Licence MIT"); Spacer(); Text("Pensé pour ton Mac.") }.font(.system(size: 10)).foregroundStyle(Theme.muted)
                 if !message.isEmpty { Text(message).font(.system(size: 11)).foregroundStyle(Theme.mint) }
             }.padding(.horizontal, 32).padding(.bottom, 30)
         }.onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in trusted = AXIsProcessTrusted(); launch = SMAppService.mainApp.status == .enabled }

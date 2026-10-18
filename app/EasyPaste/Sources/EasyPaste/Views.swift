@@ -48,7 +48,7 @@ struct MainView: View {
             }
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 7) { Circle().fill(history.enabled ? Theme.mint : Theme.muted).frame(width: 6, height: 6); Text(history.enabled ? "Collecte active" : "Collecte en pause").font(.system(size: 11, weight: .medium)).lineLimit(1).minimumScaleFactor(0.9); Spacer(); Button { history.enabled.toggle() } label: { Image(systemName: history.enabled ? "pause.fill" : "play.fill") }.buttonStyle(FullAreaButtonStyle(minimumSize: 24)).disabled(history.fault || history.loading).help(history.enabled ? "Mettre en pause" : "Reprendre la collecte") }
-                Text("Sur ce Mac. Rien dans le cloud.").font(.system(size: 10)).foregroundStyle(Theme.muted)
+                CloudPrivacyLabel(cloud: history.cloud)
             }.padding(13).background(Theme.raised.opacity(0.65), in: RoundedRectangle(cornerRadius: 13))
         }.padding(.horizontal, 17).padding(.bottom, 18).background(Theme.panel.opacity(0.55)).font(.system(size: 12))
     }

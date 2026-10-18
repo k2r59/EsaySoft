@@ -83,7 +83,10 @@ struct ClipQuery {
     var resizeShelf: (() -> Void)?
     var showLibrary: (() -> Void)?
     private let defaults: UserDefaults
+    let cloud: CloudSync
     private var vault: ClipVault?
+    private var contentGeneration: UInt64 = 0
+    private var cloudReloadTask: Task<Void, Never>?
     private let disk = DispatchQueue(label: "EasyPaste.storage", qos: .userInitiated)
     private let ocrQueue = DispatchQueue(label: "EasyPaste.ocr", qos: .utility)
     private var timer: Timer?
@@ -99,6 +102,7 @@ struct ClipQuery {
     }
     init(vault: ClipVault? = nil, monitor: Bool = true, defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        cloud = CloudSync(defaults: defaults, allowed: vault == nil && monitor)
         enabled = defaults.bool(forKey: "monitoring")
         retention = defaults.object(forKey: "retention") == nil ? 30 : defaults.integer(forKey: "retention")
         exclusions = defaults.stringArray(forKey: "exclusions") ?? []
@@ -107,16 +111,17 @@ struct ClipQuery {
         changeCount = NSPasteboard.general.changeCount
         if let vault {
             self.vault = vault
-            do { clips = try vault.load(metadataOnly: true) } catch { storageError(error) }
+            do { clips = try vault.load(metadataOnly: true); boards = try vault.loadBoards() } catch { storageError(error) }
             loading = false; refresh()
         } else {
             Task {
                 do {
                     let loaded = try await Task.detached(priority: .userInitiated) { () -> (ClipVault, [Clip], [Pinboard]) in
                         let v = try ClipVault()
-                        v.cleanPlaybackCache(); return (v, try v.load(metadataOnly: true), try v.loadBoards())
+                        v.cleanPlaybackCache(); try v.cleanCloudStaging(); return (v, try v.load(metadataOnly: true), try v.loadBoards())
                     }.value
                     self.vault = loaded.0; clips = loaded.1; boards = loaded.2
+                    self.cloud.attach(loaded.0) { [weak owner = self] in owner?.scheduleCloudReload() }
                     loading = false; prune(); refresh()
                 } catch { storageError(error); loading = false }
             }
@@ -190,6 +195,7 @@ struct ClipQuery {
     }
     private func persist(_ clip: Clip) {
         guard let vault else { return }
+        contentGeneration &+= 1
         writes += 1
         disk.async { [weak self] in
             do {
@@ -229,8 +235,29 @@ struct ClipQuery {
             }
         }
     }
-    func stopMonitoring() { stopping = true; timer?.invalidate(); timer = nil }
+    func stopMonitoring() { stopping = true; timer?.invalidate(); timer = nil; cloudReloadTask?.cancel() }
     func flush() async { await withCheckedContinuation { c in disk.async { c.resume() } } }
+    /// Refresh after a received batch without replacing local edits made while the disk read was in flight.
+    func scheduleCloudReload() {
+        cloudReloadTask?.cancel()
+        cloudReloadTask = Task { [weak self] in
+            guard let self, let vault else { return }
+            while !Task.isCancelled && !stopping {
+                do { try await Task.sleep(for: .milliseconds(120)) } catch { return }
+                let generation = contentGeneration
+                await flush()
+                do {
+                    let snapshot = try await Task.detached(priority: .utility) { try vault.locked { (try vault.load(metadataOnly: true), try vault.loadBoards()) } }.value
+                    guard !Task.isCancelled, !stopping else { return }
+                    guard generation == contentGeneration, writes == 0 else { continue }
+                    clips = snapshot.0; boards = snapshot.1
+                    let ids = Set(clips.map(\.id)); stack.removeAll { !ids.contains($0) }; recentlyTrashed.removeAll { !ids.contains($0) }
+                    if let board = UUID(uuidString: collection), !boards.contains(where: { $0.id == board }) { collection = "all" }
+                    prune(); return
+                } catch { report("Mise à jour de l’historique : \(error.localizedDescription)"); return }
+            }
+        }
+    }
     func copy(_ clips: [Clip], plain: Bool = false, to pb: NSPasteboard = .general) async -> Bool {
         guard !clips.isEmpty else { return false }
         do {
@@ -265,21 +292,22 @@ struct ClipQuery {
         let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !n.isEmpty else { return }
         let board = Pinboard(name: String(n.prefix(40)), color: boards.count % 4)
-        boards.append(board); saveBoards(); collection = board.id.uuidString
+        let previous = boards; boards.append(board); saveBoards(replacing: previous); collection = board.id.uuidString
     }
     func renameBoard(_ id: UUID, name: String) {
         guard let i = boards.firstIndex(where: { $0.id == id }), !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        boards[i].name = String(name.prefix(40)); saveBoards()
+        let previous = boards; boards[i].name = String(name.prefix(40)); saveBoards(replacing: previous)
     }
     func deleteBoard(_ board: Pinboard) {
         for c in clips where c.boards.contains(board.id) { mutate(c.id) { $0.boards.removeAll { $0 == board.id } } }
-        boards.removeAll { $0.id == board.id }; collection = "all"; saveBoards()
+        let previous = boards; boards.removeAll { $0.id == board.id }; collection = "all"; saveBoards(replacing: previous)
     }
-    func toggleSharing(_ id: UUID) { guard let i = boards.firstIndex(where: { $0.id == id }) else { return }; boards[i].shared.toggle(); saveBoards() }
-    private func saveBoards() {
+    func toggleSharing(_ id: UUID) { guard let i = boards.firstIndex(where: { $0.id == id }) else { return }; let previous = boards; boards[i].shared.toggle(); saveBoards(replacing: previous) }
+    private func saveBoards(replacing previous: [Pinboard]) {
         guard let vault else { return }; let value = boards
+        contentGeneration &+= 1
         disk.async { [weak self] in
-            do { try vault.write(value, name: "boards.json.enc") }
+            do { try vault.saveBoards(value, replacing: previous) }
             catch { Task { @MainActor in self?.storageError(error) } }
         }
     }
@@ -307,6 +335,7 @@ struct ClipQuery {
     func permanentlyDelete(_ items: [Clip]) { delete(items.filter { $0.trashedAt != nil }.map(\.id)) }
     private func delete(_ ids: [UUID]) {
         guard let vault, !ids.isEmpty else { return }
+        contentGeneration &+= 1
         let ids = Set(ids)
         disk.async { [weak self] in
             do {
@@ -359,6 +388,7 @@ extension History {
     /// Publish only after the encrypted file is durable. Captures intentionally bypass fingerprint deduplication.
     func insertCapture(_ input: Clip, movie: URL? = nil) async throws -> Clip {
         guard let vault, !fault, !stopping else { throw CocoaError(.fileWriteUnknown) }
+        contentGeneration &+= 1
         writes += 1
         defer { writes -= 1 }
         let value: Clip = try await withCheckedThrowingContinuation { continuation in

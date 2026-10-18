@@ -61,13 +61,17 @@ enum AnnotationRenderer {
         }
     }
     static func export(data: Data, snapshot: AnnotationSnapshot) throws -> Data {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil), let image = CGImageSourceCreateImageAtIndex(source, 0, nil),
-              image.width * image.height <= 50_000_000,
-              let context = CGContext(data: nil, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { throw CaptureFailure.message("Cette image ne peut pas être ouverte (limite : 50 mégapixels).") }
-        let size = CGSize(width: image.width, height: image.height)
-        context.draw(image, in: CGRect(origin: .zero, size: size))
-        draw(snapshot.marks, in: context, size: size)
-        guard var result = context.makeImage() else { throw CaptureFailure.message("Impossible de créer la copie.") }
+        let (image, size) = try ImageRaster.decode(data)
+        var result = image
+        if !snapshot.marks.isEmpty {
+            let space = image.colorSpace?.model == .rgb ? image.colorSpace! : CGColorSpace(name: CGColorSpace.sRGB)!
+            guard let context = CGContext(data: nil, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: 0, space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { throw CaptureFailure.message("Impossible de créer la copie.") }
+            context.interpolationQuality = .none
+            context.setBlendMode(.copy); context.draw(image, in: CGRect(origin: .zero, size: size)); context.setBlendMode(.normal)
+            draw(snapshot.marks, in: context, size: size)
+            guard let annotated = context.makeImage() else { throw CaptureFailure.message("Impossible de créer la copie.") }
+            result = annotated
+        }
         if let crop = snapshot.crop {
             let area = crop.integral.intersection(CGRect(origin: .zero, size: size))
             guard area.width >= 2, area.height >= 2, let cropped = result.cropping(to: area) else { throw CaptureFailure.message("La zone de recadrage est trop petite.") }
@@ -94,12 +98,7 @@ enum AnnotationRenderer {
     var dirty: Bool { !snapshot.marks.isEmpty || snapshot.crop != nil || textPoint != nil }
     init(data: Data, image: CGImage, size: CGSize) { self.data = data; self.image = image; self.size = size }
     nonisolated static func prepare(_ data: Data) throws -> (CGImage, CGSize) {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
-              let width = properties[kCGImagePropertyPixelWidth] as? Int, let height = properties[kCGImagePropertyPixelHeight] as? Int,
-              width > 0, height > 0, width*height <= 50_000_000,
-              let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceThumbnailMaxPixelSize: 2000] as CFDictionary) else { throw CaptureFailure.message("Cette image ne peut pas être annotée (limite : 50 mégapixels).") }
-        return (image, CGSize(width: width, height: height))
+        try ImageRaster.decode(data, maxPixels: 2000)
     }
     func commit(_ mark: AnnotationMark) {
         guard !saving else { return }
@@ -128,9 +127,9 @@ struct AnnotationCanvas: NSViewRepresentable {
     required init?(coder: NSCoder) { fatalError() }
     override var acceptsFirstResponder: Bool { true }
     var imageRect: CGRect {
-        let ratio = min(max(1,bounds.width-40)/model.size.width, max(1,bounds.height-40)/model.size.height)
-        let size = CGSize(width: model.size.width*ratio, height: model.size.height*ratio)
-        return CGRect(x: (bounds.width-size.width)/2, y: (bounds.height-size.height)/2, width: size.width, height: size.height)
+        let size = ImageRaster.fittedSize(pixels: model.size, available: CGSize(width: max(1,bounds.width-40), height: max(1,bounds.height-40)), displayScale: window?.backingScaleFactor ?? 1)
+        let scale = window?.backingScaleFactor ?? 1
+        return CGRect(x: (((bounds.width-size.width)/2)*scale).rounded()/scale, y: (((bounds.height-size.height)/2)*scale).rounded()/scale, width: size.width, height: size.height)
     }
     func imagePoint(_ event: NSEvent) -> CGPoint {
         let p = convert(event.locationInWindow, from: nil), rect = imageRect
@@ -141,6 +140,7 @@ struct AnnotationCanvas: NSViewRepresentable {
         guard let cg = NSGraphicsContext.current?.cgContext else { return }
         let rect = imageRect, ratio = rect.width / model.size.width
         cg.setFillColor(CGColor(gray: 0.035, alpha: 1)); cg.fill(bounds)
+        cg.interpolationQuality = .high
         cg.saveGState(); cg.translateBy(x: rect.minX, y: rect.minY); cg.scaleBy(x: ratio, y: ratio)
         cg.draw(model.image, in: CGRect(origin: .zero, size: model.size))
         AnnotationRenderer.draw(model.snapshot.marks + (model.draft.map { [$0] } ?? []), in: cg, size: model.size)

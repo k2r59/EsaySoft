@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleExecutable</key><string>EasyPaste</string>
+<key>CFBundleName</key><string>EasyPaste</string>
+<key>CFBundleIdentifier</key><string>app.easypaste.mac</string>
+<key>CFBundleIconFile</key><string>EasyPaste</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleShortVersionString</key><string>0.3.0</string>
+<key>CFBundleVersion</key><string>6</string>
+<key>CFBundleDevelopmentRegion</key><string>fr</string>
+<key>CFBundleLocalizations</key><array><string>fr</string></array>
+<key>LSMinimumSystemVersion</key><string>15.0</string>
+<key>LSUIElement</key><true/>
+<key>NSScreenCaptureUsageDescription</key><string>EasyPaste capture les zones, les fenêtres ou les vidéos que vous choisissez et extrait leur texte sur votre Mac.</string>
+<key>NSMicrophoneUsageDescription</key><string>EasyPaste utilise le microphone uniquement lorsque vous activez cette option pour une vidéo.</string>
+<key>NSHighResolutionCapable</key><true/>
+<key>NSHumanReadableCopyright</key><string>Copyright © 2026 EasyPaste contributors. MIT License.</string>
+</dict></plist>

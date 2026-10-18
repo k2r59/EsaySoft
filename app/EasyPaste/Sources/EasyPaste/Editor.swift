@@ -164,7 +164,6 @@ struct PreviewView: View {
     @ObservedObject var history: History
     let clip: Clip
     @State private var full: Clip?
-    @State private var image: NSImage?
     @State private var player: AVPlayer?
     @State private var error = ""
     @Environment(\.dismiss) private var dismiss
@@ -172,7 +171,7 @@ struct PreviewView: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack { VStack(alignment: .leading, spacing: 5) { eyebrow("APERÇU"); Text(clip.title).font(.system(size: 18, weight: .semibold)).lineLimit(2) }; Spacer(); Button("Fermer") { dismiss() }.buttonStyle(PasteButtonStyle()).keyboardShortcut(.cancelAction) }
             if let full {
-                if full.kind == .image, let image { Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: .infinity, maxHeight: 360) }
+                if full.kind == .image, let data = full.imageData { ImagePreview(data: data) }
                 else if full.kind == .video, let player { NativeVideoPreview(player: player).frame(height: 350) }
                 else if full.kind == .file, let path = full.text.split(separator: "\n").first { FilePreview(url: URL(fileURLWithPath: String(path))).frame(height: 350) }
                 else { ScrollView { Text(full.text).textSelection(.enabled).font(.system(size: 14)).lineSpacing(6).frame(maxWidth: .infinity, alignment: .leading).padding(20) }.frame(height: 300).background(Theme.panel, in: RoundedRectangle(cornerRadius: 12)) }
@@ -184,7 +183,7 @@ struct PreviewView: View {
         .task {
             do {
                 let value = try await history.fullClip(clip)
-                if value.kind == .image { image = await Task.detached(priority: .userInitiated) { value.previewImage(maxPixels: 2400) }.value }
+                try Task.checkCancellation()
                 if value.kind == .video { let url = try await history.videoURL(value); guard !Task.isCancelled else { return }; player = AVPlayer(url: url) }
                 full = value
             } catch { self.error = error.localizedDescription }

@@ -85,7 +85,7 @@ import CryptoKit
         if history.annotating { annotations.requestClose(); if history.annotating { return .terminateCancel } }
         history.stopMonitoring()
         // Flush queued atomic writes before exiting, without blocking the interface.
-        Task { await history.flush(); if let demoDirectory { try? FileManager.default.removeItem(at: demoDirectory) }; NSApp.reply(toApplicationShouldTerminate: true) }
+        Task { await history.cloud.stop(); await history.flush(); if let demoDirectory { try? FileManager.default.removeItem(at: demoDirectory) }; NSApp.reply(toApplicationShouldTerminate: true) }
         return .terminateLater
     }
     private func buildMenu() {
@@ -126,7 +126,7 @@ import CryptoKit
     }
     @objc func showMain() { rememberTarget(); closeShelf(restore: false); history.surface = "library"; window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
     @objc func settings() { history.page = "settings"; showMain() }
-    @objc func about() { let alert = NSAlert(); alert.messageText = "EasyPaste"; alert.informativeText = "Version 0.2.1\nTon historique, sur ton Mac.\nLogiciel libre sous licence MIT.\nmacOS 15 ou ultérieur."; alert.addButton(withTitle: "Fermer"); alert.runModal() }
+    @objc func about() { let alert = NSAlert(); alert.messageText = "EasyPaste"; alert.informativeText = "Version 0.3.0\nTon historique, sur ton Mac.\nLogiciel libre sous licence MIT.\nmacOS 15 ou ultérieur."; alert.addButton(withTitle: "Fermer"); alert.runModal() }
     @objc func quit() { NSApp.terminate(nil) }
     @objc func toggleMonitoring() { guard !history.fault else { showMain(); return }; history.enabled.toggle() }
     @objc func copyNext() {
