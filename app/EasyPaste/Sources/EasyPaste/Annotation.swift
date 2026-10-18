@@ -171,15 +171,18 @@ struct AnnotationCanvas: NSViewRepresentable {
 struct AnnotationView: View {
     @ObservedObject var model: AnnotationModel
     let cancel: () -> Void
-    let save: () -> Void
+    let save: (Bool) -> Void
+    @State private var replaceOriginal = false
     @FocusState private var textFocused: Bool
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 13) {
                 BrandMark(size: 28)
-                VStack(alignment: .leading, spacing: 4) { Text("Annoter la capture").font(.system(size: 18, weight: .semibold)); Text("Une copie à ta façon. L’original reste intact.").font(.system(size: 11)).foregroundStyle(Theme.muted) }
-                Spacer(); Button("Annuler", action: cancel).buttonStyle(PasteButtonStyle()).disabled(model.saving)
-                Button(action: save) { HStack(spacing: 8) { if model.saving { ProgressView().controlSize(.small) }; Text(model.saving ? "Création…" : "Créer une copie") } }.buttonStyle(PasteButtonStyle(primary: true)).disabled(model.saving || !model.dirty).keyboardShortcut("s", modifiers: .command)
+                VStack(alignment: .leading, spacing: 4) { Text("Annoter la capture").font(.system(size: 18, weight: .semibold)); Text(replaceOriginal ? "L’image sera remplacée dans la même carte." : "Une nouvelle carte, à côté de l’originale.").font(.system(size: 11)).foregroundStyle(Theme.muted) }
+                Spacer()
+                Picker("Enregistrer les annotations", selection: $replaceOriginal) { Text("Créer une copie").tag(false); Text("Remplacer l’originale").tag(true) }.labelsHidden().frame(width: 185).disabled(model.saving)
+                Button("Annuler", action: cancel).buttonStyle(PasteButtonStyle()).disabled(model.saving)
+                Button { save(replaceOriginal) } label: { HStack(spacing: 8) { if model.saving { ProgressView().controlSize(.small) }; Text(model.saving ? "Enregistrement…" : replaceOriginal ? "Remplacer" : "Créer la copie") } }.buttonStyle(PasteButtonStyle(primary: true)).disabled(model.saving || !model.dirty).keyboardShortcut("s", modifiers: .command)
             }.padding(20)
             HStack(spacing: 5) {
                 ForEach(AnnotationTool.allCases, id: \.self) { tool in
@@ -199,7 +202,7 @@ struct AnnotationView: View {
             }
             AnnotationCanvas(model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
-                Text(model.error.isEmpty ? (model.tool == .redact ? "Masquage opaque · le texte couvert est supprimé de la copie." : model.tool == .crop ? "Dessine la zone à conserver. Les annotations restent modifiables avec Annuler." : "Glisse sur l’image · ⌘Z pour annuler") : model.error).lineLimit(2).foregroundStyle(model.error.isEmpty ? Theme.muted : .orange)
+                Text(model.error.isEmpty ? (model.tool == .redact ? "Masquage opaque · le texte couvert est supprimé de l’image enregistrée." : model.tool == .crop ? "Dessine la zone à conserver. Les annotations restent modifiables avec Annuler." : "Glisse sur l’image · ⌘Z pour annuler") : model.error).lineLimit(2).foregroundStyle(model.error.isEmpty ? Theme.muted : .orange)
                 Spacer(); Text("\(Int(model.size.width)) × \(Int(model.size.height)) px").monospacedDigit().foregroundStyle(Theme.muted)
             }.font(.system(size: 11)).padding(14)
         }.background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
@@ -228,7 +231,7 @@ struct AnnotationView: View {
                 let panel = NSPanel(contentRect: CGRect(x: frame.midX-width/2, y: frame.midY-height/2, width: width, height: height), styleMask: [.titled,.closable,.resizable,.fullSizeContentView], backing: .buffered, defer: false)
                 panel.title = "Annoter la capture"; panel.titleVisibility = .hidden; panel.titlebarAppearsTransparent = true; panel.isReleasedWhenClosed = false
                 panel.minSize = CGSize(width: 850, height: 420); panel.level = .floating; panel.delegate = self; panel.backgroundColor = NSColor(Theme.bg)
-                panel.contentView = NSHostingView(rootView: AnnotationView(model: model, cancel: { [weak self] in self?.requestClose() }, save: { [weak self] in self?.save() }).padding(.top, 20).background(Theme.bg))
+                panel.contentView = NSHostingView(rootView: AnnotationView(model: model, cancel: { [weak self] in self?.requestClose() }, save: { [weak self] replace in self?.save(replaceOriginal: replace) }).padding(.top, 20).background(Theme.bg))
                 window = panel; panel.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
             } catch { history.annotating = false; history.report(error.localizedDescription) }
         }
@@ -237,12 +240,12 @@ struct AnnotationView: View {
     private func canClose() -> Bool {
         guard model?.saving != true else { return false }
         guard model?.dirty == true else { return true }
-        let alert = NSAlert(); alert.messageText = "Abandonner les annotations ?"; alert.informativeText = "L’original reste dans ton historique. Cette copie n’a pas encore été créée."; alert.addButton(withTitle: "Continuer à modifier"); alert.addButton(withTitle: "Abandonner")
+        let alert = NSAlert(); alert.messageText = "Abandonner les annotations ?"; alert.informativeText = "L’original reste dans ton historique. Les modifications n’ont pas encore été enregistrées."; alert.addButton(withTitle: "Continuer à modifier"); alert.addButton(withTitle: "Abandonner")
         return alert.runModal() == .alertSecondButtonReturn
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if canClose() { close() }; return false }
     private func close() { window?.orderOut(nil); window = nil; model = nil; clip = nil; history.annotating = false }
-    private func save() {
+    private func save(replaceOriginal: Bool) {
         guard let model, let clip, !model.saving else { return }
         if model.textPoint != nil { model.addText() }
         model.saving = true; model.error = ""
@@ -250,9 +253,10 @@ struct AnnotationView: View {
         Task {
             do {
                 let png = try await Task.detached(priority: .userInitiated) { try AnnotationRenderer.export(data: data, snapshot: snapshot) }.value
-                let saved = try await history.saveImage(png, parent: clip)
+                let saved = replaceOriginal ? try await history.replaceImage(png, original: clip) : try await history.saveImage(png, parent: clip)
                 let copied = await history.copy([saved]); close(); onSaved?()
-                history.report(copied ? "Copie modifiée créée · prête à coller avec ⌘V." : "Copie modifiée créée. Utilise Copier pour la préparer.")
+                let action = replaceOriginal ? "Image remplacée" : "Copie modifiée créée"
+                history.report(copied ? action + " · prête à coller avec ⌘V." : action + ". Utilise Copier pour la préparer.")
             } catch { model.saving = false; model.error = error.localizedDescription }
         }
     }

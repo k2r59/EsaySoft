@@ -93,6 +93,8 @@ struct ClipQuery {
     private var importInFlight = false
     private var stopping = false
     private var writes = 0
+    private var replacingImages = Set<UUID>()
+    private var pendingImageMutations: [UUID: [(inout Clip) -> Void]] = [:]
     var selectedClip: Clip? { clips.first { $0.id == selected } }
     var selection: [Clip] {
         !selectedIDs.isEmpty ? visible.filter { selectedIDs.contains($0.id) } : selectedClip.map { [$0] } ?? []
@@ -216,8 +218,11 @@ struct ClipQuery {
         if stackRecording, !stack.contains(value.id) { stack.append(value.id) }
         prune(); indexOCR(value)
     }
-    func mutate(_ id: UUID, _ body: (inout Clip) -> Void) {
+    func mutate(_ id: UUID, _ body: @escaping (inout Clip) -> Void) {
         guard let i = clips.firstIndex(where: { $0.id == id }), vault != nil, !fault else { return }
+        // Apply metadata edits after the image transaction, so a queued favorite,
+        // rename or trash action cannot write back an obsolete image fingerprint.
+        if replacingImages.contains(id) { pendingImageMutations[id, default: []].append(body); return }
         var c = clips[i]; body(&c); clips[i] = c.metadata(); persist(c)
     }
     func fullClip(_ c: Clip) async throws -> Clip {
@@ -346,6 +351,7 @@ struct ClipQuery {
             let result: Result<String, Error> = autoreleasepool { Result { try ImageText.recognize(data) } }
             Task { @MainActor in
                 self?.ocrTasks.remove(clip.id)
+                guard self?.replacingImages.contains(clip.id) != true else { return }
                 guard case .success(let text) = result else { self?.report("Le texte de cette image n’a pas pu être reconnu. L’image est conservée."); return }
                 guard !text.isEmpty, self?.clips.first(where: { $0.id == clip.id })?.fingerprint == clip.fingerprint else { return }
                 self?.mutate(clip.id) { $0.ocr = text }
@@ -394,6 +400,44 @@ extension History {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw CaptureFailure.message("Aucun texte détecté. Essaie une zone plus nette ou plus grande.") }
         let payload = ClipPayload(representations: [[.init(type: NSPasteboard.PasteboardType.string.rawValue, data: Data(text.utf8))]])
         return try await insertCapture(Clip(title: String(text.prefix(90)), text: text, source: "Capture de texte", sourceID: "app.easypaste.mac", kind: .text, fingerprint: Clip.fingerprint(payload), payload: payload))
+    }
+    /// Replace the encrypted image atomically while retaining the card identity,
+    /// title, ordering, favorites and collections. Never retain the old OCR text.
+    func replaceImage(_ data: Data, original: Clip) async throws -> Clip {
+        guard data.count <= ClipboardReader.limit else { throw CaptureFailure.message("Cette image dépasse 20 Mo.") }
+        guard let vault, !fault, !stopping, !replacingImages.contains(original.id),
+              let current = clips.first(where: { $0.id == original.id }), current.kind == .image,
+              current.trashedAt == nil, current.fingerprint == original.fingerprint else {
+            throw CaptureFailure.message("L’image a changé ou n’est plus disponible. Rouvre-la avant de la remplacer.")
+        }
+        replacingImages.insert(original.id)
+        defer {
+            replacingImages.remove(original.id)
+            for update in pendingImageMutations.removeValue(forKey: original.id) ?? [] { mutate(original.id, update) }
+        }
+        let prepared = try await Task.detached(priority: .userInitiated) {
+            guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { throw CaptureFailure.message("L’image modifiée n’est pas lisible.") }
+            _ = try ImageRaster.dimensions(source)
+            let payload = ClipPayload(representations: [[.init(type: NSPasteboard.PasteboardType.png.rawValue, data: data)]])
+            return (payload, Clip.fingerprint(payload), (try? ImageText.recognize(data)) ?? "")
+        }.value
+        writes += 1; defer { writes -= 1 }
+        let saved: Clip = try await withCheckedThrowingContinuation { continuation in
+            disk.async {
+                do {
+                    var clip = try vault.read(Clip.self, name: original.id.uuidString + ".clip")
+                    guard clip.kind == .image, clip.trashedAt == nil, clip.fingerprint == original.fingerprint else { throw CaptureFailure.message("L’image a changé. Rouvre-la avant de la remplacer.") }
+                    clip.payload = prepared.0; clip.fingerprint = prepared.1; clip.ocr = prepared.2
+                    clip.text = ""; clip.storedBytes = nil; clip.thumbnail = nil; clip.prepareThumbnail()
+                    try vault.save(clip)
+                    continuation.resume(returning: clip)
+                } catch { continuation.resume(throwing: error) }
+            }
+        }
+        guard let index = clips.firstIndex(where: { $0.id == saved.id }) else { throw CaptureFailure.message("Cette image a été supprimée pendant l’enregistrement.") }
+        clips[index] = saved.metadata()
+        selected = saved.id; selectedIDs = [saved.id]
+        return saved.metadata()
     }
     func saveVideo(_ url: URL) async throws -> Clip {
         let asset = AVURLAsset(url: url)

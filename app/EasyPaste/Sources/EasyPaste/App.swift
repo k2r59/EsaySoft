@@ -114,6 +114,7 @@ import CryptoKit
             item.tag = action.rawValue; item.target = self; item.image = NSImage(systemSymbolName: action.icon, accessibilityDescription: action.title); captureMenu.addItem(item)
         }
         captureItem.submenu = captureMenu; menu.addItem(captureItem)
+        menu.addItem(withTitle: "Arrêter la vidéo   ⌃⌥⌘S", action: #selector(stopVideo), keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Pause / reprise de la collecte", action: #selector(toggleMonitoring), keyEquivalent: "")
         menu.addItem(withTitle: "Copier le prochain élément de la pile", action: #selector(copyNext), keyEquivalent: "")
@@ -126,7 +127,7 @@ import CryptoKit
     }
     @objc func showMain() { rememberTarget(); closeShelf(restore: false); history.surface = "library"; window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
     @objc func settings() { history.page = "settings"; showMain() }
-    @objc func about() { let alert = NSAlert(); alert.messageText = "EasyPaste"; alert.informativeText = "Version 0.2.2\nTon historique, sur ton Mac.\nLogiciel libre sous licence MIT.\nmacOS 15 ou ultérieur."; alert.addButton(withTitle: "Fermer"); alert.runModal() }
+    @objc func about() { let alert = NSAlert(); alert.messageText = "EasyPaste"; alert.informativeText = "Version 0.2.3\nTon historique, sur ton Mac.\nLogiciel libre sous licence MIT.\nmacOS 15 ou ultérieur."; alert.addButton(withTitle: "Fermer"); alert.runModal() }
     @objc func quit() { NSApp.terminate(nil) }
     @objc func toggleMonitoring() { guard !history.fault else { showMain(); return }; history.enabled.toggle() }
     @objc func copyNext() {
@@ -137,6 +138,7 @@ import CryptoKit
         rememberTarget(); captures.run(action)
     }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(stopVideo) { return history.recording }
         if menuItem.action == #selector(captureFromMenu(_:)) { return !history.captureBusy && !history.recording && !history.annotating && !history.loading && !history.fault }
         return true
     }
@@ -156,7 +158,8 @@ import CryptoKit
             item.button?.contentTintColor = .systemRed; item.button?.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
             recordingStatus = item
         }
-        recordingStatus?.button?.title = " " + text
+        recordingStatus?.button?.title = history.recording ? " Arrêter · " + text : " " + text
+        recordingStatus?.button?.isEnabled = history.recording && !history.captureBusy
         recordingStatus?.button?.toolTip = "Arrêter et conserver la vidéo dans EasyPaste"
     }
     @objc private func stopVideo() { captures.stop() }
@@ -238,10 +241,10 @@ import CryptoKit
             var id = EventHotKeyID()
             GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &id)
             let delegate = Unmanaged<AppDelegate>.fromOpaque(context).takeUnretainedValue()
-            MainActor.assumeIsolated { switch id.id { case 0: delegate.toggleShelf(); case 1: delegate.copyNext(); case 2: delegate.rememberTarget(); delegate.captures.run(.area); case 3: delegate.rememberTarget(); delegate.captures.run(.text); default: break } }; return noErr
+            MainActor.assumeIsolated { switch id.id { case 0: delegate.toggleShelf(); case 1: delegate.copyNext(); case 2: delegate.rememberTarget(); delegate.captures.run(.area); case 3: delegate.rememberTarget(); delegate.captures.run(.text); case 4: delegate.captures.stop(); default: break } }; return noErr
         }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &handler)
         let captureModifiers = UInt32(cmdKey | optionKey | controlKey)
-        let bindings: [(Int, UInt32)] = [(kVK_ANSI_V, UInt32(cmdKey | shiftKey)), (kVK_ANSI_V, captureModifiers), (kVK_ANSI_C, captureModifiers), (kVK_ANSI_X, captureModifiers)]
+        let bindings: [(Int, UInt32)] = [(kVK_ANSI_V, UInt32(cmdKey | shiftKey)), (kVK_ANSI_V, captureModifiers), (kVK_ANSI_C, captureModifiers), (kVK_ANSI_X, captureModifiers), (kVK_ANSI_S, captureModifiers)]
         for (id, binding) in bindings.enumerated() {
             var ref: EventHotKeyRef?
             if RegisterEventHotKey(UInt32(binding.0), binding.1, EventHotKeyID(signature: 0x45504153, id: UInt32(id)), GetApplicationEventTarget(), 0, &ref) == noErr, let ref { hotkeys.append(ref) }

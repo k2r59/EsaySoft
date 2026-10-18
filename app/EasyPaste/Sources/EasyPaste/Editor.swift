@@ -165,12 +165,14 @@ struct PreviewView: View {
     let clip: Clip
     @State private var full: Clip?
     @State private var player: AVPlayer?
+    @State private var videoWarning = ""
     @State private var error = ""
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack { VStack(alignment: .leading, spacing: 5) { eyebrow("APERÇU"); Text(clip.title).font(.system(size: 18, weight: .semibold)).lineLimit(2) }; Spacer(); Button("Fermer") { dismiss() }.buttonStyle(PasteButtonStyle()).keyboardShortcut(.cancelAction) }
             if let full {
+                if !videoWarning.isEmpty { Label(videoWarning, systemImage: "exclamationmark.triangle").font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
                 if full.kind == .image, let data = full.imageData { ImagePreview(data: data) }
                 else if full.kind == .video, let player { NativeVideoPreview(player: player).frame(height: 350) }
                 else if full.kind == .file, let path = full.text.split(separator: "\n").first { FilePreview(url: URL(fileURLWithPath: String(path))).frame(height: 350) }
@@ -184,7 +186,15 @@ struct PreviewView: View {
             do {
                 let value = try await history.fullClip(clip)
                 try Task.checkCancellation()
-                if value.kind == .video { let url = try await history.videoURL(value); guard !Task.isCancelled else { return }; player = AVPlayer(url: url) }
+                if value.kind == .video {
+                    let url = try await history.videoURL(value); guard !Task.isCancelled else { return }
+                    let asset = AVURLAsset(url: url)
+                    if let duration = try? await asset.load(.duration), let track = try? await asset.loadTracks(withMediaType: .video).first,
+                       let range = try? await track.load(.timeRange), duration.seconds - range.end.seconds > 0.25 {
+                        videoWarning = "Cette ancienne vidéo contient une piste image incomplète. Refais la capture avec la nouvelle version."
+                    }
+                    guard !Task.isCancelled else { return }; player = AVPlayer(url: url)
+                }
                 full = value
             } catch { self.error = error.localizedDescription }
         }.onDisappear { player?.pause(); player?.replaceCurrentItem(with: nil); player = nil }

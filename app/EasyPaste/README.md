@@ -4,7 +4,7 @@ Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT.
 
 ## Installation
 
-1. Ouvrir `dist/EasyPaste-0.2.2-universal.dmg`.
+1. Ouvrir `dist/EasyPaste-0.2.3-universal.dmg`.
 2. Glisser EasyPaste dans Applications, puis l’ouvrir.
 3. Cliquer sur **Activer mon historique**. Les prochaines copies seront enregistrées.
 4. Depuis une autre application, ouvrir la barre rapide avec **Maj + Commande + V**.
@@ -35,7 +35,7 @@ Le menu près de l’heure propose **Capturer une zone** directement. Le sous-me
 2. Retrouver la capture dans la barre rapide. L’image est aussi copiée, prête à coller avec **Commande + V**.
 3. Survoler sa carte et cliquer sur le crayon pour ouvrir l’éditeur.
 4. Ajouter une flèche, un cadre, du texte ou un surlignage. **Masquer** recouvre les informations avec un rectangle opaque. **Recadrer** conserve la zone choisie.
-5. Cliquer sur **Créer une copie**. La version modifiée apparaît à côté de l’original et remplace le contenu du presse-papiers. L’original reste intact.
+5. Choisir **Créer une copie** ou **Remplacer l’originale**, puis valider. Une copie apparaît à côté de l’originale. Le remplacement conserve la même carte, son titre, sa date, ses favoris et ses collections, et recalcule le texte reconnu. L’image obtenue est copiée dans le presse-papiers.
 
 Les captures sont enregistrées en PNG sans perte, à la densité native de l’écran. Une zone de 600 × 400 points sur un écran Retina produit 1 200 × 800 pixels. Les miniatures servent à l’affichage ; la copie conserve tous les pixels de l’original. Dans **Aperçu**, **100 %** affiche un pixel de l’image pour un pixel de l’écran, avec défilement si nécessaire. **Ajuster** montre l’ensemble sans agrandir artificiellement une petite image. Les images sont limitées à 50 mégapixels et à 20 Mo encodés.
 
@@ -44,16 +44,16 @@ Pour extraire du texte visible, choisir **Extraire le texte d’une zone**, puis
 ## Enregistrer une vidéo
 
 1. Choisir **Capturer → Enregistrer une vidéo…**.
-2. Choisir une zone ou l’écran entier, puis activer le son de l’ordinateur et le microphone selon le besoin.
-3. Cliquer sur **Continuer**. Pour une zone, tracer le rectangle. Le décompte dure trois secondes.
-4. Cliquer sur le bouton rouge près de l’heure pour arrêter. Le menu **Capturer** propose aussi **Arrêter l’enregistrement**.
+2. Choisir une zone ou l’écran entier. Activer le microphone, la webcam en incrustation et le son de l’ordinateur selon le besoin. Les menus **Source** permettent de choisir les périphériques.
+3. Cliquer sur **Choisir la zone** et tracer le rectangle, ou sur **Démarrer dans 3 s** pour l’écran entier. Le cadre reste visible pendant le décompte et l’enregistrement.
+4. Cliquer sur **Arrêter** dans la barre flottante, ou utiliser **Contrôle + Option + Commande + S**. Les commandes près de l’heure restent disponibles. Le menu webcam de la barre flottante déplace l’incrustation dans l’un des quatre coins.
 5. Ouvrir la carte vidéo pour la lire, la copier ou choisir **Enregistrer…** afin d’exporter le fichier MP4.
 
-La vidéo utilise H.264 à 30 images/s au maximum. Le grand côté est limité à 1 920 pixels, ou à 3 840 pixels avec **Haute définition · jusqu’à 4K**. Les proportions de la zone sont conservées. La sélection doit tenir sur un seul écran. Prévoir au moins 1,5 Go d’espace libre ; l’enregistrement s’arrête automatiquement vers 800 Mo et l’import accepte jusqu’à 1 Go.
+La vidéo utilise H.264 à 30 images/s au maximum. La qualité **Native · jusqu’à 4K**, activée par défaut, conserve la densité de l’écran jusqu’à 3 840 pixels sur le grand côté. Le mode **Légère · 1080p** limite le grand côté à 1 920 pixels. Les proportions de la zone sont conservées. La sélection doit tenir sur un seul écran. Prévoir au moins 2,5 Go d’espace libre. L’enregistrement s’arrête vers 800 Mo ou lorsque l’espace disponible descend sous 1,1 Go ; l’import accepte jusqu’à 1 Go. La webcam utilise une vignette 4:3 et nécessite une zone d’au moins 240 × 180 points.
 
 La copie vidéo fournit un fichier MP4 aux applications compatibles. Le collage dans un champ de texte simple ne peut pas y insérer une vidéo. Cette version ne comporte pas d’éditeur de montage vidéo.
 
-macOS demande l’autorisation d’enregistrer l’écran à la première capture. Le microphone possède une autorisation distincte, demandée uniquement lorsque cette option est choisie. Si macOS exige de quitter l’app, la rouvrir depuis Applications.
+macOS demande l’autorisation d’enregistrer l’écran à la première capture. Le microphone et la webcam possèdent chacun une autorisation distincte, demandée uniquement lorsque l’option correspondante est choisie. Si macOS exige de quitter l’app, la rouvrir depuis Applications.
 
 ## Raccourcis
 
@@ -69,6 +69,7 @@ macOS demande l’autorisation d’enregistrer l’écran à la première captur
 | Modifier un texte ou annoter une image | Commande + E |
 | Capturer une zone | Contrôle + Option + Commande + C |
 | Extraire le texte d’une zone | Contrôle + Option + Commande + X |
+| Arrêter la vidéo | Contrôle + Option + Commande + S |
 | Aperçu | Commande + Y |
 | Ouvrir un lien ou fichier | Commande + O |
 | Créer un texte | Commande + N |
@@ -87,7 +88,7 @@ La collecte est désactivée au premier lancement. Elle observe les changements 
 
 Les enregistrements sont chiffrés individuellement avec AES-GCM dans `~/Library/Application Support/EasyPaste/Vault`. La clé est conservée dans le trousseau macOS, accessible sur ce Mac uniquement. Les écritures sont atomiques ; le répertoire utilise les droits 0700 et les fichiers 0600. Une erreur de chiffrement ou d’écriture met la collecte en pause et affiche un message.
 
-Les vidéos sont chiffrées par blocs de 1 Mo, sans charger le fichier entier en mémoire. La lecture et la copie créent un fichier temporaire déchiffré, accessible uniquement à l’utilisateur. Les copies temporaires de plus de 24 heures sont supprimées au lancement suivant. Un enregistrement en cours reste dans `~/Library/Application Support/EasyPaste/Recordings` ; il est supprimé après son import chiffré. En cas d’échec, ce fichier permet une récupération.
+Les vidéos sont chiffrées par blocs de 1 Mo, sans charger le fichier entier en mémoire. La lecture et la copie créent un fichier temporaire déchiffré, accessible uniquement à l’utilisateur. Les copies temporaires de plus de 24 heures sont supprimées au lancement suivant. Un enregistrement en cours reste dans `~/Library/Application Support/EasyPaste/Recordings` ; il est supprimé après son import chiffré. Si l’import échoue après finalisation, ce fichier permet une récupération.
 
 Les types de presse-papiers marqués confidentiels, temporaires ou générés automatiquement sont ignorés. Plusieurs gestionnaires de mots de passe sont exclus par défaut. Une extension de navigateur qui ne marque pas un secret peut cependant le laisser enregistrer : utiliser la pause ou exclure le navigateur dans ce cas.
 
@@ -119,7 +120,9 @@ Le client MCP lance le processus et communique par entrée/sortie standard. Aucu
 - Miniatures limitées à 640 pixels et cache d’images plafonné à 32 Mo.
 - Aperçu ajusté décodé en arrière-plan selon la densité de l’écran (600 pixels en 1×, 1 200 en 2× au maximum). Le mode 100 % décode l’original à la demande et le libère au retour à Ajuster.
 - Recadrage direct des pixels ; conservation du profil couleur RGB pendant l’annotation. Assemblage des captures en arrière-plan, sans interpolation des pixels entre écrans 1× et 2×.
-- OCR sérialisé en arrière-plan, avec image de travail réduite à 2600 pixels.
+- OCR en arrière-plan, avec image de travail réduite à 2600 pixels.
+- Encodage vidéo sur une file dédiée, avec une seule image conservée pour les périodes sans mouvement. Les commandes et le cadre sont exclus de la vidéo ; la webcam choisie est incluse.
+- Quand les deux sources audio sont activées, le mixage porte uniquement sur le son. Les images H.264 sont assemblées sans deuxième encodage vidéo.
 - Recherche différée de 140 ms pendant la frappe, annulable, calculée en arrière-plan.
 - Grilles et barre paresseuses ; bibliothèque paginée par groupes de 80 cartes.
 - Dates relatives statiques pendant l’affichage, sans actualisation de chaque carte toutes les secondes.
@@ -179,3 +182,5 @@ L’illustration décorative originale a été créée avec l’outil imagegen i
 [MIT](LICENSE). Gratuit, modifiable et redistribuable selon cette licence. La signature Apple du binaire distribué n’accorde aucun accès aux clés privées de signature.
 
 Les contrôles de netteté, de copie et de réactivité de la version 0.2.2 sont détaillés dans [QA-0.2.2.md](QA-0.2.2.md).
+
+Les corrections vidéo, les commandes flottantes, la webcam et le remplacement des images de la version 0.2.3 sont décrits dans [QA-0.2.3.md](QA-0.2.3.md).

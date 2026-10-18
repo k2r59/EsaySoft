@@ -33,6 +33,7 @@ struct SettingsView: View {
                     Divider().opacity(0.3)
                     shortcut("Barre rapide", "⇧⌘V")
                     shortcut("Capture d’une zone", "⌃⌥⌘C")
+                    shortcut("Arrêter la vidéo", "⌃⌥⌘S")
                     shortcut("Extraire le texte d’une zone", "⌃⌥⌘X")
                     shortcut("Coller / coller en texte brut", "↩ / ⇧↩")
                     shortcut("Collage rapide des 9 premières cartes", "⌘1…9")
@@ -61,7 +62,7 @@ struct SettingsView: View {
                         }.buttonStyle(PasteButtonStyle())
                     }
                 }
-                HStack { Text("EasyPaste 0.2.2 · Open source · Licence MIT"); Spacer(); Text("Pensé pour ton Mac.") }.font(.system(size: 10)).foregroundStyle(Theme.muted)
+                HStack { Text("EasyPaste 0.2.3 · Open source · Licence MIT"); Spacer(); Text("Pensé pour ton Mac.") }.font(.system(size: 10)).foregroundStyle(Theme.muted)
                 if !message.isEmpty { Text(message).font(.system(size: 11)).foregroundStyle(Theme.mint) }
             }.padding(.horizontal, 32).padding(.bottom, 30)
         }.onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in trusted = AXIsProcessTrusted(); launch = SMAppService.mainApp.status == .enabled }

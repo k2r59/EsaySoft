@@ -21,29 +21,10 @@ struct CaptureMenu: View {
         .menuStyle(.borderlessButton).fixedSize().help("Capture d’écran, texte et vidéo")
     }
 }
-struct RecordingSetupView: View {
-    @State var options = RecordingOptions()
-    let cancel: () -> Void
-    let start: (RecordingOptions) -> Void
-    var body: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            HStack { BrandMark(size: 34); VStack(alignment: .leading, spacing: 4) { Text("Montre plutôt que raconte.").font(.system(size: 22, weight: .semibold)); Text("Une vidéo, directement dans ton historique.").font(.system(size: 12)).foregroundStyle(Theme.muted) } }
-            Picker("À enregistrer", selection: $options.area) { Text("Une zone").tag(true); Text("L’écran entier").tag(false) }.pickerStyle(.segmented)
-            VStack(alignment: .leading, spacing: 10) {
-                PreferenceToggle("Son de l’ordinateur", isOn: $options.systemAudio)
-                PreferenceToggle("Microphone", isOn: $options.microphone)
-                Divider().opacity(0.3)
-                PreferenceToggle("Haute définition · jusqu’à 4K", isOn: $options.fullResolution)
-                Text(options.fullResolution ? "30 images/s · fichier plus volumineux" : "Jusqu’à 1080p · 30 images/s · fichier léger").font(.system(size: 11)).foregroundStyle(Theme.muted)
-            }.toggleStyle(.switch).font(.system(size: 13)).padding(20).surface()
-            Label("Décompte de 3 secondes. Arrête depuis le bouton rouge près de l’heure.", systemImage: "info.circle").font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
-            HStack { Button("Annuler", action: cancel).buttonStyle(PasteButtonStyle()).keyboardShortcut(.cancelAction); Spacer(); Button("Continuer") { start(options) }.buttonStyle(PasteButtonStyle(primary: true)).keyboardShortcut(.defaultAction) }
-        }.padding(28).frame(width: 450).background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
-    }
-}
 @MainActor final class CaptureController: NSObject, NSWindowDelegate {
     let history: History
     private let recorder = Recorder()
+    private let recordingOverlay = RecordingOverlay()
     private var overlays: [NSWindow] = []
     private var panel: NSPanel?
     private var selectionContinuation: CheckedContinuation<CGRect?, Never>?
@@ -60,11 +41,18 @@ struct RecordingSetupView: View {
         recorder.onStart = { [weak self] in
             guard let self else { return }
             self.started = Date(); self.history.recording = true; self.history.captureBusy = false
+            self.recordingOverlay.recording()
             self.updateStatus()
             self.ticker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.updateStatus(); self?.recorder.checkSize() } }
             self.ticker?.tolerance = 0.1
         }
+        recorder.onStopping = { [weak self] in
+            self?.history.captureBusy = true; self?.history.recording = false; self?.recordingOverlay.stopping(); self?.statusChanged?("Finalisation…")
+        }
         recorder.onFinish = { [weak self] result in self?.finishedRecording(result) }
+        recordingOverlay.onCameraFailure = { [weak self] in
+            self?.stop(); self?.history.report("La webcam s’est interrompue. La vidéo en cours est conservée.")
+        }
     }
     func run(_ action: CaptureAction) {
         guard !history.captureBusy, !history.recording, !history.annotating, !history.loading, !history.fault else { return }
@@ -97,8 +85,9 @@ struct RecordingSetupView: View {
     private func dismissPanel() { panel?.orderOut(nil); panel = nil }
     func windowShouldClose(_ sender: NSWindow) -> Bool { cancel(); return false }
     func cancel() {
-        operation = nil; task?.cancel(); task = nil; dismissPanel(); finishSelection(nil)
-        if recorder.state != .idle { recorder.stop() } else { history.captureBusy = false; showResult?() }
+        operation = nil; task?.cancel(); task = nil; dismissPanel(); finishSelection(nil); recordingOverlay.close()
+        recorder.cancel(); ticker?.invalidate(); ticker = nil; started = nil
+        history.captureBusy = false; history.recording = false; statusChanged?(nil); showResult?()
     }
     private func screenRect() -> CGRect {
         guard let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main else { return .zero }
@@ -181,35 +170,45 @@ struct RecordingSetupView: View {
                     let granted = authorized == .authorized ? true : authorized == .notDetermined ? await AVCaptureDevice.requestAccess(for: .audio) : false
                     guard granted else { throw CaptureFailure.message("Le microphone n’est pas autorisé. Active-le dans Confidentialité et sécurité → Microphone, ou désactive cette option.") }
                 }
+                if options.webcam {
+                    let authorized = AVCaptureDevice.authorizationStatus(for: .video)
+                    let granted = authorized == .authorized ? true : authorized == .notDetermined ? await AVCaptureDevice.requestAccess(for: .video) : false
+                    guard granted else { throw CaptureFailure.message("La webcam n’est pas autorisée. Active-la dans Confidentialité et sécurité → Appareil photo, ou désactive cette option.") }
+                }
                 try Task.checkCancellation(); guard operation == id else { return }
                 hideApp?()
                 let area: CGRect
                 if options.area { guard let rect = await select() else { if operation == id { history.captureBusy = false; operation = nil; showResult?() }; return }; area = rect }
                 else { area = screen }
-                let content = try await CaptureImage.content()
-                guard let display = content.displays.first(where: { $0.frame.contains(area) }) else { throw CaptureFailure.message("La zone vidéo doit tenir sur un seul écran.") }
+                if options.webcam && (area.width < 240 || area.height < 180) { throw CaptureFailure.message("Sélectionne une zone d’au moins 240 × 180 points pour inclure la webcam.") }
+                try await recordingOverlay.show(area: Self.quartzRect(area), options: options, stop: { [weak self = self] in
+                    guard let self else { return }; if self.recorder.state == .recording { self.stop() } else { self.cancel() }
+                })
                 for count in (1...3).reversed() {
-                    try Task.checkCancellation()
-                    present(VStack(spacing: 12) { Text("\(count)").font(.system(size: 64, weight: .light, design: .rounded)).foregroundStyle(Theme.mint); Text("L’enregistrement va commencer").foregroundStyle(Theme.muted); Button("Annuler") { self.cancel() }.buttonStyle(PasteButtonStyle()).keyboardShortcut(.cancelAction) }.padding(28).frame(width: 290).background(Theme.bg).preferredColorScheme(.dark), title: "Prêt ?")
+                    try Task.checkCancellation(); recordingOverlay.model.countdown = count
                     try await Task.sleep(for: .seconds(1))
                 }
-                dismissPanel(); try Task.checkCancellation()
-                try await recorder.start(display: display, area: area, content: content, options: options)
+                recordingOverlay.model.countdown = nil; recordingOverlay.model.title = "Démarrage…"
+                try Task.checkCancellation()
+                let content = try await CaptureImage.content()
+                guard let display = content.displays.first(where: { $0.frame.contains(area) }) else { throw CaptureFailure.message("La zone vidéo doit tenir sur un seul écran.") }
+                try await recorder.start(display: display, area: area, content: content, options: options, cameraWindow: recordingOverlay.cameraWindowID)
                 task = nil
-            } catch is CancellationError { if operation == id { dismissPanel(); history.captureBusy = false; operation = nil; showResult?() } }
-            catch { if operation == id { dismissPanel(); history.captureBusy = false; operation = nil; showResult?(); history.report(error.localizedDescription) } }
+            } catch is CancellationError { recordingOverlay.close(); if operation == id { dismissPanel(); history.captureBusy = false; operation = nil; showResult?() } }
+            catch { recordingOverlay.close(); if operation == id { dismissPanel(); history.captureBusy = false; operation = nil; showResult?(); history.report(error.localizedDescription) } }
         }
     }
-    func stop() { guard history.recording else { return }; history.captureBusy = true; recorder.stop(); statusChanged?("Finalisation…") }
+    func stop() { if recorder.state == .recording || recorder.state == .starting { recorder.stop() } }
     private func updateStatus() {
         guard let started, recorder.state == .recording else { return }
         let seconds = Int(Date().timeIntervalSince(started))
-        statusChanged?(String(format: "%d:%02d", seconds/60, seconds%60))
+        let elapsed = String(format: "%d:%02d", seconds/60, seconds%60)
+        recordingOverlay.model.elapsed = elapsed; statusChanged?(elapsed)
     }
     private func finishedRecording(_ result: Result<URL, Error>) {
-        ticker?.invalidate(); ticker = nil; started = nil; history.recording = false; history.captureBusy = true; statusChanged?("Enregistrement…")
+        ticker?.invalidate(); ticker = nil; started = nil; history.recording = false; history.captureBusy = true; statusChanged?("Enregistrement…"); recordingOverlay.stopping()
         Task {
-            defer { history.captureBusy = false; operation = nil; statusChanged?(nil) }
+            defer { history.captureBusy = false; operation = nil; statusChanged?(nil); recordingOverlay.close() }
             do {
                 let url = try result.get()
                 let clip = try await history.saveVideo(url)

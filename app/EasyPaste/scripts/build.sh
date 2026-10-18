@@ -19,13 +19,14 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>app.easypaste.mac</string>
 <key>CFBundleIconFile</key><string>EasyPaste</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.2.2</string>
-<key>CFBundleVersion</key><string>5</string>
+<key>CFBundleShortVersionString</key><string>0.2.3</string>
+<key>CFBundleVersion</key><string>7</string>
 <key>CFBundleDevelopmentRegion</key><string>fr</string>
 <key>CFBundleLocalizations</key><array><string>fr</string></array>
 <key>LSMinimumSystemVersion</key><string>15.0</string>
 <key>LSUIElement</key><true/>
 <key>NSScreenCaptureUsageDescription</key><string>EasyPaste capture les zones, les fenêtres ou les vidéos que vous choisissez et extrait leur texte sur votre Mac.</string>
+<key>NSCameraUsageDescription</key><string>EasyPaste inclut votre webcam dans la vidéo uniquement lorsque vous activez cette option.</string>
 <key>NSMicrophoneUsageDescription</key><string>EasyPaste utilise le microphone uniquement lorsque vous activez cette option pour une vidéo.</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSHumanReadableCopyright</key><string>Copyright © 2026 EasyPaste contributors. MIT License.</string>
