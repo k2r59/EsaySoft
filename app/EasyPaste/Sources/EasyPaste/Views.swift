@@ -26,14 +26,14 @@ struct MainView: View {
                 nav("Favoris", "star", "pinned")
                 nav("Pile de collage", "square.stack.3d.up", "stack", count: history.stack.count)
             }
-            HStack { eyebrow("COLLECTIONS"); Spacer(); Button { history.showNewBoard = true } label: { Image(systemName: "plus") }.buttonStyle(.plain).help("Créer une collection") }
+            HStack { eyebrow("COLLECTIONS"); Spacer(); Button { history.showNewBoard = true } label: { Image(systemName: "plus") }.buttonStyle(FullAreaButtonStyle(minimumSize: 24)).help("Créer une collection") }
             ScrollView {
                 VStack(spacing: 5) {
                     ForEach(history.boards) { board in
                         Button { history.page = "library"; history.collection = board.id.uuidString } label: {
                             HStack(spacing: 10) { Circle().fill(Theme.colors[board.color % 4]).frame(width: 7, height: 7); Text(board.name).lineLimit(1); Spacer(); if board.shared { Image(systemName: "point.3.connected.trianglepath.dotted").font(.system(size: 10)) } }
                                 .padding(11).background(history.collection == board.id.uuidString && history.page == "library" ? Color.white.opacity(0.06) : .clear, in: RoundedRectangle(cornerRadius: 9))
-                        }.buttonStyle(.plain).contextMenu {
+                        }.buttonStyle(FullAreaButtonStyle()).contextMenu {
                             Button("Renommer…") { rename(board) }
                             Button("Supprimer la collection…") { confirmDelete(board) }
                         }
@@ -44,10 +44,10 @@ struct MainView: View {
             Spacer(minLength: 0)
             VStack(spacing: 5) {
                 nav("Corbeille", "trash", "trash")
-                Button { history.page = "settings" } label: { HStack(spacing: 10) { Image(systemName: "slider.horizontal.3").frame(width: 18); Text("Réglages"); Spacer() }.padding(11).background(history.page == "settings" ? Color.white.opacity(0.07) : .clear, in: RoundedRectangle(cornerRadius: 9)) }.buttonStyle(.plain)
+                Button { history.page = "settings" } label: { HStack(spacing: 10) { Image(systemName: "slider.horizontal.3").frame(width: 18); Text("Réglages"); Spacer() }.padding(11).background(history.page == "settings" ? Color.white.opacity(0.07) : .clear, in: RoundedRectangle(cornerRadius: 9)) }.buttonStyle(FullAreaButtonStyle())
             }
             VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 7) { Circle().fill(history.enabled ? Theme.mint : Theme.muted).frame(width: 6, height: 6); Text(history.enabled ? "Collecte active" : "Collecte en pause").font(.system(size: 11, weight: .medium)); Spacer(); Button { history.enabled.toggle() } label: { Image(systemName: history.enabled ? "pause.fill" : "play.fill") }.buttonStyle(.plain).disabled(history.fault || history.loading).help(history.enabled ? "Mettre en pause" : "Reprendre la collecte") }
+                HStack(spacing: 7) { Circle().fill(history.enabled ? Theme.mint : Theme.muted).frame(width: 6, height: 6); Text(history.enabled ? "Collecte active" : "Collecte en pause").font(.system(size: 11, weight: .medium)).lineLimit(1).minimumScaleFactor(0.9); Spacer(); Button { history.enabled.toggle() } label: { Image(systemName: history.enabled ? "pause.fill" : "play.fill") }.buttonStyle(FullAreaButtonStyle(minimumSize: 24)).disabled(history.fault || history.loading).help(history.enabled ? "Mettre en pause" : "Reprendre la collecte") }
                 Text("Sur ce Mac. Rien dans le cloud.").font(.system(size: 10)).foregroundStyle(Theme.muted)
             }.padding(13).background(Theme.raised.opacity(0.65), in: RoundedRectangle(cornerRadius: 13))
         }.padding(.horizontal, 17).padding(.bottom, 18).background(Theme.panel.opacity(0.55)).font(.system(size: 12))
@@ -57,7 +57,7 @@ struct MainView: View {
             HStack(spacing: 10) { Image(systemName: icon).frame(width: 18); Text(title); Spacer(); if let count, count > 0 { Text("\(count)").font(.system(size: 10, design: .monospaced)).opacity(0.65) } }
                 .padding(11).foregroundStyle(history.collection == id && history.page == "library" ? Theme.mint : Theme.ink.opacity(0.8))
                 .background(history.collection == id && history.page == "library" ? Theme.mint.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 9))
-        }.buttonStyle(.plain)
+        }.buttonStyle(FullAreaButtonStyle())
     }
     private var title: String {
         switch history.collection { case "pinned": return "Toujours à portée."; case "stack": return "Dans le bon ordre."; case "trash": return "Une seconde chance."; case "all": return "Copie. Retrouve.\nReprends le fil."; default: return history.boards.first { $0.id.uuidString == history.collection }?.name ?? "Ta collection" }
@@ -67,7 +67,7 @@ struct MainView: View {
             HStack {
                 HStack(spacing: 7) { Circle().fill(Theme.mint).frame(width: 5, height: 5); Text("TON ESPACE, SUR CE MAC").tracking(1.4) }.font(.system(size: 9, weight: .medium)).foregroundStyle(Theme.muted)
                 Spacer()
-                Button { history.openShelf?() } label: { HStack(spacing: 9) { Image(systemName: "rectangle.bottomthird.inset.filled"); Text("Barre rapide"); KeyCap(text: "⇧⌘V") } }.buttonStyle(.plain).font(.system(size: 11))
+                Button { history.openShelf?() } label: { HStack(spacing: 9) { Image(systemName: "rectangle.bottomthird.inset.filled"); Text("Barre rapide"); KeyCap(text: "⇧⌘V") } }.buttonStyle(FullAreaButtonStyle()).font(.system(size: 11))
             }.padding(.top, 42).padding(.bottom, 21)
             if !history.compact { HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 13) {
@@ -98,14 +98,14 @@ struct MainView: View {
             HStack(spacing: 8) {
                 Image(systemName: history.fault ? "exclamationmark.circle" : "checkmark.circle").foregroundStyle(history.fault ? .orange : Theme.mint)
                 Text(history.notice).lineLimit(2)
-                if !history.recentlyTrashed.isEmpty { Button("Annuler") { history.undoTrash() }.buttonStyle(.plain).foregroundStyle(Theme.mint) }
+                if !history.recentlyTrashed.isEmpty { Button("Annuler") { history.undoTrash() }.buttonStyle(FullAreaButtonStyle()).foregroundStyle(Theme.mint) }
                 Spacer(minLength: 10)
-                if !history.selection.isEmpty { Button("Copier\(history.selection.count > 1 ? " les \(history.selection.count) éléments" : "")") { Task { _ = await history.copy(history.selection) } }.buttonStyle(.plain).foregroundStyle(Theme.mint) }
+                if !history.selection.isEmpty { Button("Copier\(history.selection.count > 1 ? " les \(history.selection.count) éléments" : "")") { Task { _ = await history.copy(history.selection) } }.buttonStyle(FullAreaButtonStyle()).foregroundStyle(Theme.mint) }
                 if !history.selection.isEmpty, history.collection == "trash" {
-                    Button("Restaurer") { for clip in history.selection { history.restore(clip) } }.buttonStyle(.plain).foregroundStyle(Theme.mint)
-                    Button("Supprimer définitivement…") { confirmPermanentDeletion(history, items: history.selection) }.buttonStyle(.plain)
+                    Button("Restaurer") { for clip in history.selection { history.restore(clip) } }.buttonStyle(FullAreaButtonStyle()).foregroundStyle(Theme.mint)
+                    Button("Supprimer définitivement…") { confirmPermanentDeletion(history, items: history.selection) }.buttonStyle(FullAreaButtonStyle())
                 }
-                if !history.selection.isEmpty, history.collection != "trash" { Button { history.trashItems(history.selection) } label: { Image(systemName: "trash").font(.system(size: 12)) }.buttonStyle(.plain).help("Supprimer la sélection").accessibilityLabel("Supprimer la sélection") }
+                if !history.selection.isEmpty, history.collection != "trash" { Button { history.trashItems(history.selection) } label: { Image(systemName: "trash").font(.system(size: 12)) }.buttonStyle(FullAreaButtonStyle(minimumSize: 24)).help("Supprimer la sélection").accessibilityLabel("Supprimer la sélection") }
             }.font(.system(size: 10)).foregroundStyle(Theme.muted).padding(.vertical, 16)
         }.padding(.horizontal, 28)
     }
@@ -136,7 +136,7 @@ struct SearchBar: View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass").foregroundStyle(Theme.muted)
             TextField("Rechercher un texte, une image, une idée…", text: $history.query).textFieldStyle(.plain).focused($focused).font(.system(size: 13))
-            if !history.query.isEmpty { Button { history.query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.muted) }.buttonStyle(.plain) }
+            if !history.query.isEmpty { Button { history.query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.muted).frame(width: 24, height: 24) }.buttonStyle(FullAreaButtonStyle()) }
             KeyCap(text: "⌘F")
         }.padding(.horizontal, 14).padding(.vertical, 10).background(Theme.raised.opacity(0.75), in: RoundedRectangle(cornerRadius: 11)).overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(.white.opacity(0.05)))
         .onAppear { if focusOnAppear { focused = true } }
@@ -150,13 +150,13 @@ struct FilterBar: View {
             pill("Tout", selected: history.filter == nil) { history.filter = nil }
             ForEach(ClipKind.allCases, id: \.self) { kind in pill(kind.label, selected: history.filter == kind) { history.filter = kind } }
             Spacer(minLength: 4)
-            Menu { Button("Toutes les applications") { history.sourceFilter = "" }; ForEach(history.sources, id: \.self) { source in Button(source) { history.sourceFilter = source } } } label: { Label(history.sourceFilter.isEmpty ? "Application" : history.sourceFilter, systemImage: "line.3.horizontal.decrease").lineLimit(1) }.menuStyle(.borderlessButton).fixedSize().font(.system(size: 10))
+            Menu { Button("Toutes les applications") { history.sourceFilter = "" }; ForEach(history.sources, id: \.self) { source in Button(source) { history.sourceFilter = source } } } label: { Label(history.sourceFilter.isEmpty ? "Application" : history.sourceFilter, systemImage: "line.3.horizontal.decrease").lineLimit(1).contentShape(.interaction, Rectangle()) }.menuStyle(.borderlessButton).fixedSize().font(.system(size: 10))
             Toggle("Aujourd’hui", isOn: $history.todayOnly).toggleStyle(.button).font(.system(size: 10)).tint(Theme.mint)
         }
     }
 }
 func pill(_ text: String, selected: Bool, action: @escaping () -> Void) -> some View {
-    Button(action: action) { Text(text).font(.system(size: 11, weight: selected ? .semibold : .regular)).foregroundStyle(selected ? Theme.mint : Theme.muted).padding(.horizontal, 11).padding(.vertical, 7).background(selected ? Theme.mint.opacity(0.1) : .clear, in: Capsule()) }.buttonStyle(.plain)
+    Button(action: action) { Text(text).font(.system(size: 11, weight: selected ? .semibold : .regular)).foregroundStyle(selected ? Theme.mint : Theme.muted).padding(.horizontal, 11).padding(.vertical, 7).background(selected ? Theme.mint.opacity(0.1) : .clear, in: Capsule()) }.buttonStyle(FullAreaButtonStyle())
 }
 func eyebrow(_ title: String) -> some View { Text(title).font(.system(size: 9, weight: .semibold)).tracking(1.5).foregroundStyle(Theme.muted) }
 
@@ -187,13 +187,13 @@ struct ClipCard: View {
                 Text(clip.source).font(.system(size: 11, weight: .medium)).lineLimit(1).foregroundStyle(Theme.muted)
                 Spacer(minLength: 3)
                 if clip.kind == .image, clip.trashedAt == nil {
-                    Button { history.annotate?(clip) } label: { Image(systemName: "pencil.tip.crop.circle").font(.system(size: 15)).foregroundStyle(Theme.mint) }.buttonStyle(.plain).opacity(hovered || selected ? 1 : 0).help("Annoter · ⌘E").accessibilityLabel("Annoter l’image").disabled(history.annotating || history.captureBusy)
+                    Button { history.annotate?(clip) } label: { Image(systemName: "pencil.tip.crop.circle").font(.system(size: 15)).foregroundStyle(Theme.mint).frame(width: 24, height: 24) }.buttonStyle(FullAreaButtonStyle()).opacity(hovered || selected ? 1 : 0).help("Annoter · ⌘E").accessibilityLabel("Annoter l’image").disabled(history.annotating || history.captureBusy)
                 }
                 if clip.pinned { Image(systemName: "star.fill").foregroundStyle(Theme.mint).font(.system(size: 9)) }
-                Menu { ClipActions(history: history, clip: clip) } label: { Image(systemName: "ellipsis").foregroundStyle(Theme.muted).frame(width: 18, height: 18) }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help("Actions de l’élément")
+                Menu { ClipActions(history: history, clip: clip) } label: { Image(systemName: "ellipsis").foregroundStyle(Theme.muted).frame(width: 24, height: 24).contentShape(.interaction, Rectangle()) }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help("Actions de l’élément")
             }.padding(.horizontal, 15).padding(.top, 13).padding(.bottom, 13)
             ClipContent(clip: clip, compact: compact).overlay {
-                if clip.kind == .video { Button { history.previewing = clip } label: { Image(systemName: "play.fill").font(.system(size: 18)).foregroundStyle(.white).padding(16).background(.black.opacity(0.6), in: Circle()) }.buttonStyle(.plain).help("Lire la vidéo") }
+                if clip.kind == .video { Button { history.previewing = clip } label: { Image(systemName: "play.fill").font(.system(size: 18)).foregroundStyle(.white).padding(16).background(.black.opacity(0.6), in: Circle()) }.buttonStyle(FullAreaButtonStyle()).help("Lire la vidéo") }
             }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).padding(.horizontal, 15).clipped()
             HStack {
                 Text(clip.kind == .video ? "VIDÉO · " + clip.durationLabel : clip.parentID != nil ? "MODIFIÉE" : history.originalIDs.contains(clip.id) ? "ORIGINAL" : clip.kind == .image ? (history.ocrTasks.contains(clip.id) ? "LECTURE DU TEXTE…" : clip.ocr.isEmpty ? "IMAGE" : "IMAGE · TEXTE DÉTECTÉ") : clip.kind == .file ? "FICHIER" : clip.kind == .link ? "LIEN" : clip.kind == .color ? "COULEUR" : "\(clip.text.count) CARACTÈRES").font(.system(size: 8, weight: .medium)).tracking(0.5)
@@ -297,7 +297,7 @@ struct ShelfView: View {
     var body: some View {
         VStack(spacing: 14) {
             HStack(spacing: 17) {
-                Button { history.showLibrary?() } label: { BrandMark(size: 28) }.buttonStyle(.plain).help("Ouvrir la bibliothèque")
+                Button { history.showLibrary?() } label: { BrandMark(size: 28) }.buttonStyle(FullAreaButtonStyle()).help("Ouvrir la bibliothèque")
                 SearchBar(history: history, focusOnAppear: true).frame(maxWidth: 440)
                 ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 2) {
                     pill("Historique", selected: history.collection == "all") { history.collection = "all" }
@@ -306,8 +306,8 @@ struct ShelfView: View {
                     pill("Pile (\(history.stack.count))", selected: history.collection == "stack") { history.collection = "stack" }
                 } }
                 CaptureMenu(history: history)
-                Button { history.compact.toggle() } label: { Image(systemName: history.compact ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left") }.buttonStyle(.plain).help(history.compact ? "Agrandir les cartes" : "Mode compact")
-                Button { history.closeShelf?() } label: { Image(systemName: "xmark").font(.system(size: 11)) }.buttonStyle(.plain).help("Fermer · Échap")
+                Button { history.compact.toggle() } label: { Image(systemName: history.compact ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left") }.buttonStyle(FullAreaButtonStyle(minimumSize: 24)).help(history.compact ? "Agrandir les cartes" : "Mode compact")
+                Button { history.closeShelf?() } label: { Image(systemName: "xmark").font(.system(size: 11)) }.buttonStyle(FullAreaButtonStyle(minimumSize: 24)).help("Fermer · Échap")
             }
             if history.loading { ProgressView("Ouverture…").frame(maxWidth: .infinity, maxHeight: .infinity) }
             else if history.visible.isEmpty {
@@ -322,8 +322,8 @@ struct ShelfView: View {
             HStack(spacing: 14) {
                 Label("Entrée pour coller", systemImage: "return"); Text("⇧Entrée · texte brut"); Text("⌘1–9 · collage rapide")
                 Spacer()
-                if !history.recentlyTrashed.isEmpty { Button("Annuler la suppression") { history.undoTrash() }.buttonStyle(.plain).foregroundStyle(Theme.mint) }
-                if !history.selection.isEmpty { Button { history.trashItems(history.selection) } label: { Label("Supprimer\(history.selection.count > 1 ? " (\(history.selection.count))" : "")", systemImage: "trash") }.buttonStyle(.plain).help("Supprimer la sélection") }
+                if !history.recentlyTrashed.isEmpty { Button("Annuler la suppression") { history.undoTrash() }.buttonStyle(FullAreaButtonStyle()).foregroundStyle(Theme.mint) }
+                if !history.selection.isEmpty { Button { history.trashItems(history.selection) } label: { Label("Supprimer\(history.selection.count > 1 ? " (\(history.selection.count))" : "")", systemImage: "trash") }.buttonStyle(FullAreaButtonStyle()).help("Supprimer la sélection") }
                 Text("\(history.visible.count) élément(s)")
                 Text(history.enabled ? "Collecte active" : "En pause").foregroundStyle(history.enabled ? Theme.mint : Theme.muted)
             }.font(.system(size: 10)).foregroundStyle(Theme.muted)

@@ -17,7 +17,7 @@ struct CaptureMenu: View {
                 Button { history.capture?(action) } label: { Label(action.title, systemImage: action.icon) }.disabled(history.captureBusy || history.recording || history.annotating)
             }
             if history.recording { Divider(); Button("Arrêter l’enregistrement") { history.stopRecording?() } }
-        } label: { Label(history.recording ? "Enregistrement" : history.captureBusy ? "Capture…" : "Capturer", systemImage: history.recording ? "record.circle.fill" : "viewfinder").font(.system(size: 12, weight: .semibold)).foregroundStyle(history.recording ? .red : Theme.mint).padding(.horizontal, 12).padding(.vertical, 9).background(Theme.mint.opacity(0.08), in: RoundedRectangle(cornerRadius: 10)) }
+        } label: { Label(history.recording ? "Enregistrement" : history.captureBusy ? "Capture…" : "Capturer", systemImage: history.recording ? "record.circle.fill" : "viewfinder").font(.system(size: 12, weight: .semibold)).foregroundStyle(history.recording ? .red : Theme.mint).padding(.horizontal, 12).padding(.vertical, 9).background(Theme.mint.opacity(0.08), in: RoundedRectangle(cornerRadius: 10)).contentShape(.interaction, Rectangle()) }
         .menuStyle(.borderlessButton).fixedSize().help("Capture d’écran, texte et vidéo")
     }
 }

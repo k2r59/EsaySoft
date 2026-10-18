@@ -24,14 +24,30 @@ struct Surface: ViewModifier {
     func body(content: Content) -> some View { content.background(Theme.panel, in: RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.white.opacity(0.075))) }
 }
 extension View { func surface() -> some View { modifier(Surface()) } }
+/// Keep the entire label interactive, including transparent padding and spacers.
+/// Apply this inside the button style so native button actions, keyboard activation
+/// and disabled states all use the same bounds without an extra tap gesture.
+struct FullAreaButtonStyle: ButtonStyle {
+    var minimumSize: CGFloat = 0
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .frame(minWidth: minimumSize, minHeight: minimumSize)
+            .contentShape(.interaction, Rectangle())
+            .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)
+    }
+}
 struct PasteButtonStyle: ButtonStyle {
     var primary = false
+    @Environment(\.isEnabled) private var isEnabled
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.font(.system(size: 12, weight: .semibold)).padding(.horizontal, 16).padding(.vertical, 11)
             .foregroundStyle(primary ? Theme.bg : Theme.ink)
             .background(primary ? Theme.mint.opacity(configuration.isPressed ? 0.75 : 1) : Color.white.opacity(configuration.isPressed ? 0.12 : 0.065), in: RoundedRectangle(cornerRadius: 11))
             .overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(primary ? Color.white.opacity(0.25) : Color.white.opacity(0.07)))
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .contentShape(.interaction, Rectangle())
+            .opacity(isEnabled ? 1 : 0.4)
     }
 }
 struct KeyCap: View {

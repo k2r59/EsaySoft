@@ -183,19 +183,19 @@ struct AnnotationView: View {
             }.padding(20)
             HStack(spacing: 5) {
                 ForEach(AnnotationTool.allCases, id: \.self) { tool in
-                    Button { model.tool = tool } label: { VStack(spacing: 5) { Image(systemName: tool.icon).font(.system(size: 15)); Text(tool.title).font(.system(size: 10)) }.frame(width: 60, height: 43).foregroundStyle(model.tool == tool ? Theme.bg : Theme.ink).background(model.tool == tool ? Theme.mint : .clear, in: RoundedRectangle(cornerRadius: 9)) }.buttonStyle(.plain).help(tool.title).accessibilityLabel(tool.title)
+                    Button { model.tool = tool } label: { VStack(spacing: 5) { Image(systemName: tool.icon).font(.system(size: 15)); Text(tool.title).font(.system(size: 10)) }.frame(width: 60, height: 43).foregroundStyle(model.tool == tool ? Theme.bg : Theme.ink).background(model.tool == tool ? Theme.mint : .clear, in: RoundedRectangle(cornerRadius: 9)) }.buttonStyle(FullAreaButtonStyle()).help(tool.title).accessibilityLabel(tool.title)
                 }
                 Divider().frame(height: 28).padding(.horizontal, 7)
                 ForEach(AnnotationColor.allCases, id: \.self) { color in
-                    Button { model.color = color } label: { Circle().fill(Color(cgColor: color.cgColor)).frame(width: 17, height: 17).padding(4).overlay(Circle().strokeBorder(model.color == color ? .white : .clear, lineWidth: 1.5)) }.buttonStyle(.plain).help(color.title).accessibilityLabel(color.title)
+                    Button { model.color = color } label: { Circle().fill(Color(cgColor: color.cgColor)).frame(width: 17, height: 17).padding(4).overlay(Circle().strokeBorder(model.color == color ? .white : .clear, lineWidth: 1.5)) }.buttonStyle(FullAreaButtonStyle()).help(color.title).accessibilityLabel(color.title)
                 }
                 Spacer(minLength: 5)
-                Menu { ForEach([CGFloat(2),4,7], id: \.self) { value in Button(value == 2 ? "Trait fin" : value == 4 ? "Trait moyen" : "Trait épais") { model.width = value } } } label: { Image(systemName: "lineweight") }.menuStyle(.borderlessButton).fixedSize().help("Épaisseur du trait")
-                Button { model.undo() } label: { Image(systemName: "arrow.uturn.backward") }.disabled(model.undoStates.isEmpty).keyboardShortcut("z", modifiers: .command).help("Annuler · ⌘Z")
-                Button { model.redo() } label: { Image(systemName: "arrow.uturn.forward") }.disabled(model.redoStates.isEmpty).keyboardShortcut("z", modifiers: [.command,.shift]).help("Rétablir · ⇧⌘Z")
-            }.buttonStyle(.plain).padding(.horizontal, 18).padding(.vertical, 10).background(Theme.panel).disabled(model.saving)
+                Menu { ForEach([CGFloat(2),4,7], id: \.self) { value in Button(value == 2 ? "Trait fin" : value == 4 ? "Trait moyen" : "Trait épais") { model.width = value } } } label: { Image(systemName: "lineweight").frame(width: 24, height: 24).contentShape(.interaction, Rectangle()) }.menuStyle(.borderlessButton).fixedSize().help("Épaisseur du trait")
+                Button { model.undo() } label: { Image(systemName: "arrow.uturn.backward").frame(width: 24, height: 24) }.disabled(model.undoStates.isEmpty).keyboardShortcut("z", modifiers: .command).help("Annuler · ⌘Z")
+                Button { model.redo() } label: { Image(systemName: "arrow.uturn.forward").frame(width: 24, height: 24) }.disabled(model.redoStates.isEmpty).keyboardShortcut("z", modifiers: [.command,.shift]).help("Rétablir · ⇧⌘Z")
+            }.buttonStyle(FullAreaButtonStyle()).padding(.horizontal, 18).padding(.vertical, 10).background(Theme.panel).disabled(model.saving)
             if model.textPoint != nil {
-                HStack { Image(systemName: "textformat"); TextField("Ton texte…", text: $model.text).textFieldStyle(.plain).focused($textFocused).onSubmit { model.addText() }; Button("Ajouter") { model.addText() }.buttonStyle(PasteButtonStyle(primary: true)); Button("Annuler") { model.textPoint = nil; model.text = "" }.buttonStyle(.plain) }.padding(12).background(Theme.raised).task { await Task.yield(); textFocused = true }
+                HStack { Image(systemName: "textformat"); TextField("Ton texte…", text: $model.text).textFieldStyle(.plain).focused($textFocused).onSubmit { model.addText() }; Button("Ajouter") { model.addText() }.buttonStyle(PasteButtonStyle(primary: true)); Button("Annuler") { model.textPoint = nil; model.text = "" }.buttonStyle(FullAreaButtonStyle()) }.padding(12).background(Theme.raised).task { await Task.yield(); textFocused = true }
             }
             AnnotationCanvas(model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
