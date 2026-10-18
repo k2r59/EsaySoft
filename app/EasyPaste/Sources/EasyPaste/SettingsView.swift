@@ -61,7 +61,7 @@ struct SettingsView: View {
                         }.buttonStyle(PasteButtonStyle())
                     }
                 }
-                HStack { Text("EasyPaste 0.2.1 · Open source · Licence MIT"); Spacer(); Text("Pensé pour ton Mac.") }.font(.system(size: 10)).foregroundStyle(Theme.muted)
+                HStack { Text("EasyPaste 0.2.2 · Open source · Licence MIT"); Spacer(); Text("Pensé pour ton Mac.") }.font(.system(size: 10)).foregroundStyle(Theme.muted)
                 if !message.isEmpty { Text(message).font(.system(size: 11)).foregroundStyle(Theme.mint) }
             }.padding(.horizontal, 32).padding(.bottom, 30)
         }.onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in trusted = AXIsProcessTrusted(); launch = SMAppService.mainApp.status == .enabled }

@@ -1,12 +1,12 @@
 #!/bin/zsh
 set -euo pipefail
 cd "${0:A:h:h}"
-swift build -j 4 -c release --arch arm64 --arch x86_64
+swift build -j 2 -c release --arch arm64 --arch x86_64
 app=dist/EasyPaste.app
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 swift scripts/generate-icon.swift .build/EasyPaste.iconset
 iconutil -c icns .build/EasyPaste.iconset -o "$app/Contents/Resources/EasyPaste.icns"
-binary_dir=$(swift build -j 4 -c release --arch arm64 --arch x86_64 --show-bin-path)
+binary_dir=$(swift build -j 2 -c release --arch arm64 --arch x86_64 --show-bin-path)
 cp "$binary_dir/EasyPaste" "$app/Contents/MacOS/EasyPaste"
 cp LICENSE "$app/Contents/Resources/LICENSE.txt"
 cp Sources/EasyPaste/Resources/clipboard-studio.png "$app/Contents/Resources/clipboard-studio.png"
@@ -19,8 +19,8 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>app.easypaste.mac</string>
 <key>CFBundleIconFile</key><string>EasyPaste</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.2.1</string>
-<key>CFBundleVersion</key><string>3</string>
+<key>CFBundleShortVersionString</key><string>0.2.2</string>
+<key>CFBundleVersion</key><string>5</string>
 <key>CFBundleDevelopmentRegion</key><string>fr</string>
 <key>CFBundleLocalizations</key><array><string>fr</string></array>
 <key>LSMinimumSystemVersion</key><string>15.0</string>

@@ -4,7 +4,7 @@ Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT.
 
 ## Installation
 
-1. Ouvrir `dist/EasyPaste-0.2.1-universal.dmg`.
+1. Ouvrir `dist/EasyPaste-0.2.2-universal.dmg`.
 2. Glisser EasyPaste dans Applications, puis l’ouvrir.
 3. Cliquer sur **Activer mon historique**. Les prochaines copies seront enregistrées.
 4. Depuis une autre application, ouvrir la barre rapide avec **Maj + Commande + V**.
@@ -37,7 +37,7 @@ Le menu près de l’heure propose **Capturer une zone** directement. Le sous-me
 4. Ajouter une flèche, un cadre, du texte ou un surlignage. **Masquer** recouvre les informations avec un rectangle opaque. **Recadrer** conserve la zone choisie.
 5. Cliquer sur **Créer une copie**. La version modifiée apparaît à côté de l’original et remplace le contenu du presse-papiers. L’original reste intact.
 
-Les captures sont enregistrées en PNG sans perte, à la densité native de l’écran. Une zone de 600 × 400 points sur un écran Retina produit 1 200 × 800 pixels. Les miniatures servent à l’affichage ; la copie conserve tous les pixels de l’original. Les images sont limitées à 50 mégapixels et à 20 Mo encodés.
+Les captures sont enregistrées en PNG sans perte, à la densité native de l’écran. Une zone de 600 × 400 points sur un écran Retina produit 1 200 × 800 pixels. Les miniatures servent à l’affichage ; la copie conserve tous les pixels de l’original. Dans **Aperçu**, **100 %** affiche un pixel de l’image pour un pixel de l’écran, avec défilement si nécessaire. **Ajuster** montre l’ensemble sans agrandir artificiellement une petite image. Les images sont limitées à 50 mégapixels et à 20 Mo encodés.
 
 Pour extraire du texte visible, choisir **Extraire le texte d’une zone**, puis encadrer les lignes voulues. Le texte reconnu est enregistré et copié. La reconnaissance utilise Vision sur le Mac.
 
@@ -117,7 +117,8 @@ Le client MCP lance le processus et communique par entrée/sortie standard. Aucu
 - Lecture initiale et chiffrement hors du fil de l’interface.
 - Contenus complets relus à la demande ; seuls textes, métadonnées et miniatures restent dans l’interface.
 - Miniatures limitées à 640 pixels et cache d’images plafonné à 32 Mo.
-- Aperçu des images limité à 2400 pixels ; originaux conservés pour la copie.
+- Aperçu ajusté décodé en arrière-plan selon la densité de l’écran (600 pixels en 1×, 1 200 en 2× au maximum). Le mode 100 % décode l’original à la demande et le libère au retour à Ajuster.
+- Recadrage direct des pixels ; conservation du profil couleur RGB pendant l’annotation. Assemblage des captures en arrière-plan, sans interpolation des pixels entre écrans 1× et 2×.
 - OCR sérialisé en arrière-plan, avec image de travail réduite à 2600 pixels.
 - Recherche différée de 140 ms pendant la frappe, annulable, calculée en arrière-plan.
 - Grilles et barre paresseuses ; bibliothèque paginée par groupes de 80 cartes.
@@ -176,3 +177,5 @@ L’illustration décorative originale a été créée avec l’outil imagegen i
 ## Licence
 
 [MIT](LICENSE). Gratuit, modifiable et redistribuable selon cette licence. La signature Apple du binaire distribué n’accorde aucun accès aux clés privées de signature.
+
+Les contrôles de netteté, de copie et de réactivité de la version 0.2.2 sont détaillés dans [QA-0.2.2.md](QA-0.2.2.md).
