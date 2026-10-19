@@ -47,7 +47,7 @@ struct SettingsView: View {
                 section("Confidentialité", icon: "lock.shield") {
                     Text("Historique chiffré sur ce Mac.").font(.system(size: 12))
                     SettingsDetails("Protection des données") {
-                        Text("La clé reste dans le trousseau. EasyPaste ne transmet pas l’historique sur le réseau.")
+                        Text("La clé reste dans le trousseau. L’historique reste local. Les intégrations facultatives ne partagent que les contenus que tu autorises.")
                         Text("Les copies signalées comme confidentielles ou temporaires et les principaux gestionnaires de mots de passe sont ignorés. Un secret non signalé peut être enregistré.")
                         Text("La lecture et le collage d’une vidéo créent une copie temporaire déchiffrée. Après 24 h, EasyPaste la supprime au lancement suivant.")
                     }
@@ -55,6 +55,9 @@ struct SettingsView: View {
                     ForEach(history.exclusions, id: \.self) { id in HStack { Text(appName(id)).font(.system(size: 11)); Spacer(); Button { history.exclusions.removeAll { $0 == id } } label: { Image(systemName: "minus.circle") }.buttonStyle(FullAreaButtonStyle(minimumSize: 24)).help("Retirer cette exclusion") } }
                     Text("Les exclusions s’appliquent aux prochaines copies.").font(.system(size: 11)).foregroundStyle(Theme.muted)
                     HStack { Text("\(ByteCountFormatter.string(fromByteCount: Int64(history.totalBytes), countStyle: .file)) de contenu · \(history.total) éléments").foregroundStyle(Theme.muted); Spacer(); Button("Effacer l’historique…") { clear() }.buttonStyle(PasteButtonStyle()) }.font(.system(size: 11))
+                }
+                section("Intégrations", icon: "puzzlepiece.extension") {
+                    BitwardenSettings(model: history.bitwarden)
                 }
                 section("Assistants · MCP", icon: "point.3.connected.trianglepath.dotted") {
                     PreferenceToggle("Activer le connecteur local", isOn: $history.mcpEnabled)

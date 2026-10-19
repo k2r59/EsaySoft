@@ -4,7 +4,7 @@ Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT.
 
 ## Installation
 
-1. Ouvrir `dist/EasyPaste-0.2.8-universal.dmg`.
+1. Ouvrir `dist/EasyPaste-0.2.9-universal.dmg`.
 2. Glisser EasyPaste dans Applications, puis l’ouvrir.
 3. Cliquer sur **Activer l’historique**. Les prochaines copies seront enregistrées.
 4. Depuis une autre application, ouvrir la barre rapide avec **Maj + Commande + V**.
@@ -246,3 +246,18 @@ Le formatage JSON, SQL, CSV et XML de la version 0.2.6 est décrit dans [QA-0.2.
 Le rendu Markdown de la version 0.2.7 est décrit dans [QA-0.2.7.md](QA-0.2.7.md).
 
 Le rendu SVG et la pipette de la version 0.2.8 sont décrits dans [QA-0.2.8.md](QA-0.2.8.md).
+
+## Partage Bitwarden · 0.2.9
+
+Intégration native facultative, désactivée par défaut dans Réglages → Intégrations.
+Menu dédié, liens publics ou réservés à des adresses e-mail, mot de passe facultatif,
+et copie automatique du lien après envoi. L’option « Lien public uniquement »
+crée immédiatement un lien de 7 jours avec la date et l’heure en titre.
+« Partager avec options… » reste disponible. Aucun CLI à installer.
+
+[Utilisation, confidentialité et limites](docs/bitwarden.md) · [Validation](QA-0.2.9.md).
+Connexion et envoi réels avec un compte utilisateur restent à valider ; les tests
+automatisés utilisent des serveurs simulés et ne transmettent aucun historique.
+
+Le code original reste MIT ; Argon2 embarqué utilise CC0 1.0.
+Voir les [mentions des composants tiers](THIRD-PARTY-NOTICES.md).

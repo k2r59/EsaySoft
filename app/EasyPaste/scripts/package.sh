@@ -6,11 +6,14 @@ if [[ -n "${NOTARY_PROFILE:-}" && -z "${CODE_SIGN_IDENTITY:-}" ]]; then
  exit 1
 fi
 ./scripts/build.sh
+app=${APP_BUNDLE_PATH:-dist/EasyPaste.app}
 staging=$(mktemp -d "${TMPDIR:-/tmp}/EasyPaste-package.XXXXXX")
 trap 'rm -rf "$staging"' EXIT
-ditto dist/EasyPaste.app "$staging/EasyPaste.app"
+ditto "$app" "$staging/EasyPaste.app"
 ln -s /Applications "$staging/Applications"
 cp LICENSE "$staging/Licence MIT.txt"
+cp THIRD-PARTY-NOTICES.md "$staging/Composants tiers.md"
+cp Sources/CArgon2/LICENSE "$staging/Argon2-LICENSE.txt"
 cat > "$staging/Installation.txt" <<'TEXT'
 EASYPASTE
 
@@ -23,7 +26,7 @@ EASYPASTE
 macOS 15 ou ultérieur. Mac Intel et Apple Silicon.
 Code source sous licence MIT.
 TEXT
-dmg=dist/EasyPaste-0.2.8-universal.dmg
+dmg=dist/EasyPaste-0.2.9-universal.dmg
 hdiutil create -volname EasyPaste -srcfolder "$staging" -format UDZO -fs HFS+ -ov "$dmg"
 if [[ -n "${CODE_SIGN_IDENTITY:-}" ]]; then
  codesign --force --timestamp --sign "$CODE_SIGN_IDENTITY" "$dmg"
@@ -32,17 +35,18 @@ if [[ -n "${NOTARY_PROFILE:-}" ]]; then
  xcrun notarytool submit "$dmg" --keychain-profile "$NOTARY_PROFILE" --wait
  xcrun stapler staple "$dmg"
  xcrun stapler validate "$dmg"
- xcrun stapler staple dist/EasyPaste.app
- spctl --assess --type execute --verbose=2 dist/EasyPaste.app
+ xcrun stapler staple "$app"
+ spctl --assess --type execute --verbose=2 "$app"
  spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
 fi
-ditto -c -k --sequesterRsrc --keepParent dist/EasyPaste.app dist/EasyPaste-0.2.8-universal.zip
+ditto "$app" "$staging/EasyPaste.app"
+ditto -c -k --sequesterRsrc --keepParent "$staging/EasyPaste.app" dist/EasyPaste-0.2.9-universal.zip
 mkdir -p "$staging/EasyPaste-source"
-cp Package.swift LICENSE README.md QA-0.2.2.md QA-0.2.3.md QA-0.2.4.md QA-0.2.5.md QA-0.2.6.md QA-0.2.7.md QA-0.2.8.md ASSET-PROMPT.txt .gitignore "$staging/EasyPaste-source/"
+cp Package.swift LICENSE README.md QA-0.2.2.md QA-0.2.3.md QA-0.2.4.md QA-0.2.5.md QA-0.2.6.md QA-0.2.7.md QA-0.2.8.md QA-0.2.9.md THIRD-PARTY-NOTICES.md ASSET-PROMPT.txt .gitignore "$staging/EasyPaste-source/"
 ditto Sources "$staging/EasyPaste-source/Sources"
 ditto Tests "$staging/EasyPaste-source/Tests"
 ditto scripts "$staging/EasyPaste-source/scripts"
 ditto docs "$staging/EasyPaste-source/docs"
-ditto -c -k --keepParent "$staging/EasyPaste-source" dist/EasyPaste-0.2.8-source.zip
-(cd dist && shasum -a 256 EasyPaste-0.2.8-universal.dmg EasyPaste-0.2.8-universal.zip EasyPaste-0.2.8-source.zip) > dist/SHA256SUMS
+ditto -c -k --keepParent "$staging/EasyPaste-source" dist/EasyPaste-0.2.9-source.zip
+(cd dist && shasum -a 256 EasyPaste-0.2.9-universal.dmg EasyPaste-0.2.9-universal.zip EasyPaste-0.2.9-source.zip) > dist/SHA256SUMS
 print "Installateur : $PWD/$dmg"

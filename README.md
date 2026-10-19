@@ -1,7 +1,9 @@
 # EsaySoft
 
 Trois applications macOS natives, en français, gratuites et sous licence MIT.
-Cette première distribution fonctionne en local, sans compte EsaySoft ni synchronisation iCloud.
+L’historique fonctionne en local, sans compte EsaySoft ni synchronisation iCloud.
+EasyPaste propose aussi un partage Bitwarden facultatif, désactivé par défaut ;
+seuls les éléments choisis sont transmis après activation et connexion.
 
 | Application | Usage | Sources et guide |
 | --- | --- | --- |
@@ -28,6 +30,8 @@ Les trois applications nécessitent **macOS 15 ou ultérieur**. Les scripts prod
 ## Compiler une application
 
 Installer Xcode et ses outils de développement, avec Swift 6 et le SDK macOS. Aucune dépendance Swift externe n’est nécessaire.
+EasyPaste embarque l’implémentation C d’Argon2 sous CC0 pour les comptes Bitwarden concernés ;
+voir ses [mentions des composants tiers](app/EasyPaste/THIRD-PARTY-NOTICES.md).
 
 Depuis la racine du dépôt, par exemple pour EasyPaste :
 
