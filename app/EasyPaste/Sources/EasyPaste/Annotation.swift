@@ -61,7 +61,7 @@ import SwiftUI
                 let saved = replaceOriginal ? try await history.replaceImage(png, original: clip) : try await history.saveImage(png, parent: clip)
                 let copied = copyToClipboard ? await history.copy([saved]) : false; close(); onSaved?()
                 let action = replaceOriginal ? "Image remplacée" : "Copie modifiée créée"
-                history.report(copied ? action + " · prête à coller avec ⌘V." : copyToClipboard ? action + ". Utilise Copier pour la préparer." : action + " dans l’historique.")
+                history.report(copied ? action + " · ⌘V pour coller" : copyToClipboard ? action + ". Utilise Copier pour la préparer." : action + " dans l’historique.")
             } catch { model.saving = false; model.error = error.localizedDescription }
         }
     }

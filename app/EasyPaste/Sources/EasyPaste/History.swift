@@ -59,7 +59,7 @@ struct ClipQuery {
     @Published var stack: [UUID] = [] { didSet { refresh() } }
     @Published var stackRecording = false
     @Published var recentlyTrashed: [UUID] = []
-    @Published var notice = "Tout commence par une copie."
+    @Published var notice = "Historique vide."
     @Published var fault = false
     @Published var captureBusy = false
     @Published var recording = false
@@ -262,7 +262,7 @@ struct ClipQuery {
             guard !items.isEmpty else { return false }
             pb.clearContents(); let ok = pb.writeObjects(items)
             if pb.name == NSPasteboard.general.name { changeCount = pb.changeCount }
-            report(ok ? "Copié. Prêt à coller avec ⌘V." : "Impossible d’écrire dans le presse-papiers.")
+            report(ok ? "Copié · ⌘V pour coller" : "Impossible d’écrire dans le presse-papiers.")
             return ok
         } catch { report("Copie impossible : \(error.localizedDescription)"); return false }
     }

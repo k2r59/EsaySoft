@@ -97,20 +97,20 @@ struct EditorView: View {
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         VStack(alignment: .leading, spacing: 17) {
-            HStack { VStack(alignment: .leading, spacing: 6) { eyebrow(clip == nil ? "NOUVEAU TEXTE" : "ÉDITION"); Text("Les bons mots, à ta façon.").font(.system(size: 23, weight: .semibold)) }; Spacer(); Button("Annuler") { dismiss() }.buttonStyle(PasteButtonStyle()) }
-            TextField("Titre de ton texte", text: $title).textFieldStyle(.plain).font(.system(size: 16, weight: .medium)).padding(12).background(Theme.raised, in: RoundedRectangle(cornerRadius: 9))
+            HStack { Text(clip == nil ? "Nouveau texte" : "Modifier le texte").font(.system(size: 23, weight: .semibold)); Spacer(); Button("Annuler") { dismiss() }.buttonStyle(PasteButtonStyle()) }
+            TextField("Titre (facultatif)", text: $title).textFieldStyle(.plain).font(.system(size: 16, weight: .medium)).padding(12).background(Theme.raised, in: RoundedRectangle(cornerRadius: 9)).accessibilityLabel("Titre du texte")
             HStack(spacing: 6) {
                 format("bold", "Gras") { model.trait(.boldFontMask) }
                 format("italic", "Italique") { model.trait(.italicFontMask) }
                 format("underline", "Souligner") { model.toggle(.underlineStyle) }
                 format("strikethrough", "Barrer") { model.toggle(.strikethroughStyle) }
-                Spacer(); Text("Le format est conservé au collage.").font(.system(size: 10)).foregroundStyle(Theme.muted)
+                Spacer()
             }
             if model.ready { RichTextEditor(model: model).frame(height: 310).clipShape(RoundedRectangle(cornerRadius: 12)) }
             else { ProgressView("Ouverture du texte…").frame(height: 310).frame(maxWidth: .infinity) }
             HStack { Text(error).font(.system(size: 11)).foregroundStyle(.orange); Spacer(); Button("Enregistrer") {
                 let text = model.textView.string
-                guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { error = "Ajoute un peu de texte avant d’enregistrer."; return }
+                guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { error = "Saisis un texte avant d’enregistrer."; return }
                 guard text.utf8.count + (model.rtf?.count ?? 0) <= ClipboardReader.limit else { error = "Ce texte dépasse la limite de 20 Mo."; return }
                 let name = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? String(text.prefix(90)) : title
                 if let clip { history.edit(clip.id, title: name, text: text, rtf: model.rtf) } else { history.makeSnippet(name, text: text, rtf: model.rtf) }
@@ -127,10 +127,9 @@ struct NewBoardView: View {
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            eyebrow("UNE PLACE POUR TES IDÉES")
             Text("Nouvelle collection").font(.system(size: 25, weight: .semibold))
-            Text("Les éléments d’une collection restent disponibles sans limite de durée.").font(.system(size: 12)).foregroundStyle(Theme.muted)
-            TextField("Par exemple : Réponses utiles", text: $name).textFieldStyle(.roundedBorder).onSubmit { save() }
+            Text("Ses éléments sont conservés sans limite de durée.").font(.system(size: 12)).foregroundStyle(Theme.muted)
+            TextField("Nom de la collection", text: $name).textFieldStyle(.roundedBorder).onSubmit { save() }.accessibilityLabel("Nom de la collection")
             HStack { Button("Annuler") { dismiss() }.buttonStyle(PasteButtonStyle()); Spacer(); Button("Créer la collection") { save() }.buttonStyle(PasteButtonStyle(primary: true)).disabled(name.trimmingCharacters(in: .whitespaces).isEmpty) }
         }.padding(28).frame(width: 400).background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
     }

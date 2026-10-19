@@ -109,7 +109,7 @@ struct ClipContent: View {
             } else if clip.kind == .color {
                 ZStack(alignment: .bottomLeading) {
                     RoundedRectangle(cornerRadius: 11).fill(colorFromHex(clip.text))
-                    VStack(alignment: .leading, spacing: 4) { Text(clip.text.uppercased()).font(.system(size: compact ? 16 : 22, weight: .medium, design: .monospaced)); if !compact { Text("La nuance qu’il te fallait.").font(.system(size: 11)) } }.foregroundStyle(.black).padding(12).background(.white.opacity(0.85), in: RoundedRectangle(cornerRadius: 9)).padding(9)
+                    VStack(alignment: .leading, spacing: 4) { Text(clip.text.uppercased()).font(.system(size: compact ? 16 : 22, weight: .medium, design: .monospaced)) }.foregroundStyle(.black).padding(12).background(.white.opacity(0.85), in: RoundedRectangle(cornerRadius: 9)).padding(9)
                 }
 
             } else if clip.kind == .link {
@@ -143,8 +143,8 @@ struct ClipActions: View {
             if clip.kind == .image { Button("Annoter l’image…") { history.annotate?(clip) }.disabled(history.annotating || history.captureBusy) }
             if clip.kind == .video { Button("Enregistrer la vidéo…") { history.exportVideo(clip) } }
             if clip.editable { Button("Modifier…") { history.editing = clip } }
-            if clip.kind == .link || clip.kind == .file { Button("Ouvrir dans l’application par défaut") { openClip(clip) } }
-            Button(clip.pinned ? "Retirer des favoris" : "Garder en favori") { history.togglePin(clip) }
+            if clip.kind == .link || clip.kind == .file { Button("Ouvrir") { openClip(clip) } }
+            Button(clip.pinned ? "Retirer des favoris" : "Ajouter aux favoris") { history.togglePin(clip) }
             Menu("Collections") { ForEach(history.boards) { board in Button((clip.boards.contains(board.id) ? "✓ " : "") + board.name) { history.toggleBoard(clip, board) } }; Divider(); Button("Nouvelle collection…") { history.showNewBoard = true } }
             Button("Ajouter à la pile") { history.queue(clip) }
             Divider()
@@ -165,10 +165,9 @@ struct EmptyState: View {
                 RoundedRectangle(cornerRadius: 17).fill(Theme.mint.opacity(0.10)).frame(width: 150, height: 118).rotationEffect(.degrees(10)).offset(x: 25, y: 6)
                 VStack(alignment: .leading, spacing: 13) { Image(systemName: "text.quote").font(.system(size: 24)).foregroundStyle(Theme.mint); Capsule().fill(Theme.muted.opacity(0.25)).frame(width: 85, height: 4); Capsule().fill(Theme.muted.opacity(0.15)).frame(width: 60, height: 4) }.frame(width: 145, height: 118).background(Theme.panel, in: RoundedRectangle(cornerRadius: 17)).overlay(RoundedRectangle(cornerRadius: 17).strokeBorder(Theme.mint.opacity(0.2)))
             }.scaleEffect(0.78).frame(height: 94).padding(.bottom, 4)
-            Text(history.fault ? "L’historique est en pause." : history.total == 0 && history.collection == "all" ? "Une copie. Mille possibilités." : "Une place pour la suite.").font(.system(size: 22, weight: .semibold, design: .rounded))
-            Text(history.fault ? history.notice : history.total == 0 && history.collection == "all" ? "Copie du texte, une image ou un lien.\nEasyPaste les garde ici, pour quand tu en auras besoin." : "Aucun élément ne correspond à cette vue.\nAjoute une copie ou ajuste tes filtres.").font(.system(size: 12)).foregroundStyle(Theme.muted).multilineTextAlignment(.center).lineSpacing(5).fixedSize(horizontal: false, vertical: true)
-            if !history.enabled && !history.fault { Button("Activer mon historique") { history.enabled = true; history.report("Historique activé. Copie un élément dans une autre application.") }.buttonStyle(PasteButtonStyle(primary: true)) }
-            HStack(spacing: 18) { Label("Sur ton Mac", systemImage: "internaldrive"); Label("Chiffré", systemImage: "lock"); Label("Gratuit · MIT", systemImage: "heart") }.font(.system(size: 10)).foregroundStyle(Theme.muted).padding(.top, 6)
+            Text(history.fault ? "L’historique est en pause." : history.total == 0 && history.collection == "all" ? "Historique vide" : "Aucun élément").font(.system(size: 22, weight: .semibold, design: .rounded))
+            Text(history.fault ? history.notice : history.total == 0 && history.collection == "all" ? "Copie du texte, une image ou un lien pour commencer." : "Modifie les filtres ou ajoute un élément.").font(.system(size: 12)).foregroundStyle(Theme.muted).multilineTextAlignment(.center).lineSpacing(5).fixedSize(horizontal: false, vertical: true)
+            if !history.enabled && !history.fault { Button("Activer l’historique") { history.enabled = true; history.report("Historique activé. Copie un élément dans une autre application.") }.buttonStyle(PasteButtonStyle(primary: true)) }
         }.padding(20)
     }
 }
@@ -192,7 +191,7 @@ struct ShelfView: View {
             }
             if history.loading { ProgressView("Ouverture…").frame(maxWidth: .infinity, maxHeight: .infinity) }
             else if history.visible.isEmpty {
-                VStack(spacing: 10) { Text(history.enabled ? "Ta prochaine copie t’attend ici." : "Active l’historique pour retrouver tes copies.").font(.system(size: 17, weight: .medium)); Button("Ouvrir la bibliothèque") { history.showLibrary?() }.buttonStyle(PasteButtonStyle(primary: true)) }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                VStack(spacing: 10) { Text(history.enabled ? "Aucun élément" : "Historique en pause").font(.system(size: 17, weight: .medium)); Button("Ouvrir la bibliothèque") { history.showLibrary?() }.buttonStyle(PasteButtonStyle(primary: true)) }.frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -201,11 +200,11 @@ struct ShelfView: View {
                 }
             }
             HStack(spacing: 14) {
-                Label("Entrée pour coller", systemImage: "return"); Text("⇧Entrée · texte brut"); Text("⌘1–9 · collage rapide")
+                Label("Coller", systemImage: "return"); Text("⇧Entrée · texte brut"); Text("⌘1–9 · collage rapide")
                 Spacer()
                 if !history.recentlyTrashed.isEmpty { Button("Annuler la suppression") { history.undoTrash() }.buttonStyle(FullAreaButtonStyle()).foregroundStyle(Theme.mint) }
                 if !history.selection.isEmpty { Button { history.trashItems(history.selection) } label: { Label("Supprimer\(history.selection.count > 1 ? " (\(history.selection.count))" : "")", systemImage: "trash") }.buttonStyle(FullAreaButtonStyle()).help("Supprimer la sélection") }
-                Text("\(history.visible.count) élément(s)")
+                Text("\(history.visible.count) élément\(history.visible.count == 1 ? "" : "s")")
                 Text(history.enabled ? "Collecte active" : "En pause").foregroundStyle(history.enabled ? Theme.mint : Theme.muted)
             }.font(.system(size: 10)).foregroundStyle(Theme.muted)
         }.overlay(alignment: .bottomLeading) {

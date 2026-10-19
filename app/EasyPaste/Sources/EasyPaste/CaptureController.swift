@@ -163,7 +163,7 @@ struct CaptureMenu: View {
                 clip = try await history.saveOCR(text)
             } else { clip = try await history.saveImage(data) }
             let copied = await history.copy([clip]); showResult?()
-            history.report(copied ? (action == .text ? "Texte extrait · prêt à coller avec ⌘V." : "Capture copiée · survole la carte pour l’annoter.") : "Capture enregistrée dans l’historique.")
+            history.report(copied ? (action == .text ? "Texte copié · ⌘V pour coller" : "Capture copiée · ⌘V pour coller") : "Capture enregistrée dans l’historique.")
         } catch is CancellationError { if operation == id { showResult?() } }
         catch { if operation == id { showResult?(); history.report(error.localizedDescription) } }
     }
@@ -222,7 +222,7 @@ struct CaptureMenu: View {
                 let clip = try await history.saveVideo(url)
                 try? FileManager.default.removeItem(at: url)
                 let copied = await history.copy([clip]); showResult?()
-                history.report(copied ? "Vidéo copiée · prête à coller dans une app compatible." : "Vidéo enregistrée. Ouvre l’aperçu pour la lire ou l’exporter.")
+                history.report(copied ? "Vidéo copiée" : "Vidéo enregistrée dans l’historique.")
             } catch {
                 showResult?(); history.report("Vidéo : " + error.localizedDescription)
                 if let url = try? result.get(), FileManager.default.fileExists(atPath: url.path) {

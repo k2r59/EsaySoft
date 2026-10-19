@@ -125,7 +125,7 @@ import CryptoKit
         menu.addItem(withTitle: "Arrêter la vidéo   ⌃⌥⌘S", action: #selector(stopVideo), keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Pause / reprise de la collecte", action: #selector(toggleMonitoring), keyEquivalent: "")
-        menu.addItem(withTitle: "Copier le prochain élément de la pile", action: #selector(copyNext), keyEquivalent: "")
+        menu.addItem(withTitle: "Copier le suivant dans la pile", action: #selector(copyNext), keyEquivalent: "")
         menu.addItem(.separator()); menu.addItem(withTitle: "Réglages…", action: #selector(settings), keyEquivalent: "")
         menu.addItem(withTitle: "Quitter EasyPaste", action: #selector(quit), keyEquivalent: "")
         for item in menu.items { item.target = self }; status.menu = menu
@@ -138,7 +138,7 @@ import CryptoKit
         rememberTarget(); closeShelf(restore: false); history.surface = "library"; window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
     }
     @objc func settings() { history.page = "settings"; showMain() }
-    @objc func about() { let alert = NSAlert(); alert.messageText = "EasyPaste"; alert.informativeText = "Version 0.2.4\nTon historique, sur ton Mac.\nLogiciel libre sous licence MIT.\nmacOS 15 ou ultérieur."; alert.addButton(withTitle: "Fermer"); alert.runModal() }
+    @objc func about() { let alert = NSAlert(); alert.messageText = "EasyPaste"; alert.informativeText = "Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Développement")\nLicence MIT\nmacOS 15 ou ultérieur"; alert.addButton(withTitle: "Fermer"); alert.runModal() }
     @objc func quit() { NSApp.terminate(nil) }
     @objc func toggleMonitoring() { guard !history.fault else { showMain(); return }; history.enabled.toggle() }
     @objc func copyNext() {

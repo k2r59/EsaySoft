@@ -4,11 +4,11 @@ Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT.
 
 ## Installation
 
-1. Ouvrir `dist/EasyPaste-0.2.4-universal.dmg`.
+1. Ouvrir `dist/EasyPaste-0.2.5-universal.dmg`.
 2. Glisser EasyPaste dans Applications, puis l’ouvrir.
-3. Cliquer sur **Activer mon historique**. Les prochaines copies seront enregistrées.
+3. Cliquer sur **Activer l’historique**. Les prochaines copies seront enregistrées.
 4. Depuis une autre application, ouvrir la barre rapide avec **Maj + Commande + V**.
-5. Choisir une carte, puis appuyer sur **Entrée**. Pour le collage direct, autoriser EasyPaste dans **Réglages → Coller sans détour**. Sans cette autorisation, la sélection est copiée et peut être collée avec **Commande + V**.
+5. Choisir une carte, puis appuyer sur **Entrée**. Pour le collage direct, autoriser EasyPaste dans **Réglages → Collage**. Sans cette autorisation, la sélection est copiée et peut être collée avec **Commande + V**.
 
 macOS 15 ou ultérieur. L’installateur universel contient les exécutables Apple Silicon et Intel. La fermeture de la bibliothèque laisse l’app disponible dans la barre des menus. Utiliser **Quitter EasyPaste** pour l’arrêter.
 
@@ -35,7 +35,7 @@ Le menu près de l’heure propose **Capturer une zone** directement. Le sous-me
 2. Retrouver la capture dans la barre rapide. L’image est aussi copiée, prête à coller avec **Commande + V**.
 3. Survoler sa carte et cliquer sur le crayon pour ouvrir l’éditeur.
 4. Ajouter une flèche, un cadre, du texte ou un surlignage. **Masquer** recouvre les informations avec un rectangle opaque. **Recadrer** conserve la zone choisie.
-5. Choisir **Créer une copie** ou **Remplacer l’originale**, puis valider. Une copie apparaît à côté de l’originale. Le remplacement conserve la même carte, son titre, sa date, ses favoris et ses collections, et recalcule le texte reconnu. L’image obtenue est copiée dans le presse-papiers.
+5. Choisir **Créer une copie** ou **Remplacer l’originale**, puis valider. Une copie apparaît à côté de l’originale. Le remplacement conserve la même carte, son titre, sa date, ses favoris et ses collections, et recalcule le texte reconnu. L’option **Copier dans le presse-papiers** permet aussi de copier l’image obtenue.
 
 Les captures sont enregistrées en PNG sans perte, à la densité native de l’écran. Une zone de 600 × 400 points sur un écran Retina produit 1 200 × 800 pixels. Les miniatures servent à l’affichage ; la copie conserve tous les pixels de l’original. Dans **Aperçu**, **100 %** affiche un pixel de l’image pour un pixel de l’écran, avec défilement si nécessaire. **Ajuster** montre l’ensemble sans agrandir artificiellement une petite image. Les images sont limitées à 50 mégapixels et à 20 Mo encodés.
 
@@ -186,3 +186,5 @@ Les contrôles de netteté, de copie et de réactivité de la version 0.2.2 sont
 Les corrections vidéo, les commandes flottantes, la webcam et le remplacement des images de la version 0.2.3 sont décrits dans [QA-0.2.3.md](QA-0.2.3.md).
 
 La refonte de la bibliothèque et de l’annotation de la version 0.2.4 est décrite dans [QA-0.2.4.md](QA-0.2.4.md).
+
+La simplification des textes de la version 0.2.5 est décrite dans [QA-0.2.5.md](QA-0.2.5.md).

@@ -7,6 +7,7 @@ struct AnnotationView: View {
     private var replaceOriginal: Bool { model.replaceOriginal }
     private var copyToClipboard: Bool { model.copyToClipboard }
     @FocusState private var textFocused: Bool
+    @State private var showingHelp = false
     @Environment(\.displayScale) private var displayScale
     var body: some View {
         VStack(spacing: 0) {
@@ -41,13 +42,13 @@ struct AnnotationView: View {
             Divider().frame(height: 29).padding(.horizontal, 5)
             VStack(alignment: .leading, spacing: 4) {
                 Text("Annoter une capture").font(.system(size: 17, weight: .semibold))
-                Text("Capture d’écran · \(Int(model.size.width)) × \(Int(model.size.height)) px").font(.system(size: 11)).foregroundStyle(Theme.muted).monospacedDigit()
+                Text("\(Int(model.size.width)) × \(Int(model.size.height)) px").font(.system(size: 11)).foregroundStyle(Theme.muted).monospacedDigit()
             }
             Spacer()
             Button { model.undo() } label: { Image(systemName: "arrow.uturn.backward").frame(width: 16) }.buttonStyle(PasteButtonStyle()).disabled(model.undoStates.isEmpty || model.saving).keyboardShortcut("z", modifiers: .command).help("Annuler · ⌘Z").accessibilityLabel("Annuler la dernière modification")
             Button { model.redo() } label: { Image(systemName: "arrow.uturn.forward").frame(width: 16) }.buttonStyle(PasteButtonStyle()).disabled(model.redoStates.isEmpty || model.saving).keyboardShortcut("z", modifiers: [.command, .shift]).help("Rétablir · ⇧⌘Z").accessibilityLabel("Rétablir la modification")
             Divider().frame(height: 25).padding(.horizontal, 5)
-            Text("PNG · Sans perte").font(.system(size: 12, weight: .medium)).padding(.horizontal, 13).padding(.vertical, 10).background(Theme.raised.opacity(0.65), in: RoundedRectangle(cornerRadius: 9))
+            Text("PNG").font(.system(size: 12, weight: .medium)).padding(.horizontal, 13).padding(.vertical, 10).background(Theme.raised.opacity(0.65), in: RoundedRectangle(cornerRadius: 9)).help("Export sans perte à la résolution d’origine")
         }.padding(.horizontal, 22).padding(.top, 27).padding(.bottom, 17).background(Theme.panel)
     }
     private var tools: some View {
@@ -80,16 +81,18 @@ struct AnnotationView: View {
                     zoomControls(fit: fit).frame(height: 44)
                 }
             }
-            Text(model.error.isEmpty ? hint : model.error).font(.system(size: 11)).foregroundStyle(model.error.isEmpty ? Theme.muted : .orange).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 15).padding(.vertical, 10)
+            if !model.error.isEmpty {
+                Text(model.error).font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 15).padding(.vertical, 10)
+            }
         }
     }
     private var hint: String {
         switch model.tool {
-        case .selection: "Sélectionne et déplace une annotation · Flèches du clavier pour ajuster"
-        case .redact: "Masquage opaque : le contenu couvert est supprimé de l’image exportée."
+        case .selection: "Clique sur une annotation pour la déplacer. Ajuste sa position avec les flèches du clavier."
+        case .redact: "Dessine un rectangle sur le contenu à masquer."
         case .crop: "Dessine la zone à conserver."
-        case .text: "Clique sur l’image pour placer ton texte."
-        default: "Glisse sur l’image pour dessiner · ⌘Z pour annuler"
+        case .text: "Clique sur l’image pour placer le texte."
+        default: "Glisse sur l’image pour dessiner."
         }
     }
     private var textEntry: some View {
@@ -111,6 +114,15 @@ struct AnnotationView: View {
             Button { model.zoom = min(4, (model.zoom ?? fit)*1.25) } label: { Image(systemName: "plus").frame(width: 30, height: 30) }.buttonStyle(FullAreaButtonStyle()).help("Agrandir").accessibilityLabel("Agrandir le zoom")
             Divider().frame(height: 18).padding(.horizontal, 6)
             Button { model.zoom = nil } label: { Label("Ajuster", systemImage: "arrow.up.left.and.arrow.down.right").padding(.horizontal, 10).frame(height: 30) }.buttonStyle(FullAreaButtonStyle())
+            Button { showingHelp.toggle() } label: { Image(systemName: "questionmark.circle").frame(width: 30, height: 30) }
+                .buttonStyle(FullAreaButtonStyle()).help("Aide pour l’outil sélectionné").accessibilityLabel("Aide pour l’outil sélectionné")
+                .popover(isPresented: $showingHelp) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(model.tool.title).fontWeight(.semibold)
+                        Text(hint)
+                        Text("⌘Z : annuler · ⇧⌘Z : rétablir").foregroundStyle(Theme.muted)
+                    }.font(.system(size: 12)).padding(18).frame(width: 280).fixedSize(horizontal: false, vertical: true).background(Theme.panel).foregroundStyle(Theme.ink)
+                }
         }.font(.system(size: 12)).padding(4).background(Theme.panel, in: RoundedRectangle(cornerRadius: 10)).disabled(model.saving)
     }
     private var inspector: some View {
@@ -118,7 +130,7 @@ struct AnnotationView: View {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(model.activeTool.title).font(.system(size: 20, weight: .semibold))
-                    Text(model.activeTool == .selection ? "Choisis une annotation" : "Style de l’annotation").font(.system(size: 11)).foregroundStyle(Theme.muted)
+                    if model.activeTool == .selection { Text("Choisis une annotation").font(.system(size: 11)).foregroundStyle(Theme.muted) }
                 }
                 Divider()
                 if ![AnnotationTool.selection, .crop, .redact].contains(model.activeTool) {
@@ -157,7 +169,8 @@ struct AnnotationView: View {
                         }
                     }
                 }
-                if model.activeTool == .redact { Text("Le masquage reste opaque pour protéger le contenu couvert.").font(.system(size: 12)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true) }
+                if model.activeTool == .redact { Text("Le contenu masqué sera supprimé de l’image exportée.").font(.system(size: 12)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true) }
+                if model.activeTool == .crop { Text("Dessine la zone à conserver.").font(.system(size: 12)).foregroundStyle(Theme.muted) }
                 Divider()
                 HStack {
                     Text("Annotations").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.muted)
@@ -174,7 +187,6 @@ struct AnnotationView: View {
                                 .background(model.selectedID == mark.id ? Theme.mint.opacity(0.13) : .clear, in: RoundedRectangle(cornerRadius: 8))
                         }.buttonStyle(FullAreaButtonStyle()).accessibilityAddTraits(model.selectedID == mark.id ? .isSelected : [])
                     }
-                    if model.snapshot.marks.isEmpty { Text("Tes annotations apparaîtront ici.").font(.system(size: 11)).foregroundStyle(Theme.muted).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 4) }
                 }
                 if model.selectedMark != nil {
                     if model.selectedMark?.tool == .text { Button("Modifier le texte…") { model.editSelectedText() }.buttonStyle(PasteButtonStyle()) }
@@ -191,10 +203,9 @@ struct AnnotationView: View {
             Button("Annuler", action: cancel).buttonStyle(PasteButtonStyle()).disabled(model.saving)
             Spacer(minLength: 0)
             VStack(alignment: .leading, spacing: 7) {
-                Text("À l’enregistrement").font(.system(size: 11)).foregroundStyle(Theme.muted)
                 HStack(spacing: 2) { saveOption("Créer une copie", replace: false); saveOption("Remplacer l’originale", replace: true) }
                     .padding(3).background(Theme.raised.opacity(0.7), in: RoundedRectangle(cornerRadius: 9))
-                Text(replaceOriginal ? "L’image de cette carte sera remplacée." : "L’originale est conservée.").font(.system(size: 10)).foregroundStyle(replaceOriginal ? Theme.colors[2] : Theme.muted)
+                Text(replaceOriginal ? "L’image d’origine sera remplacée." : "").font(.system(size: 11)).foregroundStyle(Theme.colors[2]).frame(height: 14)
             }
             Toggle("Copier dans le presse-papiers", isOn: $model.copyToClipboard).toggleStyle(.checkbox).font(.system(size: 11)).tint(Theme.mint).fixedSize().disabled(model.saving)
             Button { save(replaceOriginal, copyToClipboard) } label: {

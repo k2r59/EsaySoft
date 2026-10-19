@@ -55,7 +55,7 @@ struct MainView: View {
                         }
                     }
                     if history.boards.isEmpty {
-                        Text("Regroupe tes textes, liens et images pour les retrouver facilement.").font(.system(size: 12)).foregroundStyle(Theme.muted).lineSpacing(4).padding(.horizontal, 10)
+                        Text("Aucune collection").font(.system(size: 12)).foregroundStyle(Theme.muted).padding(.horizontal, 10)
                     }
                 }
             }
@@ -124,8 +124,9 @@ struct MainView: View {
     private var heading: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).font(.system(size: 27, weight: .semibold)).tracking(-0.6).lineLimit(1)
-            Text(history.collection == "trash" ? "Les éléments restent ici pendant 7 jours." : history.collection == "stack" ? "Tes copies, dans le bon ordre." : "Tout ce que tu copies, à portée de main.")
-                .font(.system(size: 12)).foregroundStyle(Theme.muted).fixedSize(horizontal: true, vertical: false)
+            if history.collection == "trash" {
+                Text("Suppression automatique après 7 jours.").font(.system(size: 12)).foregroundStyle(Theme.muted)
+            }
         }
     }
     private var actionBar: some View {
@@ -141,7 +142,7 @@ struct MainView: View {
                 Image(systemName: selection.isEmpty ? "cursorarrow" : "checkmark.square.fill").font(.system(size: 20)).foregroundStyle(Theme.mint)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(selection.isEmpty ? "Sélectionne un élément" : "\(selection.count) élément\(selection.count > 1 ? "s sélectionnés" : " sélectionné")").font(.system(size: 12, weight: .medium))
-                    Text(selection.count == 1 ? selection[0].title : selection.isEmpty ? "Double-clic pour coller · Espace pour l’aperçu" : "⌘ clic pour ajuster la sélection").font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1)
+                    if selection.isEmpty { Text("Double-clic : coller · Espace : aperçu").font(.system(size: 11)).foregroundStyle(Theme.muted) }
                 }.frame(maxWidth: .infinity, alignment: .leading)
                 if history.collection == "trash" {
                     Button("Restaurer") { selection.forEach { history.restore($0) } }.buttonStyle(PasteButtonStyle()).disabled(selection.isEmpty)

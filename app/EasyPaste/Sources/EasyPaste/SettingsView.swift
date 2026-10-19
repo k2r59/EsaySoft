@@ -11,11 +11,9 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                eyebrow("À TA MESURE").padding(.top, 43)
-                Text("Simple, jusque dans les réglages.").font(.system(size: 27, weight: .semibold, design: .rounded))
-                Text("Le nécessaire pour que l’app s’adapte à ta façon de travailler.").font(.system(size: 12)).foregroundStyle(Theme.muted)
-                section("Ton quotidien", icon: "sparkles") {
-                    PreferenceToggle("Conserver mes prochaines copies", isOn: $history.enabled).disabled(history.fault || history.loading)
+                Text("Réglages").font(.system(size: 27, weight: .semibold)).padding(.top, 43)
+                section("Général", icon: "slider.horizontal.3") {
+                    PreferenceToggle("Enregistrer les copies", isOn: $history.enabled).disabled(history.fault || history.loading)
                     PreferenceToggle("Lancer EasyPaste au démarrage", isOn: Binding(get: { launch }, set: { value in
                         do {
                             if value { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
@@ -23,37 +21,46 @@ struct SettingsView: View {
                             if SMAppService.mainApp.status == .requiresApproval { message = "Autorise EasyPaste dans Général → Ouverture et extensions."; SMAppService.openSystemSettingsLoginItems() }
                         } catch { message = "Ouverture à la connexion : \(error.localizedDescription)"; launch = SMAppService.mainApp.status == .enabled }
                     }))
-                    PreferenceToggle("Utiliser la barre en mode compact", isOn: $history.compact)
+                    PreferenceToggle("Barre rapide compacte", isOn: $history.compact)
                     PreferenceRow("Conserver l’historique") { Picker("Durée de conservation", selection: $history.retention) { Text("1 jour").tag(1); Text("7 jours").tag(7); Text("30 jours").tag(30); Text("1 an").tag(365); Text("Toujours").tag(0) }.labelsHidden().controlSize(.regular).frame(width: 155) }
                     Divider().opacity(0.3)
-                    Text("Les favoris et les collections sont conservés. Au-delà de 1 Go, la collecte se met en pause. Une image ou un texte peut contenir jusqu’à 20 Mo. Les vidéos s’arrêtent automatiquement avant 1 Go.").font(.system(size: 10)).foregroundStyle(Theme.muted).lineSpacing(3)
+                    Text("Les favoris et les collections sont conservés sans limite de durée.").font(.system(size: 11)).foregroundStyle(Theme.muted)
+                    SettingsDetails("Limites de stockage") {
+                        Text("L’historique se met en pause à 1 Go. Maximum : 20 Mo par image ou texte. Les vidéos s’arrêtent avant 1 Go.")
+                    }
                 }
-                section("Coller sans détour", icon: "cursorarrow.click.2") {
-                    HStack(alignment: .center, spacing: 24) { VStack(alignment: .leading, spacing: 6) { Text(trusted ? "Collage direct autorisé" : "Autoriser le collage direct").fontWeight(.medium); Text("L’Accessibilité permet à EasyPaste de coller dans l’application active. Sans elle, le contenu est copié : utilise ensuite ⌘V.").font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true) }; Spacer(); Button(trusted ? "Vérifier" : "Autoriser…") { if !trusted { let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary; _ = AXIsProcessTrustedWithOptions(options) }; trusted = AXIsProcessTrusted() }.buttonStyle(PasteButtonStyle(primary: !trusted)) }
+                section("Collage", icon: "cursorarrow.click.2") {
+                    HStack(alignment: .center, spacing: 24) { VStack(alignment: .leading, spacing: 6) { Text(trusted ? "Collage direct autorisé" : "Collage direct").fontWeight(.medium); if !trusted { Text("Autorise l’Accessibilité pour coller directement. Sinon, utilise ⌘V après la copie.").font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true) } }; Spacer(); Button(trusted ? "Vérifier" : "Autoriser…") { if !trusted { let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary; _ = AXIsProcessTrustedWithOptions(options) }; trusted = AXIsProcessTrusted() }.buttonStyle(PasteButtonStyle(primary: !trusted)) }
                     Divider().opacity(0.3)
-                    shortcut("Barre rapide", "⇧⌘V")
-                    shortcut("Capture d’une zone", "⌃⌥⌘C")
-                    shortcut("Arrêter la vidéo", "⌃⌥⌘S")
-                    shortcut("Extraire le texte d’une zone", "⌃⌥⌘X")
-                    shortcut("Coller / coller en texte brut", "↩ / ⇧↩")
-                    shortcut("Collage rapide des 9 premières cartes", "⌘1…9")
-                    shortcut("Rechercher / modifier / aperçu", "⌘F / ⌘E / ⌘Y")
-                    shortcut("Copier le prochain élément de la pile", "⌃⌥⌘V")
-                    Text("Le raccourci de la pile prépare l’élément suivant. Colle-le avec ⌘V dans ton application.").font(.system(size: 10)).foregroundStyle(Theme.muted)
+                    SettingsDetails("Raccourcis clavier") {
+                        shortcut("Barre rapide", "⇧⌘V")
+                        shortcut("Capturer une zone", "⌃⌥⌘C")
+                        shortcut("Arrêter la vidéo", "⌃⌥⌘S")
+                        shortcut("Extraire du texte", "⌃⌥⌘X")
+                        shortcut("Coller / en texte brut", "↩ / ⇧↩")
+                        shortcut("Coller une des 9 premières cartes", "⌘1…9")
+                        shortcut("Rechercher / modifier / aperçu", "⌘F / ⌘E / ⌘Y")
+                        shortcut("Copier le suivant dans la pile", "⌃⌥⌘V")
+                        Text("Pile : copie le suivant avec ⌃⌥⌘V, puis colle-le avec ⌘V.")
+                    }
                 }
-                section("Ta vie privée", icon: "lock.shield") {
-                    Text("Historique chiffré sur ce Mac, clé protégée dans le trousseau. Aucun compte, aucune publicité, aucune requête réseau. Pour lire ou coller une vidéo, une copie temporaire est déchiffrée sur ce Mac ; elle est nettoyée après 24 h au prochain lancement.").font(.system(size: 12)).lineSpacing(4)
-                    Text("Les contenus signalés comme confidentiels ou temporaires et les principaux gestionnaires de mots de passe sont ignorés. Une extension qui ne signale pas ses secrets peut toutefois les laisser passer.").font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(3)
+                section("Confidentialité", icon: "lock.shield") {
+                    Text("Historique chiffré sur ce Mac.").font(.system(size: 12))
+                    SettingsDetails("Protection des données") {
+                        Text("La clé reste dans le trousseau. EasyPaste ne transmet pas l’historique sur le réseau.")
+                        Text("Les copies signalées comme confidentielles ou temporaires et les principaux gestionnaires de mots de passe sont ignorés. Un secret non signalé peut être enregistré.")
+                        Text("La lecture et le collage d’une vidéo créent une copie temporaire déchiffrée. Après 24 h, EasyPaste la supprime au lancement suivant.")
+                    }
                     HStack { Text("Applications exclues").fontWeight(.medium); Spacer(); Button("Ajouter…") { addExclusion() }.buttonStyle(PasteButtonStyle()) }
                     ForEach(history.exclusions, id: \.self) { id in HStack { Text(appName(id)).font(.system(size: 11)); Spacer(); Button { history.exclusions.removeAll { $0 == id } } label: { Image(systemName: "minus.circle") }.buttonStyle(FullAreaButtonStyle(minimumSize: 24)).help("Retirer cette exclusion") } }
-                    Text("Une exclusion concerne les nouvelles copies. Les éléments déjà enregistrés restent dans l’historique.").font(.system(size: 10)).foregroundStyle(Theme.muted)
+                    Text("Les exclusions s’appliquent aux prochaines copies.").font(.system(size: 11)).foregroundStyle(Theme.muted)
                     HStack { Text("\(ByteCountFormatter.string(fromByteCount: Int64(history.totalBytes), countStyle: .file)) de contenu · \(history.total) éléments").foregroundStyle(Theme.muted); Spacer(); Button("Effacer l’historique…") { clear() }.buttonStyle(PasteButtonStyle()) }.font(.system(size: 11))
                 }
-                section("Un lien avec tes assistants", icon: "point.3.connected.trianglepath.dotted") {
-                    PreferenceToggle("Activer le connecteur MCP local", isOn: $history.mcpEnabled)
-                    Text("L’assistant lance un processus local à la demande. Seules les collections que tu autorises ci-dessous sont lisibles. Désactive le connecteur pour couper tous les accès.").font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(4)
+                section("Assistants · MCP", icon: "point.3.connected.trianglepath.dotted") {
+                    PreferenceToggle("Activer le connecteur local", isOn: $history.mcpEnabled)
+                    Text("L’assistant peut lire uniquement les collections autorisées.").font(.system(size: 11)).foregroundStyle(Theme.muted)
                     if history.mcpEnabled {
-                        if history.boards.isEmpty { Text("Crée une collection pour partager des éléments avec un assistant.").font(.system(size: 11)) }
+                        if history.boards.isEmpty { Text("Crée une collection pour autoriser son accès.").font(.system(size: 11)) }
                         ForEach(history.boards) { board in PreferenceToggle(board.name, isOn: Binding(get: { history.boards.first { $0.id == board.id }?.shared ?? false }, set: { _ in history.toggleSharing(board.id) })) }
                         Button("Copier la configuration MCP") {
                             let exe = "/Applications/EasyPaste.app/Contents/MacOS/EasyPaste"
@@ -62,7 +69,7 @@ struct SettingsView: View {
                         }.buttonStyle(PasteButtonStyle())
                     }
                 }
-                HStack { Text("EasyPaste 0.2.3 · Open source · Licence MIT"); Spacer(); Text("Pensé pour ton Mac.") }.font(.system(size: 10)).foregroundStyle(Theme.muted)
+                Text("EasyPaste \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Développement") · Licence MIT").font(.system(size: 11)).foregroundStyle(Theme.muted)
                 if !message.isEmpty { Text(message).font(.system(size: 11)).foregroundStyle(Theme.mint) }
             }.padding(.horizontal, 32).padding(.bottom, 30)
         }.onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in trusted = AXIsProcessTrusted(); launch = SMAppService.mainApp.status == .enabled }
@@ -74,6 +81,29 @@ struct SettingsView: View {
     private func appName(_ id: String) -> String { NSWorkspace.shared.urlForApplication(withBundleIdentifier: id)?.deletingPathExtension().lastPathComponent ?? id }
     private func addExclusion() { let panel = NSOpenPanel(); panel.title = "Choisir une application à ignorer"; panel.directoryURL = URL(fileURLWithPath: "/Applications"); panel.allowedContentTypes = [.applicationBundle]; panel.allowsMultipleSelection = true; if panel.runModal() == .OK { for url in panel.urls { if let id = Bundle(url: url)?.bundleIdentifier, !history.exclusions.contains(id) { history.exclusions.append(id) } } } }
     private func clear() { let alert = NSAlert(); alert.messageText = "Effacer l’historique ?"; alert.informativeText = "Les copies ordinaires seront déplacées dans la corbeille pendant 7 jours. Tes favoris et collections sont conservés."; alert.addButton(withTitle: "Effacer"); alert.addButton(withTitle: "Annuler"); if alert.runModal() == .alertFirstButtonReturn { history.clearHistory() } }
+}
+
+/// The complete row toggles the help, including its empty space.
+struct SettingsDetails<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: () -> Content
+    @State private var expanded = false
+    init(_ title: String, @ViewBuilder content: @escaping () -> Content) {
+        self.title = title; self.content = content
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button { expanded.toggle() } label: {
+                HStack {
+                    Text(title)
+                    Spacer()
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down").font(.system(size: 10, weight: .semibold))
+                }.frame(maxWidth: .infinity, minHeight: 30).contentShape(Rectangle())
+            }.buttonStyle(FullAreaButtonStyle()).foregroundStyle(Theme.ink)
+                .accessibilityValue(expanded ? "Développé" : "Réduit")
+            if expanded { content().fixedSize(horizontal: false, vertical: true) }
+        }.font(.system(size: 11)).foregroundStyle(Theme.muted)
+    }
 }
 
 /// A common trailing edge and row height keep controls stable as labels change.

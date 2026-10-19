@@ -103,7 +103,7 @@ private struct RecordingHUDView: View {
                 HStack(spacing: 7) {
                     if model.stopping { ProgressView().controlSize(.small) }
                     else { Image(systemName: model.countdown == nil ? "stop.fill" : "xmark") }
-                    Text(model.stopping ? "Enregistrement…" : model.countdown == nil ? "Arrêter" : "Annuler")
+                    Text(model.stopping ? "Finalisation…" : model.countdown == nil ? "Arrêter" : "Annuler")
                 }.font(.system(size: 12, weight: .semibold)).padding(.horizontal, 14).frame(height: 36)
                 .foregroundStyle(.white).background(model.stopping ? Color.gray : Color(red: 0.80, green: 0.20, blue: 0.24), in: RoundedRectangle(cornerRadius: 10)).contentShape(Rectangle())
             }.buttonStyle(FullAreaButtonStyle()).disabled(model.stopping).help(model.countdown == nil ? "Arrêter et conserver la vidéo · ⌃⌥⌘S" : "Annuler l’enregistrement avant son démarrage")
