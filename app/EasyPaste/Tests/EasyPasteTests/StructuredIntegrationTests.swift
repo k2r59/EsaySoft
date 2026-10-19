@@ -227,5 +227,76 @@ import SwiftUI
             XCTAssertNil(released, "Closed editors must release their buffers and jobs")
         }
     }
+    func testMarkdownPreviewSourceEditingAndReplacement() async throws {
+        let clip = await insert(MarkdownFixtures.document), model = StructuredEditorModel(clip: clip)
+        XCTAssertEqual(model.format, .markdown); XCTAssertEqual(model.presentation, .rendered)
+        model.refresh(); try await ready(model)
+        XCTAssertNil(model.issue); XCTAssertTrue(model.canUseOutput)
+        let pb = NSPasteboard(name: .init(UUID().uuidString)); defer { pb.releaseGlobally() }
+        model.copy(history: history, to: pb); XCTAssertEqual(pb.string(forType: .string), clip.text)
+        model.beginEditing(); XCTAssertEqual(model.presentation, .source)
+        let changed = "# Modifié\n\n**Syntaxe incomplète"
+        model.changeText(changed); try await ready(model); XCTAssertNil(model.issue)
+        model.finishEditing(); try await ready(model); XCTAssertEqual(model.presentation, .rendered)
+        XCTAssertTrue(model.result!.markdown!.text.contains("**Syntaxe incomplète"))
+        await model.save(history: history, replacing: false)
+        XCTAssertEqual(history.clips.count, 2)
+        let unmodified = try await history.fullClip(clip); XCTAssertEqual(unmodified.text, clip.text)
+        await model.save(history: history, replacing: true)
+        let replaced = try await history.fullClip(clip); XCTAssertEqual(replaced.text, changed)
+        model.selectPresentation(.original); XCTAssertEqual(model.output, changed)
+    }
+    func testLargeMarkdownCopyAndCancellation() async throws {
+        let source = "# Un long document\n\n" + String(repeating: "**Texte** é😀\n\n", count: 20_000)
+        let model = StructuredEditorModel(clip: await insert(source)); model.refresh()
+        var beats = 0, maxGap = 0.0, last = Date()
+        while model.busy {
+            try await Task.sleep(for: .milliseconds(5)); let now = Date(); maxGap = max(maxGap, now.timeIntervalSince(last)); last = now; beats += 1
+        }
+        XCTAssertNil(model.issue); XCTAssertTrue(model.result?.markdown?.truncated == true)
+        XCTAssertFalse(model.canEdit)
+        let pb = NSPasteboard(name: .init(UUID().uuidString)); defer { pb.releaseGlobally() }
+        model.copy(history: history, to: pb); XCTAssertEqual(pb.string(forType: .string), source)
+        XCTAssertLessThan(maxGap, 0.2); XCTAssertGreaterThan(beats, 0)
+        print("MARKDOWN_UI_HEARTBEAT \(maxGap)s, \(beats) beats")
+        model.refresh(); model.selectPresentation(.original)
+        try await Task.sleep(for: .milliseconds(100)); XCTAssertNil(model.result); XCTAssertEqual(model.output, source)
+        model.selectFormat(.json); model.selectFormat(.markdown); try await ready(model)
+        XCTAssertNil(model.issue); XCTAssertNotNil(model.result?.markdown); model.cancel()
+    }
+    func testNativeMarkdownPreviewSearchEditingAndLayout() async throws {
+        let model = StructuredEditorModel(clip: await insert(MarkdownFixtures.document))
+        model.refresh(); try await ready(model)
+        let host = NSHostingView(rootView: StructuredEditorView(model: model, history: history, close: {}))
+        let size = CGSize(width: 690, height: 700)
+        let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false; window.contentView = host; host.frame = CGRect(origin: .zero, size: size)
+        defer { model.cancel(); window.close() }
+        host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(200)); try await ready(model); host.layoutSubtreeIfNeeded()
+        XCTAssertLessThanOrEqual(host.fittingSize.width, 690); XCTAssertLessThanOrEqual(host.fittingSize.height, 700)
+        let view = try XCTUnwrap(descendants(host).compactMap { $0 as? NSTextView }.first)
+        XCTAssertEqual(view.string, model.result?.markdown?.text); XCTAssertFalse(view.isEditable)
+        XCTAssertTrue(view.isSelectable); XCTAssertTrue(view.usesFindBar)
+        XCTAssertEqual(view.textContainer?.widthTracksTextView, true)
+        let layout = try XCTUnwrap(view.layoutManager), container = try XCTUnwrap(view.textContainer)
+        layout.ensureLayout(for: container)
+        XCTAssertGreaterThan(view.bounds.width, 400)
+        XCTAssertLessThan(layout.usedRect(for: container).width, 690)
+        if let folder = ProcessInfo.processInfo.environment["EASYPASTE_LAYOUT_SNAPSHOTS"] {
+            try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+            let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds)); host.cacheDisplay(in: host.bounds, to: bitmap)
+            try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: URL(fileURLWithPath: folder).appendingPathComponent("format-Markdown.png"))
+        }
+        model.findRequest += 1; try await Task.sleep(for: .milliseconds(50)); host.layoutSubtreeIfNeeded()
+        XCTAssertTrue(view.enclosingScrollView?.isFindBarVisible == true)
+        model.beginEditing(); try await Task.sleep(for: .milliseconds(80)); host.layoutSubtreeIfNeeded()
+        let source = try XCTUnwrap(descendants(host).compactMap { $0 as? NSTextView }.first)
+        XCTAssertTrue(source.isEditable); XCTAssertEqual(source.string, MarkdownFixtures.document)
+        source.insertText("# Nouveau\n\n**gras**", replacementRange: NSRange(location: 0, length: (source.string as NSString).length))
+        try await ready(model); model.finishEditing(); try await ready(model)
+        try await Task.sleep(for: .milliseconds(50)); host.layoutSubtreeIfNeeded()
+        let preview = try XCTUnwrap(descendants(host).compactMap { $0 as? NSTextView }.first)
+        XCTAssertEqual(preview.string, "Nouveau\ngras"); XCTAssertFalse(preview.isEditable)
+    }
     private func descendants(_ view: NSView) -> [NSView] { view.subviews.flatMap { [$0] + descendants($0) } }
 }

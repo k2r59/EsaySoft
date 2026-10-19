@@ -10,15 +10,15 @@ struct StructuredEditorView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                Image(systemName: model.format == .csv ? "tablecells" : "curlybraces").font(.system(size: 23)).foregroundStyle(Theme.mint)
+                Image(systemName: model.format.icon).font(.system(size: 23)).foregroundStyle(Theme.mint)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Formater").font(.system(size: 21, weight: .semibold))
+                    Text(model.format == .markdown ? "Markdown" : "Formater").font(.system(size: 21, weight: .semibold))
                     Text(model.original.source).font(.system(size: 11)).foregroundStyle(Theme.muted)
                 }
                 Spacer()
                 Picker("Format", selection: Binding(get: { model.format }, set: model.selectFormat)) {
                     ForEach(StructuredFormat.allCases) { Text($0.rawValue).tag($0) }
-                }.labelsHidden().frame(width: 110).disabled(model.editing || model.saving)
+                }.labelsHidden().frame(width: 125).disabled(model.editing || model.saving)
                 Button("Fermer", action: close).buttonStyle(PasteButtonStyle()).disabled(model.saving).keyboardShortcut(.cancelAction)
             }
             HStack(spacing: 12) {
@@ -36,7 +36,7 @@ struct StructuredEditorView: View {
                     .buttonStyle(FullAreaButtonStyle()).accessibilityLabel("Rechercher").help("Rechercher · ⌘F").keyboardShortcut("f")
                     .disabled(model.presentation == .outline)
                 Button(model.editing ? "Terminer" : "Modifier") {
-                    if model.editing { model.editing = false; model.refresh() } else { model.beginEditing() }
+                    if model.editing { model.finishEditing() } else { model.beginEditing() }
                 }.buttonStyle(PasteButtonStyle()).disabled(model.editing ? model.busy : !model.canEdit)
             }
             if model.format == .csv {
@@ -58,7 +58,7 @@ struct StructuredEditorView: View {
                 content
                 if model.busy && !model.editing {
                     VStack(spacing: 12) {
-                        ProgressView("Formatage…")
+                        ProgressView(model.format == .markdown ? "Préparation de l’aperçu…" : "Formatage…")
                         Button("Annuler") { model.selectPresentation(.original) }.buttonStyle(PasteButtonStyle())
                     }.padding(20).background(Theme.raised, in: RoundedRectangle(cornerRadius: 12))
                 }
@@ -76,7 +76,9 @@ struct StructuredEditorView: View {
                 Spacer()
                 Text(ByteCountFormatter.string(fromByteCount: Int64(model.output.utf8.count), countStyle: .file)).monospacedDigit()
             }.font(.system(size: 11)).foregroundStyle(Theme.muted).frame(minHeight: 30, alignment: .top)
-            if model.truncated && model.presentation != .table && model.presentation != .outline {
+            if model.presentation == .rendered && model.result?.markdown?.truncated == true {
+                Text("Aperçu abrégé. Copie et export : Markdown complet.").font(.system(size: 11)).foregroundStyle(Theme.muted)
+            } else if model.truncated && model.presentation != .table && model.presentation != .outline {
                 Text("Aperçu et recherche limités à 128 Ko. Copie et export : texte complet.").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
             HStack {
@@ -106,7 +108,9 @@ struct StructuredEditorView: View {
             .buttonStyle(FullAreaButtonStyle()).foregroundStyle(Theme.ink)
     }
     @ViewBuilder private var content: some View {
-        if model.presentation == .table, model.result?.csv != nil, !model.editing || model.editingTable {
+        if model.presentation == .rendered, let document = model.result?.markdown {
+            MarkdownPreviewView(document: document, revision: model.revision, findRequest: model.findRequest)
+        } else if model.presentation == .table, model.result?.csv != nil, !model.editing || model.editingTable {
             CSVTable(model: model)
         } else if model.presentation == .outline, let result = model.result {
             ScrollView {
@@ -231,6 +235,7 @@ enum SyntaxColoring {
         case .sql: patterns = [(#"(?i)\b(?:select|from|where|join|left|right|inner|outer|on|group|order|by|having|limit|offset|insert|into|values|update|set|delete|create|table|as|and|or|null|with|returning)\b"#, 1), (#"'(?:[^']|'')*'"#, 0)]
         case .xml: patterns = [(#"</?[A-Za-z_:][\w:.-]*|/?>"#, 1), (#""[^"]*"|'[^']*'"#, 0)]
         case .csv: patterns = [(#""(?:[^"]|"")*""#, 0)]
+        case .markdown: patterns = [(#"(?m)^ {0,3}#{1,6} .*$|^ {0,3}(?:>|[-+*] |[0-9]+[.)] ).*$"#, 1), (#"`[^`\n]+`|\*\*[^*\n]+\*\*|!??\[[^\]\n]+\]\([^\)\n]+\)"#, 0)]
         }
         var result: [Span] = []
         for (pattern, color) in patterns {

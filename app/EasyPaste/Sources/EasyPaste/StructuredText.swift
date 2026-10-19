@@ -1,11 +1,13 @@
 import Foundation
 
 enum StructuredFormat: String, CaseIterable, Identifiable, Sendable {
-    case json = "JSON", sql = "SQL", csv = "CSV", xml = "XML"
+    case json = "JSON", sql = "SQL", csv = "CSV", xml = "XML", markdown = "Markdown"
     var id: String { rawValue }
+    var fileExtension: String { self == .markdown ? "md" : rawValue.lowercased() }
+    var icon: String { self == .markdown ? "text.document" : self == .csv ? "tablecells" : "curlybraces" }
 }
 enum TextPresentation: String, CaseIterable, Identifiable, Sendable {
-    case original = "Original", formatted = "Formaté", compact = "Compact", table = "Tableau", outline = "Structure"
+    case original = "Original", formatted = "Formaté", compact = "Compact", table = "Tableau", outline = "Structure", source = "Source", rendered = "Aperçu"
     var id: String { rawValue }
 }
 enum SQLDialect: String, CaseIterable, Identifiable, Sendable {
@@ -34,6 +36,7 @@ struct StructuredResult: Sendable {
     var text: String
     var csv: CSVDocument? = nil
     var xml: [XMLBranch] = []
+    var markdown: MarkdownDocument? = nil
     var note: String? = nil
 }
 
@@ -48,9 +51,10 @@ enum StructuredText {
     static func hint(_ text: String) -> StructuredFormat? {
         let sample = String(decoding: text.utf8.prefix(4096), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\u{FEFF}")))
         guard !sample.isEmpty else { return nil }
-        if sample.hasPrefix("{") || sample.hasPrefix("[") { return .json }
+        if sample.hasPrefix("{") || (sample.hasPrefix("[") && !MarkdownDocument.hasStrongHint(sample)) { return .json }
         if sample.hasPrefix("<?xml") || sample.hasPrefix("<!DOCTYPE") || sample.hasPrefix("<!--") || sample.range(of: #"^<[A-Za-z_:][\w:.-]*(?:\s|>|/)"#, options: .regularExpression) != nil { return .xml }
         if sample.range(of: #"(?is)^(?:(?:--[^\r\n]*(?:\r?\n|\r))|(?:/\*.*?\*/)|\s)*(?:SELECT\s+.+\s+FROM\b|WITH\s+.+\s+AS\s*\(|INSERT\s+INTO\b|UPDATE\s+.+\s+SET\b|DELETE\s+FROM\b|CREATE\s+TABLE\b|ALTER\s+TABLE\b)"#, options: .regularExpression) != nil { return .sql }
+        if MarkdownDocument.hasStrongHint(sample) { return .markdown }
         // Ordinary sentences containing commas should remain ordinary text.
         if sample.contains("\n") || sample.contains("\r"), let csv = try? CSVDocument.parse(sample, delimiter: nil, sample: text.utf8.count > 4096), csv.rows.count >= 2, csv.columnCount > 1 { return .csv }
         return nil
@@ -67,6 +71,9 @@ enum StructuredText {
             return StructuredResult(text: text, csv: csv)
         case .sql: return StructuredResult(text: try SQLTextFormatter.format(text, dialect: options.dialect), note: "Mise en forme SQL ; syntaxe non validée.")
         case .xml: return try XMLTextFormatter.format(text)
+        case .markdown:
+            let document = try MarkdownDocument.parse(text)
+            return StructuredResult(text: text, markdown: document, note: document.hasImages ? "Images : texte alternatif affiché, sans téléchargement." : "Markdown · rendu local")
         }
     }
     static func prefix(_ text: String, bytes: Int) -> String {

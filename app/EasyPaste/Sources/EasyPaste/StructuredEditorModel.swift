@@ -24,12 +24,14 @@ import SwiftUI
     private var task: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
     private var generation = UUID()
+    private var returnToMarkdownPreview = false
     var presentations: [TextPresentation] {
         switch format {
         case .json: return [.original, .formatted, .compact]
         case .sql: return [.original, .formatted]
         case .csv: return [.original, .table]
         case .xml: return [.original, .formatted, .outline]
+        case .markdown: return [.original, .source, .rendered]
         }
     }
     var displayed: String { StructuredText.prefix(output, bytes: StructuredText.displayLimit) }
@@ -40,10 +42,12 @@ import SwiftUI
         original = clip; draft = clip.text; output = clip.text
         self.format = format ?? StructuredText.hint(clip.text) ?? .json
         if self.format == .csv { presentation = .table }
+        if self.format == .markdown { presentation = .rendered }
     }
     func cancel() { task?.cancel(); searchTask?.cancel(); generation = UUID(); busy = false }
     func selectFormat(_ value: StructuredFormat) {
-        format = value; editing = false; query = ""; presentation = value == .csv ? .table : .formatted; refresh()
+        format = value; editing = false; returnToMarkdownPreview = false; query = ""
+        presentation = value == .csv ? .table : value == .markdown ? .rendered : .formatted; refresh()
     }
     func selectPresentation(_ value: TextPresentation) { editing = false; presentation = value; refresh() }
     func refresh(validateOnly: Bool = false, debounce: Bool = false) {
@@ -71,8 +75,15 @@ import SwiftUI
     }
     func beginEditing() {
         guard canEdit else { return }; editing = true
+        returnToMarkdownPreview = format == .markdown && presentation == .rendered
+        if returnToMarkdownPreview { presentation = .source }
         editingTable = presentation == .table && result?.csv != nil
         if !editingTable { draft = output }
+    }
+    func finishEditing() {
+        editing = false
+        if returnToMarkdownPreview { presentation = .rendered }
+        returnToMarkdownPreview = false; refresh()
     }
     func changeText(_ value: String) {
         guard editing else { return }
@@ -124,7 +135,7 @@ import SwiftUI
     }
     func export() {
         guard canUseOutput else { return }
-        let panel = NSSavePanel(); panel.nameFieldStringValue = "Copie." + format.rawValue.lowercased()
+        let panel = NSSavePanel(); panel.nameFieldStringValue = "Copie." + format.fileExtension
         let text = output
         panel.begin { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
@@ -146,7 +157,7 @@ actor StructuredPreviewCache {
         let value: String
         if text.utf8.count <= StructuredText.previewLimit,
            let result = try? StructuredText.process(text, format: format) {
-            value = StructuredText.prefix(result.text, bytes: 1200)
+            value = StructuredText.prefix(result.markdown?.text ?? result.text, bytes: 1200)
         } else { value = StructuredText.prefix(text, bytes: 1200) }
         try Task.checkCancellation()
         if values.count >= 128, let first = order.first { values.removeValue(forKey: first); order.removeFirst() }
@@ -163,17 +174,17 @@ struct StructuredCardPreview: View {
     @State private var colored = AttributedString("")
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Label(format.rawValue, systemImage: format == .csv ? "tablecells" : "curlybraces")
+            Label(format.rawValue, systemImage: format.icon)
                 .font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundStyle(Theme.mint)
             Text(preview.isEmpty ? AttributedString(StructuredText.prefix(clip.text, bytes: 700)) : colored)
-                .font(.system(size: compact ? 10 : 12, design: .monospaced)).foregroundStyle(Theme.ink)
+                .font(.system(size: compact ? 10 : 12, design: format == .markdown ? .default : .monospaced)).foregroundStyle(Theme.ink)
                 .lineSpacing(3).lineLimit(compact ? 2 : 6).frame(maxWidth: .infinity, alignment: .leading)
         }.frame(maxWidth: .infinity, alignment: .leading)
         .task(id: clip.fingerprint) {
             let value = (try? await StructuredPreviewCache.shared.preview(text: clip.text, key: clip.fingerprint, format: format)) ?? ""
             guard !Task.isCancelled else { return }
             var attributed = AttributedString(value)
-            for span in SyntaxColoring.spans(value, format: format) {
+            for span in format == .markdown ? [] : SyntaxColoring.spans(value, format: format) {
                 if let stringRange = Range(span.range, in: value), let range = Range(stringRange, in: attributed) { attributed[range].foregroundColor = Theme.colors[span.color] }
             }
             preview = value; colored = attributed

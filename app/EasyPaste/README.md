@@ -4,7 +4,7 @@ Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT.
 
 ## Installation
 
-1. Ouvrir `dist/EasyPaste-0.2.6-universal.dmg`.
+1. Ouvrir `dist/EasyPaste-0.2.7-universal.dmg`.
 2. Glisser EasyPaste dans Applications, puis l’ouvrir.
 3. Cliquer sur **Activer l’historique**. Les prochaines copies seront enregistrées.
 4. Depuis une autre application, ouvrir la barre rapide avec **Maj + Commande + V**.
@@ -22,6 +22,7 @@ macOS 15 ou ultérieur. L’installateur universel contient les exécutables App
 - Copier, coller directement, coller en texte brut et glisser-déposer. Le glissement d’une carte regroupant plusieurs fichiers porte sur le premier fichier ; la copie conserve l’ensemble.
 - Éditeur de texte enrichi avec gras, italique, souligné, barré et annulation native pendant l’édition. Création de textes favoris.
 - Aperçu et formatage local de JSON, SQL, CSV et XML. Tableau CSV modifiable, coloration du code et structure XML repliable.
+- Reconnaissance du Markdown, aperçu natif avec titres, listes, liens, citations, code et tableaux, édition du source et export `.md`.
 - Aperçu des images et du texte, Quick Look des fichiers, ouverture des liens dans le navigateur par défaut.
 - Reconnaissance de texte locale avec Vision, en français et en anglais. Le texte reconnu devient recherchable et copiable.
 - Pile de collage : collecte ordonnée, retrait des doublons, inversion et copie du prochain élément. Le raccourci de pile prépare le prochain élément ; Commande + V le colle. EasyPaste n’intercepte pas chaque Commande + V.
@@ -45,6 +46,18 @@ Le formatage SQL conserve la casse, les commentaires et les chaînes. Le sélect
 XML conserve les attributs, les entités écrites, les blocs CDATA, les espaces existants et le contenu mixte. Les déclarations DTD restent accessibles dans **Original** ; leur formatage est désactivé. Aucune entité externe n’est chargée. Cliquer sur une erreur avec un numéro de ligne sélectionne cette ligne dans l’aperçu.
 
 Les calculs se font sur le Mac, en arrière-plan. Les limites protègent la réactivité : entrée de formatage de 4 Mio, résultat de 8 Mio et imbrication de 128 niveaux. Le texte affiché et sa recherche sont limités à 128 Kio ; la coloration porte sur les 64 premiers Kio. La copie et l’export conservent le résultat complet. Le tableau accepte 256 colonnes et 200 000 cellules, avec un affichage à la demande ; les cellules de plus de 16 Kio sont abrégées et non modifiables dans le tableau. La structure XML présente au maximum 2 000 balises.
+
+## Afficher et modifier le Markdown
+
+1. Copier du Markdown. Une carte reconnue porte le badge **Markdown**.
+2. Sélectionner la carte et appuyer sur **Espace**, ou choisir **Formater…**. Pour un texte non reconnu, choisir **Markdown** dans le sélecteur de format.
+3. Passer entre **Original**, **Source** et **Aperçu**. L’aperçu rend les titres, le gras, l’italique, le texte barré, les listes imbriquées, les cases à cocher, les citations, les liens, les blocs de code et les tableaux.
+4. Choisir **Modifier** pour éditer le source, puis **Terminer** pour retrouver l’aperçu. **Commande + F** recherche dans la vue affichée.
+5. Utiliser **Copier le Markdown**, **Créer une copie**, **Remplacer l’original…** ou **Exporter le fichier…**. L’export propose l’extension `.md`.
+
+Le source est conservé exactement, y compris les espaces et les retours à la ligne. Un marqueur incomplet reste généralement affiché comme du texte ; il ne bloque pas la copie. La lecture du Markdown utilise Foundation, en arrière-plan. Aucun navigateur n’est chargé : le HTML est affiché comme du texte, et les images sont représentées par leur description. Les liens HTTP, HTTPS et mailto s’ouvrent uniquement après un clic.
+
+L’aperçu traite au maximum les 128 premiers Kio, 1 000 blocs, 4 000 segments de style et 32 colonnes par tableau. Une mention signale un aperçu abrégé. La copie, l’export et l’enregistrement conservent le source complet ; l’édition reste limitée à 128 Kio. Le Markdown n’est pas converti en HTML ou en texte enrichi lors de la copie.
 
 ## Capturer et annoter
 
@@ -209,3 +222,4 @@ La refonte de la bibliothèque et de l’annotation de la version 0.2.4 est déc
 La simplification des textes de la version 0.2.5 est décrite dans [QA-0.2.5.md](QA-0.2.5.md).
 
 Le formatage JSON, SQL, CSV et XML de la version 0.2.6 est décrit dans [QA-0.2.6.md](QA-0.2.6.md).
+Le rendu Markdown de la version 0.2.7 est décrit dans [QA-0.2.7.md](QA-0.2.7.md).
