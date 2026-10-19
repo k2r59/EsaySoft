@@ -255,7 +255,10 @@ struct PreviewView: View {
                 if !videoWarning.isEmpty { Label(videoWarning, systemImage: "exclamationmark.triangle").font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
                 if full.kind == .image, let data = full.imageData { ImagePreview(data: data) }
                 else if full.kind == .video, let player { VideoPreview(player: player) }
-                else if full.kind == .file, let path = full.text.split(separator: "\n").first { FilePreview(url: URL(fileURLWithPath: String(path))).frame(height: 350) }
+                else if full.kind == .file, let path = full.text.split(separator: "\n").first {
+                    if SVGFile.isSVG(String(path)) { SVGFilePreview(url: URL(fileURLWithPath: String(path)), history: history) }
+                    else { FilePreview(url: URL(fileURLWithPath: String(path))).frame(height: 350) }
+                }
                 else { ScrollView { Text(full.text).textSelection(.enabled).font(.system(size: 14)).lineSpacing(6).frame(maxWidth: .infinity, alignment: .leading).padding(20) }.frame(height: 300).background(Theme.panel, in: RoundedRectangle(cornerRadius: 12)) }
                 if !full.ocr.isEmpty { ScrollView { Text(full.ocr).textSelection(.enabled).font(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 85) }
                 HStack { Text("\(full.source) · \(full.date.formatted(.dateTime.locale(Locale(identifier: "fr_FR")).day().month().hour().minute()))").font(.system(size: 10)).foregroundStyle(Theme.muted); Spacer(); if full.kind == .link || full.kind == .file { Button("Ouvrir") { openClip(full) }.buttonStyle(PasteButtonStyle()) }; if full.kind == .video { Button("Enregistrer…") { history.exportVideo(full) }.buttonStyle(PasteButtonStyle()) }; if !full.ocr.isEmpty { Button("Copier le texte") { Task { _ = await history.copy([full], plain: true) } }.buttonStyle(PasteButtonStyle()) }; Button("Copier") { Task { _ = await history.copy([full]) } }.buttonStyle(PasteButtonStyle(primary: true)) }

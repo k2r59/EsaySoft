@@ -1,10 +1,10 @@
 import Foundation
 
 enum StructuredFormat: String, CaseIterable, Identifiable, Sendable {
-    case json = "JSON", sql = "SQL", csv = "CSV", xml = "XML", markdown = "Markdown"
+    case json = "JSON", sql = "SQL", csv = "CSV", xml = "XML", markdown = "Markdown", svg = "SVG"
     var id: String { rawValue }
     var fileExtension: String { self == .markdown ? "md" : rawValue.lowercased() }
-    var icon: String { self == .markdown ? "text.document" : self == .csv ? "tablecells" : "curlybraces" }
+    var icon: String { self == .svg ? "square.on.circle" : self == .markdown ? "text.document" : self == .csv ? "tablecells" : "curlybraces" }
 }
 enum TextPresentation: String, CaseIterable, Identifiable, Sendable {
     case original = "Original", formatted = "Formaté", compact = "Compact", table = "Tableau", outline = "Structure", source = "Source", rendered = "Aperçu"
@@ -37,6 +37,7 @@ struct StructuredResult: Sendable {
     var csv: CSVDocument? = nil
     var xml: [XMLBranch] = []
     var markdown: MarkdownDocument? = nil
+    var svg: SVGDocument? = nil
     var note: String? = nil
 }
 
@@ -51,6 +52,7 @@ enum StructuredText {
     static func hint(_ text: String) -> StructuredFormat? {
         let sample = String(decoding: text.utf8.prefix(4096), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\u{FEFF}")))
         guard !sample.isEmpty else { return nil }
+        if SVGDocument.looksLikeSVG(sample) { return .svg }
         if sample.hasPrefix("{") || (sample.hasPrefix("[") && !MarkdownDocument.hasStrongHint(sample)) { return .json }
         if sample.hasPrefix("<?xml") || sample.hasPrefix("<!DOCTYPE") || sample.hasPrefix("<!--") || sample.range(of: #"^<[A-Za-z_:][\w:.-]*(?:\s|>|/)"#, options: .regularExpression) != nil { return .xml }
         if sample.range(of: #"(?is)^(?:(?:--[^\r\n]*(?:\r?\n|\r))|(?:/\*.*?\*/)|\s)*(?:SELECT\s+.+\s+FROM\b|WITH\s+.+\s+AS\s*\(|INSERT\s+INTO\b|UPDATE\s+.+\s+SET\b|DELETE\s+FROM\b|CREATE\s+TABLE\b|ALTER\s+TABLE\b)"#, options: .regularExpression) != nil { return .sql }
@@ -74,6 +76,9 @@ enum StructuredText {
         case .markdown:
             let document = try MarkdownDocument.parse(text)
             return StructuredResult(text: text, markdown: document, note: document.hasImages ? "Images : texte alternatif affiché, sans téléchargement." : "Markdown · rendu local")
+        case .svg:
+            let document = try SVGDocument.parse(text)
+            return StructuredResult(text: document.canonical, svg: document, note: "SVG statique · copie et export reconstruits")
         }
     }
     static func prefix(_ text: String, bytes: Int) -> String {

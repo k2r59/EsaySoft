@@ -55,7 +55,7 @@ struct CaptureMenu: View {
         }
     }
     func run(_ action: CaptureAction) {
-        guard !history.captureBusy, !history.recording, !history.annotating, !history.loading, !history.fault else { return }
+        guard !history.captureBusy, !history.samplingColor, !history.recording, !history.annotating, !history.loading, !history.fault else { return }
         let id = UUID(); operation = id; currentAction = action; history.captureBusy = true
         if !CGPreflightScreenCaptureAccess() { showPermission(action); return }
         if action == .video {

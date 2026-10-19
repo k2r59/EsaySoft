@@ -62,6 +62,7 @@ struct ClipQuery {
     @Published var notice = "Historique vide."
     @Published var fault = false
     @Published var captureBusy = false
+    @Published var samplingColor = false
     @Published var recording = false
     @Published var annotating = false
     @Published var toast: String?
@@ -245,6 +246,17 @@ struct ClipQuery {
             var full: [Clip] = []
             for c in clips {
                 var value = try await fullClip(c)
+                if SVGDocument.looksLikeSVG(value.text) || value.payload.representations.flatMap({ $0 }).contains(where: { [SVGDocument.pasteboardType, "image/svg+xml"].contains($0.type) }) {
+                    let source = value.text
+                    let document = try await Task.detached { try SVGDocument.parse(source) }.value
+                    value.text = document.canonical
+                    value.payload = ClipPayload(representations: [[.init(type: NSPasteboard.PasteboardType.string.rawValue, data: Data(document.canonical.utf8)), .init(type: SVGDocument.pasteboardType, data: Data(document.canonical.utf8))]])
+                }
+                if value.kind == .file {
+                    for path in value.text.split(separator: "\n").map(String.init) where SVGFile.isSVG(path) {
+                        _ = try await Task.detached { try SVGDocument.parse(SVGFile.read(URL(fileURLWithPath: path))) }.value
+                    }
+                }
                 if value.kind == .video, !plain {
                     let url = try await videoURL(value)
                     value.payload = ClipPayload(representations: [[.init(type: NSPasteboard.PasteboardType.fileURL.rawValue, data: Data(url.absoluteString.utf8))]])
@@ -271,6 +283,12 @@ struct ClipQuery {
     func copyStructuredText(_ text: String, to pb: NSPasteboard = .general) -> Bool {
         guard text.utf8.count <= ClipboardReader.limit else { return false }
         pb.clearContents(); let ok = pb.setString(text, forType: .string)
+        if pb.name == NSPasteboard.general.name { changeCount = pb.changeCount }
+        return ok
+    }
+    func copyPNG(_ data: Data, to pb: NSPasteboard = .general) -> Bool {
+        guard data.count <= ClipboardReader.limit else { return false }
+        pb.clearContents(); let ok = pb.setData(data, forType: .png)
         if pb.name == NSPasteboard.general.name { changeCount = pb.changeCount }
         return ok
     }

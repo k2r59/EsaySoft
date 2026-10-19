@@ -12,7 +12,7 @@ struct StructuredEditorView: View {
             HStack(spacing: 12) {
                 Image(systemName: model.format.icon).font(.system(size: 23)).foregroundStyle(Theme.mint)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(model.format == .markdown ? "Markdown" : "Formater").font(.system(size: 21, weight: .semibold))
+                    Text(model.format == .svg ? "SVG" : model.format == .markdown ? "Markdown" : "Formater").font(.system(size: 21, weight: .semibold))
                     Text(model.original.source).font(.system(size: 11)).foregroundStyle(Theme.muted)
                 }
                 Spacer()
@@ -34,7 +34,7 @@ struct StructuredEditorView: View {
                 Spacer(minLength: 0)
                 Button { if model.presentation == .table { searching = true } else { model.findRequest += 1 } } label: { Image(systemName: "magnifyingglass").frame(width: 30, height: 34) }
                     .buttonStyle(FullAreaButtonStyle()).accessibilityLabel("Rechercher").help("Rechercher · ⌘F").keyboardShortcut("f")
-                    .disabled(model.presentation == .outline)
+                    .disabled(model.presentation == .outline || (model.presentation == .rendered && model.format == .svg))
                 Button(model.editing ? "Terminer" : "Modifier") {
                     if model.editing { model.finishEditing() } else { model.beginEditing() }
                 }.buttonStyle(PasteButtonStyle()).disabled(model.editing ? model.busy : !model.canEdit)
@@ -78,7 +78,7 @@ struct StructuredEditorView: View {
             }.font(.system(size: 11)).foregroundStyle(Theme.muted).frame(minHeight: 30, alignment: .top)
             if model.presentation == .rendered && model.result?.markdown?.truncated == true {
                 Text("Aperçu abrégé. Copie et export : Markdown complet.").font(.system(size: 11)).foregroundStyle(Theme.muted)
-            } else if model.truncated && model.presentation != .table && model.presentation != .outline {
+            } else if model.truncated && model.presentation != .table && model.presentation != .outline && model.presentation != .rendered {
                 Text("Aperçu et recherche limités à 128 Ko. Copie et export : texte complet.").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
             HStack {
@@ -95,7 +95,7 @@ struct StructuredEditorView: View {
                         }.padding(8).frame(width: 240).background(Theme.panel).preferredColorScheme(.dark)
                     }
                 Button("Copier le \(model.format.rawValue)") { model.copy(history: history) }
-                    .buttonStyle(PasteButtonStyle(primary: true)).disabled(!model.canUseOutput)
+                    .buttonStyle(PasteButtonStyle(primary: model.format != .svg)).disabled(!model.canUseOutput)
             }
         }.padding(22).frame(minWidth: 690, minHeight: 540)
             .background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
@@ -108,7 +108,9 @@ struct StructuredEditorView: View {
             .buttonStyle(FullAreaButtonStyle()).foregroundStyle(Theme.ink)
     }
     @ViewBuilder private var content: some View {
-        if model.presentation == .rendered, let document = model.result?.markdown {
+        if model.presentation == .rendered, let document = model.result?.svg {
+            SVGPreviewView(document: document, history: history)
+        } else if model.presentation == .rendered, let document = model.result?.markdown {
             MarkdownPreviewView(document: document, revision: model.revision, findRequest: model.findRequest)
         } else if model.presentation == .table, model.result?.csv != nil, !model.editing || model.editingTable {
             CSVTable(model: model)
@@ -233,7 +235,7 @@ enum SyntaxColoring {
         switch format {
         case .json: patterns = [(#"\b(?:true|false|null|-?[0-9]+(?:\.[0-9]+)?)\b"#, 2), (#""(?:[^"\\]|\\.)*""#, 0)]
         case .sql: patterns = [(#"(?i)\b(?:select|from|where|join|left|right|inner|outer|on|group|order|by|having|limit|offset|insert|into|values|update|set|delete|create|table|as|and|or|null|with|returning)\b"#, 1), (#"'(?:[^']|'')*'"#, 0)]
-        case .xml: patterns = [(#"</?[A-Za-z_:][\w:.-]*|/?>"#, 1), (#""[^"]*"|'[^']*'"#, 0)]
+        case .xml, .svg: patterns = [(#"</?[A-Za-z_:][\w:.-]*|/?>"#, 1), (#""[^"]*"|'[^']*'"#, 0)]
         case .csv: patterns = [(#""(?:[^"]|"")*""#, 0)]
         case .markdown: patterns = [(#"(?m)^ {0,3}#{1,6} .*$|^ {0,3}(?:>|[-+*] |[0-9]+[.)] ).*$"#, 1), (#"`[^`\n]+`|\*\*[^*\n]+\*\*|!??\[[^\]\n]+\]\([^\)\n]+\)"#, 0)]
         }

@@ -217,7 +217,19 @@ struct ShelfView: View {
 }
 @MainActor enum DragProvider {
     static func make(_ clip: Clip, history: History) -> NSItemProvider {
-        if clip.kind == .file, let first = clip.text.split(separator: "\n").first { return NSItemProvider(object: URL(fileURLWithPath: String(first)) as NSURL) }
+        if clip.kind == .file, let first = clip.text.split(separator: "\n").first {
+            let url = URL(fileURLWithPath: String(first))
+            guard SVGFile.isSVG(url.path) else { return NSItemProvider(object: url as NSURL) }
+            let provider = NSItemProvider(); provider.suggestedName = url.lastPathComponent
+            provider.registerDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier, visibility: .all) { completion in
+                Task {
+                    do { _ = try await Task.detached { try SVGDocument.parse(SVGFile.read(url)) }.value; completion(Data(url.absoluteString.utf8), nil) }
+                    catch { completion(nil, error) }
+                }
+                return nil
+            }
+            return provider
+        }
         let provider = NSItemProvider()
         if clip.kind == .video {
             provider.registerFileRepresentation(forTypeIdentifier: UTType.mpeg4Movie.identifier, fileOptions: [], visibility: .all) { completion in
@@ -231,8 +243,8 @@ struct ShelfView: View {
             Task { @MainActor in
                 do {
                     let full = try await history.fullClip(clip)
-                    let data = await Task.detached(priority: .userInitiated) { () -> Data? in
-                        if clip.kind != .image { return Data(full.text.utf8) }
+                    let data = try await Task.detached(priority: .userInitiated) { () throws -> Data? in
+                        if clip.kind != .image { return Data(try transferText(full).utf8) }
                         if let png = full.payload.representations.flatMap({ $0 }).first(where: { $0.type == NSPasteboard.PasteboardType.png.rawValue })?.data { return png }
                         guard let raw = full.imageData, let bitmap = NSBitmapImageRep(data: raw) else { return nil }
                         return bitmap.representation(using: .png, properties: [:])
@@ -245,12 +257,26 @@ struct ShelfView: View {
         if clip.editable {
             provider.registerDataRepresentation(forTypeIdentifier: UTType.rtf.identifier, visibility: .all) { completion in
                 Task { @MainActor in
-                    do { let full = try await history.fullClip(clip); let rtf = full.payload.representations.flatMap { $0 }.first { $0.type == NSPasteboard.PasteboardType.rtf.rawValue }?.data ?? NSAttributedString(string: full.text).rtf(from: NSRange(location: 0, length: (full.text as NSString).length), documentAttributes: [:]); completion(rtf, nil) } catch { completion(nil, error) }
+                    do {
+                        let full = try await history.fullClip(clip)
+                        let rtf = try await Task.detached { () throws -> Data? in
+                            let text = try transferText(full)
+                            if text == full.text, !isSVG(full), let existing = full.payload.representations.flatMap({ $0 }).first(where: { $0.type == NSPasteboard.PasteboardType.rtf.rawValue })?.data { return existing }
+                            return NSAttributedString(string: text).rtf(from: NSRange(location: 0, length: (text as NSString).length), documentAttributes: [:])
+                        }.value
+                        completion(rtf, nil)
+                    } catch { completion(nil, error) }
                 }; return nil
             }
         }
         provider.suggestedName = clip.title
         return provider
+    }
+    nonisolated private static func isSVG(_ clip: Clip) -> Bool {
+        SVGDocument.looksLikeSVG(clip.text) || clip.payload.representations.flatMap({ $0 }).contains { [SVGDocument.pasteboardType, "image/svg+xml"].contains($0.type) }
+    }
+    nonisolated private static func transferText(_ clip: Clip) throws -> String {
+        try isSVG(clip) ? SVGDocument.parse(clip.text).canonical : clip.text
     }
 }
 

@@ -32,6 +32,7 @@ import SwiftUI
         case .csv: return [.original, .table]
         case .xml: return [.original, .formatted, .outline]
         case .markdown: return [.original, .source, .rendered]
+        case .svg: return [.original, .source, .rendered]
         }
     }
     var displayed: String { StructuredText.prefix(output, bytes: StructuredText.displayLimit) }
@@ -42,12 +43,12 @@ import SwiftUI
         original = clip; draft = clip.text; output = clip.text
         self.format = format ?? StructuredText.hint(clip.text) ?? .json
         if self.format == .csv { presentation = .table }
-        if self.format == .markdown { presentation = .rendered }
+        if self.format == .markdown || self.format == .svg { presentation = .rendered }
     }
     func cancel() { task?.cancel(); searchTask?.cancel(); generation = UUID(); busy = false }
     func selectFormat(_ value: StructuredFormat) {
         format = value; editing = false; returnToMarkdownPreview = false; query = ""
-        presentation = value == .csv ? .table : value == .markdown ? .rendered : .formatted; refresh()
+        presentation = value == .csv ? .table : (value == .markdown || value == .svg) ? .rendered : .formatted; refresh()
     }
     func selectPresentation(_ value: TextPresentation) { editing = false; presentation = value; refresh() }
     func refresh(validateOnly: Bool = false, debounce: Bool = false) {
@@ -75,7 +76,7 @@ import SwiftUI
     }
     func beginEditing() {
         guard canEdit else { return }; editing = true
-        returnToMarkdownPreview = format == .markdown && presentation == .rendered
+        returnToMarkdownPreview = (format == .markdown || format == .svg) && presentation == .rendered
         if returnToMarkdownPreview { presentation = .source }
         editingTable = presentation == .table && result?.csv != nil
         if !editingTable { draft = output }
@@ -130,11 +131,11 @@ import SwiftUI
         } catch { message = error.localizedDescription }
     }
     func copy(history: History, to pasteboard: NSPasteboard = .general) {
-        guard canUseOutput else { return }
+        guard canUseOutput, confirmOriginalSVGTransfer() else { return }
         message = history.copyStructuredText(output, to: pasteboard) ? "Copié · ⌘V pour coller" : "Copie impossible."
     }
     func export() {
-        guard canUseOutput else { return }
+        guard canUseOutput, confirmOriginalSVGTransfer() else { return }
         let panel = NSSavePanel(); panel.nameFieldStringValue = "Copie." + format.fileExtension
         let text = output
         panel.begin { [weak self] response in
@@ -144,6 +145,13 @@ import SwiftUI
                 catch { self?.message = error.localizedDescription }
             }
         }
+    }
+    private func confirmOriginalSVGTransfer() -> Bool {
+        guard format == .svg, presentation == .original else { return true }
+        let alert = NSAlert(); alert.messageText = "Transmettre le SVG original ?"
+        alert.informativeText = "Le source original n’est pas nettoyé. Un autre lecteur peut exécuter son contenu actif. Utilise la vue Aperçu pour copier le SVG reconstruit ou un PNG."
+        alert.addButton(withTitle: "Annuler"); alert.addButton(withTitle: "Transmettre l’original")
+        return alert.runModal() == .alertSecondButtonReturn
     }
 }
 

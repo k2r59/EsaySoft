@@ -298,5 +298,107 @@ import SwiftUI
         let preview = try XCTUnwrap(descendants(host).compactMap { $0 as? NSTextView }.first)
         XCTAssertEqual(preview.string, "Nouveau\ngras"); XCTAssertFalse(preview.isEditable)
     }
+    func testSVGPreviewEditingCopyAndOriginalPreservation() async throws {
+        let clip = await insert(SVGFixtures.icon), model = StructuredEditorModel(clip: clip)
+        XCTAssertEqual(model.format, .svg); XCTAssertEqual(model.presentation, .rendered)
+        model.refresh(); try await ready(model)
+        XCTAssertNil(model.issue); XCTAssertNotNil(model.result?.svg)
+        let pb = NSPasteboard(name: .init(UUID().uuidString)); defer { pb.releaseGlobally() }
+        model.copy(history: history, to: pb)
+        XCTAssertEqual(pb.string(forType: .string), model.result?.svg?.canonical)
+        model.beginEditing(); XCTAssertEqual(model.presentation, .source)
+        model.changeText("<svg><script>alert(1)</script></svg>"); try await ready(model)
+        XCTAssertNotNil(model.issue); XCTAssertFalse(model.canUseOutput)
+        pb.clearContents(); pb.setString("préservé", forType: .string)
+        model.copy(history: history, to: pb); XCTAssertEqual(pb.string(forType: .string), "préservé")
+        model.changeText(SVGFixtures.gradient); try await ready(model); model.finishEditing(); try await ready(model)
+        XCTAssertNil(model.issue); XCTAssertEqual(model.presentation, .rendered)
+        await model.save(history: history, replacing: false)
+        let original = try await history.fullClip(clip)
+        XCTAssertEqual(original.text, SVGFixtures.icon); XCTAssertEqual(history.clips.count, 2)
+        model.selectPresentation(.original); XCTAssertEqual(model.output, SVGFixtures.icon)
+    }
+    func testSVGHistoryCopyRebuildsBothRepresentations() async throws {
+        let original = await insert(SVGFixtures.icon)
+        let pb = NSPasteboard(name: .init(UUID().uuidString)); defer { pb.releaseGlobally() }
+        let copied = await history.copy([original], to: pb); XCTAssertTrue(copied)
+        let canonical = try SVGDocument.parse(SVGFixtures.icon).canonical
+        XCTAssertEqual(pb.string(forType: .string), canonical)
+        XCTAssertEqual(pb.data(forType: .init(SVGDocument.pasteboardType)), Data(canonical.utf8))
+        let full = try await history.fullClip(original); XCTAssertEqual(full.text, SVGFixtures.icon)
+    }
+    func testUnsafeSVGHistoryAndFileCopyPreserveClipboard() async throws {
+        let pb = NSPasteboard(name: .init(UUID().uuidString)); defer { pb.releaseGlobally() }
+        pb.setString("préservé", forType: .string)
+        let unsafe = await insert("<svg onload='alert(1)'/>")
+        let copied = await history.copy([unsafe], to: pb); XCTAssertFalse(copied)
+        XCTAssertEqual(pb.string(forType: .string), "préservé")
+        let file = folder.appendingPathComponent("unsafe.svg")
+        try "<svg><foreignObject/></svg>".write(to: file, atomically: true, encoding: .utf8)
+        var reference = makeClip(file.path); reference.kind = .file
+        reference.payload = ClipPayload(representations: [[.init(type: NSPasteboard.PasteboardType.fileURL.rawValue, data: Data(file.absoluteString.utf8))]])
+        history.add(reference); await history.flush()
+        let copiedFile = await history.copy([reference], to: pb); XCTAssertFalse(copiedFile)
+        XCTAssertEqual(pb.string(forType: .string), "préservé")
+    }
+    func testSVGAnalysisLeavesMainActorResponsive() async throws {
+        let source = "<svg viewBox='0 0 100 100'>" + String(repeating: "<path fill='#9BF1CB' d='M0 0 L100 100 L0 100 Z'/>", count: 1900) + "</svg>"
+        let model = StructuredEditorModel(clip: await insert(source)); model.refresh()
+        var last = Date(), maxGap = 0.0, beats = 0
+        while model.busy {
+            try await Task.sleep(for: .milliseconds(5)); let now = Date()
+            maxGap = max(maxGap, now.timeIntervalSince(last)); last = now; beats += 1
+        }
+        XCTAssertNil(model.issue); XCTAssertGreaterThan(beats, 0); XCTAssertLessThan(maxGap, 0.2)
+        print("SVG_UI_HEARTBEAT max=\(maxGap)s beats=\(beats)")
+    }
+    func testSVGDragRebuildsSourceAndRejectsActiveContent() async throws {
+        for source in [SVGFixtures.icon, "<svg onload='alert(1)'/>"] {
+            let clip = await insert(source), provider = DragProvider.make(clip, history: history)
+            for type in ["public.utf8-plain-text", "public.rtf"] {
+                let result: (Data?, Error?) = await withCheckedContinuation { continuation in
+                    provider.loadDataRepresentation(forTypeIdentifier: type) { data, error in continuation.resume(returning: (data, error)) }
+                }
+                if source == SVGFixtures.icon {
+                    XCTAssertNil(result.1)
+                    let data = try XCTUnwrap(result.0)
+                    let text = type == "public.rtf" ? NSAttributedString(rtf: data, documentAttributes: nil)?.string : String(data: data, encoding: .utf8)
+                    XCTAssertEqual(text, try SVGDocument.parse(source).canonical)
+                } else { XCTAssertNil(result.0); XCTAssertNotNil(result.1) }
+            }
+        }
+        for source in [SVGFixtures.icon, "<svg onload='alert(1)'/>"] {
+            let file = folder.appendingPathComponent("drag.svg")
+            try source.write(to: file, atomically: true, encoding: .utf8)
+            var clip = makeClip(file.path); clip.kind = .file
+            let provider = DragProvider.make(clip, history: history)
+            let result: (Data?, Error?) = await withCheckedContinuation { continuation in
+                provider.loadDataRepresentation(forTypeIdentifier: "public.file-url") { data, error in continuation.resume(returning: (data, error)) }
+            }
+            if source == SVGFixtures.icon { XCTAssertEqual(result.0, Data(file.absoluteString.utf8)); XCTAssertNil(result.1) }
+            else { XCTAssertNil(result.0); XCTAssertNotNil(result.1) }
+        }
+    }
+    func testNativeSVGPreviewLayoutAndPNGTransfer() async throws {
+        let document = try SVGDocument.parse(SVGFixtures.icon)
+        let executable = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(".build/out/Products/Release/EasyPaste")
+        let png = try await SVGRenderer.render(document, executable: executable)
+        let host = NSHostingView(rootView: SVGPreviewView(document: document, history: history, render: { _ in png })
+            .background(Theme.panel).foregroundStyle(Theme.ink).preferredColorScheme(.dark))
+        let size = CGSize(width: 600, height: 390)
+        let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false; window.contentView = host; host.frame = CGRect(origin: .zero, size: size)
+        defer { window.close() }; host.layoutSubtreeIfNeeded()
+        try await Task.sleep(for: .milliseconds(150)); host.layoutSubtreeIfNeeded()
+        XCTAssertLessThanOrEqual(host.fittingSize.width, 600); XCTAssertLessThanOrEqual(host.fittingSize.height, 390)
+        let pb = NSPasteboard(name: .init(UUID().uuidString)); defer { pb.releaseGlobally() }
+        XCTAssertTrue(history.copyPNG(png, to: pb)); XCTAssertEqual(pb.data(forType: .png), png)
+        XCTAssertNil(pb.string(forType: .string)); XCTAssertNil(pb.data(forType: .init(SVGDocument.pasteboardType)))
+        if let folder = ProcessInfo.processInfo.environment["EASYPASTE_LAYOUT_SNAPSHOTS"] {
+            try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+            let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds)); host.cacheDisplay(in: host.bounds, to: bitmap)
+            try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: URL(fileURLWithPath: folder).appendingPathComponent("SVG-EasyPaste.png"))
+        }
+    }
     private func descendants(_ view: NSView) -> [NSView] { view.subviews.flatMap { [$0] + descendants($0) } }
 }

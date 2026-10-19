@@ -6,6 +6,7 @@ import CryptoKit
 
 @main struct EasyPasteMain {
     static func main() {
+        if CommandLine.arguments.contains("--render-svg") { SVGRenderer.runHelper(); return }
         if CommandLine.arguments.contains("--mcp") { MCPServer.run(); return }
         let app = NSApplication.shared
         let delegate = AppDelegate()
@@ -28,6 +29,7 @@ import CryptoKit
     private lazy var captures = CaptureController(history: history)
     private lazy var annotations = AnnotationController(history: history)
     private lazy var previews = PreviewController(history: history)
+    private lazy var colorSampler = ColorSamplerController(history: history)
     private var recordingStatus: NSStatusItem?
     override init() {
         if CommandLine.arguments.contains("--demo") || Bundle.main.object(forInfoDictionaryKey: "EasyPasteDemo") as? Bool == true {
@@ -115,6 +117,9 @@ import CryptoKit
         quickCapture.tag = CaptureAction.area.rawValue; quickCapture.target = self
         quickCapture.image = NSImage(systemSymbolName: "viewfinder", accessibilityDescription: "Capturer une zone")
         menu.addItem(quickCapture)
+        let colorItem = NSMenuItem(title: "Prélever une couleur…", action: #selector(sampleColor), keyEquivalent: "")
+        colorItem.image = NSImage(systemSymbolName: "eyedropper", accessibilityDescription: "Prélever une couleur")
+        menu.addItem(colorItem)
         let captureItem = NSMenuItem(title: "Capture", action: nil, keyEquivalent: "")
         let captureMenu = NSMenu(title: "Capture")
         for action in CaptureAction.allCases {
@@ -149,9 +154,14 @@ import CryptoKit
         guard let action = CaptureAction(rawValue: sender.tag) else { return }
         rememberTarget(); captures.run(action)
     }
+    @objc private func sampleColor() {
+        rememberTarget()
+        colorSampler.beforeSampling = { [weak self] in self?.closeShelf(restore: false) }
+        colorSampler.sample()
+    }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(stopVideo) { return history.recording }
-        if menuItem.action == #selector(captureFromMenu(_:)) { return !history.captureBusy && !history.recording && !history.annotating && !history.loading && !history.fault }
+        if menuItem.action == #selector(captureFromMenu(_:)) || menuItem.action == #selector(sampleColor) { return !history.captureBusy && !history.samplingColor && !history.recording && !history.annotating && !history.loading && !history.fault }
         return true
     }
     private func revealShelf() {

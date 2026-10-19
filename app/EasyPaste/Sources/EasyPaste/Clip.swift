@@ -36,7 +36,11 @@ struct Clip:Codable,Identifiable {
     var image:NSImage? {
         let key=fingerprint as NSString
         if let hit=Self.imageCache.object(forKey:key){return hit}
-        guard let data=thumbnail ?? payload.representations.flatMap({$0}).first(where:{[NSPasteboard.PasteboardType.png.rawValue,NSPasteboard.PasteboardType.tiff.rawValue].contains($0.type)})?.data,let image=NSImage(data:data) else{return nil}
+        // Decode raster formats through ImageIO: an SVG mislabeled as PNG/TIFF
+        // must not reach NSImage's automatic SVG decoder on the main process.
+        guard let data=thumbnail ?? imageData, let source=CGImageSourceCreateWithData(data as CFData,nil),
+              let cg=CGImageSourceCreateThumbnailAtIndex(source,0,[kCGImageSourceCreateThumbnailFromImageAlways:true,kCGImageSourceThumbnailMaxPixelSize:640,kCGImageSourceCreateThumbnailWithTransform:true] as CFDictionary) else{return nil}
+        let image=NSImage(cgImage:cg,size:.zero)
         Self.imageCache.setObject(image,forKey:key,cost:640*640*4);return image
     }
     func metadata()->Clip {var c=self;c.storedBytes=byteCount;c.payload=ClipPayload(representations:[]);return c}

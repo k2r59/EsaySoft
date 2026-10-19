@@ -4,7 +4,7 @@ Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT.
 
 ## Installation
 
-1. Ouvrir `dist/EasyPaste-0.2.7-universal.dmg`.
+1. Ouvrir `dist/EasyPaste-0.2.8-universal.dmg`.
 2. Glisser EasyPaste dans Applications, puis l’ouvrir.
 3. Cliquer sur **Activer l’historique**. Les prochaines copies seront enregistrées.
 4. Depuis une autre application, ouvrir la barre rapide avec **Maj + Commande + V**.
@@ -23,7 +23,9 @@ macOS 15 ou ultérieur. L’installateur universel contient les exécutables App
 - Éditeur de texte enrichi avec gras, italique, souligné, barré et annulation native pendant l’édition. Création de textes favoris.
 - Aperçu et formatage local de JSON, SQL, CSV et XML. Tableau CSV modifiable, coloration du code et structure XML repliable.
 - Reconnaissance du Markdown, aperçu natif avec titres, listes, liens, citations, code et tableaux, édition du source et export `.md`.
-- Aperçu des images et du texte, Quick Look des fichiers, ouverture des liens dans le navigateur par défaut.
+- Aperçu SVG statique contrôlé, édition du source et copie/export PNG sans perte. Les fichiers SVG utilisent cet aperçu, les autres fichiers Quick Look.
+- Pipette dans le menu de la barre macOS : sélection d’une couleur, copie HEX/RGB et ajout à l’historique.
+- Aperçu des images et du texte, ouverture des liens dans le navigateur par défaut.
 - Reconnaissance de texte locale avec Vision, en français et en anglais. Le texte reconnu devient recherchable et copiable.
 - Pile de collage : collecte ordonnée, retrait des doublons, inversion et copie du prochain élément. Le raccourci de pile prépare le prochain élément ; Commande + V le colle. EasyPaste n’intercepte pas chaque Commande + V.
 - Collecte en pause, exclusions d’applications, durée de conservation et ouverture à la connexion.
@@ -46,6 +48,25 @@ Le formatage SQL conserve la casse, les commentaires et les chaînes. Le sélect
 XML conserve les attributs, les entités écrites, les blocs CDATA, les espaces existants et le contenu mixte. Les déclarations DTD restent accessibles dans **Original** ; leur formatage est désactivé. Aucune entité externe n’est chargée. Cliquer sur une erreur avec un numéro de ligne sélectionne cette ligne dans l’aperçu.
 
 Les calculs se font sur le Mac, en arrière-plan. Les limites protègent la réactivité : entrée de formatage de 4 Mio, résultat de 8 Mio et imbrication de 128 niveaux. Le texte affiché et sa recherche sont limités à 128 Kio ; la coloration porte sur les 64 premiers Kio. La copie et l’export conservent le résultat complet. Le tableau accepte 256 colonnes et 200 000 cellules, avec un affichage à la demande ; les cellules de plus de 16 Kio sont abrégées et non modifiables dans le tableau. La structure XML présente au maximum 2 000 balises.
+
+## Prélever une couleur
+
+1. Cliquer sur l’icône EasyPaste dans la barre des menus, puis sur **Prélever une couleur…**.
+2. Déplacer la loupe macOS sur la couleur voulue, sur l’un des écrans, puis cliquer. **Échap** annule sans toucher au presse-papiers.
+3. La couleur est ajoutée à l’historique et son code HEX est copié. La fenêtre affiche la teinte, le HEX et le RGB en sRGB.
+4. Cliquer n’importe où sur la ligne HEX ou RGB pour copier cette valeur, ou sur **Prélever à nouveau** pour choisir une autre couleur.
+
+![Fenêtre de la pipette avec une couleur de démonstration](docs/color-picker.png)
+
+## Afficher un SVG
+
+Copier le code SVG ou un fichier `.svg`, puis ouvrir son aperçu. Pour du code non reconnu, choisir **SVG** dans **Formater…**. La vue propose un fond damier, clair ou sombre, **Copier le PNG** et **Exporter le PNG…**. Le PNG conserve la transparence et utilise le profil sRGB ; son grand côté est limité à 2 048 pixels. Le SVG reconstruit reste vectoriel.
+
+Le source copié reste conservé dans l’historique. Les vues **Source** et **Aperçu** utilisent un document reconstruit à partir d’éléments statiques autorisés : formes, tracés, texte, dégradés et découpes. **Modifier** ouvre le code ; **Terminer** le vérifie avant d’afficher le résultat. Le bouton **Copier le SVG** fournit ce document reconstruit. La copie ordinaire et le glisser-déposer depuis une carte SVG passent par les mêmes contrôles.
+
+Les scripts, attributs d’événement, ressources externes ou embarquées, DTD, entités personnalisées, HTML, animations, filtres, `<use>` et feuilles de style sont refusés. Certaines déclarations simples de style en ligne sont acceptées puis converties en attributs. Un fichier non pris en charge affiche une erreur et son source reste accessible. Les SVGZ doivent être décompressés au préalable.
+
+L’analyse est limitée à 512 Kio, 2 000 éléments et 32 niveaux. Le rendu se fait dans un processus séparé, avec un délai de six secondes et arrêt forcé s’il ne répond plus. Il ne s’agit pas d’un navigateur ni d’une sandbox système. La copie ou l’export depuis **Original** demande confirmation, car un autre lecteur peut exécuter le contenu original. L’ouverture explicite d’un fichier externe reste confiée à l’application choisie par macOS.
 
 ## Afficher et modifier le Markdown
 
@@ -223,3 +244,5 @@ La simplification des textes de la version 0.2.5 est décrite dans [QA-0.2.5.md]
 
 Le formatage JSON, SQL, CSV et XML de la version 0.2.6 est décrit dans [QA-0.2.6.md](QA-0.2.6.md).
 Le rendu Markdown de la version 0.2.7 est décrit dans [QA-0.2.7.md](QA-0.2.7.md).
+
+Le rendu SVG et la pipette de la version 0.2.8 sont décrits dans [QA-0.2.8.md](QA-0.2.8.md).
