@@ -4,7 +4,7 @@ Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT.
 
 ## Installation
 
-1. Ouvrir `dist/EasyPaste-0.2.5-universal.dmg`.
+1. Ouvrir `dist/EasyPaste-0.2.6-universal.dmg`.
 2. Glisser EasyPaste dans Applications, puis l’ouvrir.
 3. Cliquer sur **Activer l’historique**. Les prochaines copies seront enregistrées.
 4. Depuis une autre application, ouvrir la barre rapide avec **Maj + Commande + V**.
@@ -21,11 +21,30 @@ macOS 15 ou ultérieur. L’installateur universel contient les exécutables App
 - Sélection multiple avec Commande ou Maj. Plusieurs textes sont regroupés avec des sauts de ligne ; plusieurs fichiers ou images conservent leurs éléments de presse-papiers.
 - Copier, coller directement, coller en texte brut et glisser-déposer. Le glissement d’une carte regroupant plusieurs fichiers porte sur le premier fichier ; la copie conserve l’ensemble.
 - Éditeur de texte enrichi avec gras, italique, souligné, barré et annulation native pendant l’édition. Création de textes favoris.
+- Aperçu et formatage local de JSON, SQL, CSV et XML. Tableau CSV modifiable, coloration du code et structure XML repliable.
 - Aperçu des images et du texte, Quick Look des fichiers, ouverture des liens dans le navigateur par défaut.
 - Reconnaissance de texte locale avec Vision, en français et en anglais. Le texte reconnu devient recherchable et copiable.
 - Pile de collage : collecte ordonnée, retrait des doublons, inversion et copie du prochain élément. Le raccourci de pile prépare le prochain élément ; Commande + V le colle. EasyPaste n’intercepte pas chaque Commande + V.
 - Collecte en pause, exclusions d’applications, durée de conservation et ouverture à la connexion.
 - Connecteur MCP local, désactivé par défaut, limité aux collections explicitement autorisées.
+
+## Formater JSON, SQL, CSV et XML
+
+1. Copier le texte. Un badge indique le format probable sur sa carte.
+2. Sélectionner la carte, puis choisir **Formater…** ou appuyer sur **Espace**. Pour un texte non reconnu, utiliser **Formater…** dans le menu de la carte et choisir le format.
+3. Choisir la présentation : **Original**, **Formaté**, **Compact** pour JSON, **Tableau** pour CSV ou **Structure** pour XML.
+4. Utiliser **Modifier** pour éditer le texte ou, dans le tableau CSV, double-cliquer sur une cellule. Choisir **Terminer** pour appliquer la mise en forme. **Commande + F** ouvre la recherche.
+5. Choisir **Copier le JSON**, **Copier le SQL**, **Copier le CSV** ou **Copier le XML** pour copier la présentation affichée. Le menu **Enregistrer** propose une copie dans l’historique, le remplacement de l’original après confirmation ou l’export d’un fichier.
+
+La présentation seule ne modifie pas l’historique. Le double-clic sur une carte colle toujours son contenu enregistré. La copie créée apparaît à côté de l’original. Le remplacement conserve le titre, la date, les favoris et les collections ; le contenu devient du texte brut.
+
+Le formatage JSON préserve les grands nombres, les échappements, l’ordre et les clés répétées. CSV conserve les valeurs comme `00123`, les cellules entre guillemets et les retours à la ligne internes. Les séparateurs proposés sont la virgule, le point-virgule, la tabulation et la barre verticale. La recherche dans le tableau ne retire aucune ligne de la copie ni de l’export.
+
+Le formatage SQL conserve la casse, les commentaires et les chaînes. Le sélecteur propose Standard, PostgreSQL, MySQL, SQLite et SQL Server. Il signale les blocs, chaînes et parenthèses non fermés, mais ne valide pas toute la grammaire SQL et n’exécute aucune requête.
+
+XML conserve les attributs, les entités écrites, les blocs CDATA, les espaces existants et le contenu mixte. Les déclarations DTD restent accessibles dans **Original** ; leur formatage est désactivé. Aucune entité externe n’est chargée. Cliquer sur une erreur avec un numéro de ligne sélectionne cette ligne dans l’aperçu.
+
+Les calculs se font sur le Mac, en arrière-plan. Les limites protègent la réactivité : entrée de formatage de 4 Mio, résultat de 8 Mio et imbrication de 128 niveaux. Le texte affiché et sa recherche sont limités à 128 Kio ; la coloration porte sur les 64 premiers Kio. La copie et l’export conservent le résultat complet. Le tableau accepte 256 colonnes et 200 000 cellules, avec un affichage à la demande ; les cellules de plus de 16 Kio sont abrégées et non modifiables dans le tableau. La structure XML présente au maximum 2 000 balises.
 
 ## Capturer et annoter
 
@@ -188,3 +207,5 @@ Les corrections vidéo, les commandes flottantes, la webcam et le remplacement d
 La refonte de la bibliothèque et de l’annotation de la version 0.2.4 est décrite dans [QA-0.2.4.md](QA-0.2.4.md).
 
 La simplification des textes de la version 0.2.5 est décrite dans [QA-0.2.5.md](QA-0.2.5.md).
+
+Le formatage JSON, SQL, CSV et XML de la version 0.2.6 est décrit dans [QA-0.2.6.md](QA-0.2.6.md).

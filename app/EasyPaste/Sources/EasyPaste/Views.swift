@@ -116,6 +116,8 @@ struct ClipContent: View {
                 VStack(alignment: .leading, spacing: 12) { Image(systemName: "arrow.up.right").font(.system(size: compact ? 17 : 25, weight: .light)).foregroundStyle(Theme.mint); Text(URL(string: clip.text)?.host ?? clip.title).font(.system(size: 17, weight: .semibold)).lineLimit(2); if !compact { Text(String(clip.text.prefix(160))).font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(3) } }
             } else if clip.kind == .file {
                 VStack(alignment: .leading, spacing: 10) { Image(systemName: "doc.text").font(.system(size: compact ? 22 : 35, weight: .light)).foregroundStyle(Theme.colors[2]); Text(clip.title).font(.system(size: 14, weight: .medium)).lineLimit(3); if !compact { Text(String(clip.text.prefix(180))).font(.system(size: 10)).foregroundStyle(Theme.muted).lineLimit(2) } }
+            } else if let format = clip.structuredFormat {
+                StructuredCardPreview(clip: clip, format: format, compact: compact)
             } else {
                 VStack(alignment: .leading, spacing: 9) { Text(clip.title).font(.system(size: compact ? 13 : 16, weight: .semibold)).tracking(-0.25).lineLimit(compact ? 2 : 2); if !compact { Text(String(clip.text.prefix(700))).font(.system(size: 12.5)).lineSpacing(4).foregroundStyle(Theme.ink.opacity(0.72)).lineLimit(5) } }.frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -143,6 +145,7 @@ struct ClipActions: View {
             if clip.kind == .image { Button("Annoter l’image…") { history.annotate?(clip) }.disabled(history.annotating || history.captureBusy) }
             if clip.kind == .video { Button("Enregistrer la vidéo…") { history.exportVideo(clip) } }
             if clip.editable { Button("Modifier…") { history.editing = clip } }
+            if clip.kind == .text { Button("Formater…") { history.openFormatter(clip) } }
             if clip.kind == .link || clip.kind == .file { Button("Ouvrir") { openClip(clip) } }
             Button(clip.pinned ? "Retirer des favoris" : "Ajouter aux favoris") { history.togglePin(clip) }
             Menu("Collections") { ForEach(history.boards) { board in Button((clip.boards.contains(board.id) ? "✓ " : "") + board.name) { history.toggleBoard(clip, board) } }; Divider(); Button("Nouvelle collection…") { history.showNewBoard = true } }

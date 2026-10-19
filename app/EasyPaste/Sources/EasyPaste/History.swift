@@ -71,7 +71,9 @@ struct ClipQuery {
     var stopRecording: (() -> Void)?
     private var toastTask: Task<Void, Never>?
     @Published var editing: Clip?
-    @Published var previewing: Clip? { didSet { previewChanged?(previewing) } }
+    @Published var previewing: Clip? { didSet { previewChanged?(previewing); structuredPreviewRequested = false } }
+    private(set) var structuredPreviewRequested = false
+    func openFormatter(_ clip: Clip) { structuredPreviewRequested = true; previewing = clip }
     var previewChanged: ((Clip?) -> Void)?
     @Published var newSnippet = false
     @Published var showNewBoard = false
@@ -266,6 +268,12 @@ struct ClipQuery {
             return ok
         } catch { report("Copie impossible : \(error.localizedDescription)"); return false }
     }
+    func copyStructuredText(_ text: String, to pb: NSPasteboard = .general) -> Bool {
+        guard text.utf8.count <= ClipboardReader.limit else { return false }
+        pb.clearContents(); let ok = pb.setString(text, forType: .string)
+        if pb.name == NSPasteboard.general.name { changeCount = pb.changeCount }
+        return ok
+    }
     func togglePin(_ c: Clip) { mutate(c.id) { $0.pinned.toggle() } }
     func addBoard(_ name: String) {
         let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -363,6 +371,38 @@ struct ClipQuery {
 
 
 extension History {
+    /// The same per-card transaction lock as image replacement queues concurrent
+    /// metadata edits. Publish after the encrypted write, never before it succeeds.
+    func saveStructuredText(_ text: String, original: Clip, replacing: Bool) async throws -> Clip {
+        guard text.utf8.count <= StructuredText.outputLimit else { throw TextIssue(message: "Le résultat dépasse 8 Mo.") }
+        guard let vault, !fault, !stopping, !replacingImages.contains(original.id),
+              let current = clips.first(where: { $0.id == original.id }), current.kind == .text,
+              current.trashedAt == nil, current.fingerprint == original.fingerprint else {
+            throw TextIssue(message: "L’original a changé ou a été supprimé. Rouvre-le avant d’enregistrer.")
+        }
+        replacingImages.insert(original.id); writes += 1
+        defer {
+            writes -= 1; replacingImages.remove(original.id)
+            for update in pendingImageMutations.removeValue(forKey: original.id) ?? [] { mutate(original.id, update) }
+        }
+        let saved: Clip = try await withCheckedThrowingContinuation { continuation in
+            disk.async {
+                do {
+                    var clip = try vault.read(Clip.self, name: original.id.uuidString + ".clip")
+                    guard clip.trashedAt == nil, clip.fingerprint == original.fingerprint else { throw TextIssue(message: "L’original a changé. Rouvre-le avant d’enregistrer.") }
+                    let payload = ClipPayload(representations: [[.init(type: NSPasteboard.PasteboardType.string.rawValue, data: Data(text.utf8))]])
+                    if !replacing { clip.id = UUID(); clip.parentID = original.parentID ?? original.id; clip.date = Date(); clip.title = String(original.title.prefix(130)) + " · formaté"; clip.source = "EasyPaste"; clip.sourceID = "app.easypaste.mac"; clip.pinned = false }
+                    clip.text = text; clip.payload = payload; clip.fingerprint = Clip.fingerprint(payload)
+                    clip.storedBytes = nil; clip.ocr = ""; clip.thumbnail = nil; clip.kind = .text
+                    try vault.save(clip); continuation.resume(returning: clip)
+                } catch { continuation.resume(throwing: error) }
+            }
+        }
+        if replacing, let index = clips.firstIndex(where: { $0.id == saved.id }) { clips[index] = saved.metadata() }
+        else { clips.insert(saved.metadata(), at: 0) }
+        selected = saved.id; selectedIDs = [saved.id]; prune()
+        return saved.metadata()
+    }
     /// Publish only after the encrypted file is durable. Captures intentionally bypass fingerprint deduplication.
     func insertCapture(_ input: Clip, movie: URL? = nil) async throws -> Clip {
         guard let vault, !fault, !stopping else { throw CocoaError(.fileWriteUnknown) }

@@ -90,6 +90,7 @@ import CryptoKit
             return .terminateCancel
         }
         if history.annotating { annotations.requestClose(); if history.annotating { return .terminateCancel } }
+        guard previews.requestClose() else { return .terminateCancel }
         history.stopMonitoring()
         // Flush queued atomic writes before exiting, without blocking the interface.
         Task { await history.flush(); if let demoDirectory { try? FileManager.default.removeItem(at: demoDirectory) }; NSApp.reply(toApplicationShouldTerminate: true) }

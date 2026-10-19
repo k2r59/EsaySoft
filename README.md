@@ -15,7 +15,7 @@ Les installateurs de la [distribution locale du 17 octobre 2026](https://github.
 
 - [EasyShoot 0.2.2 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/local-2026-10-17/EasyShoot-0.2.2-universal.dmg)
 - [EasyTile 1.1.0 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/local-2026-10-17/EasyTile-1.1.0-universal.dmg)
-- [EasyPaste 0.2.5 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.2.5/EasyPaste-0.2.5-universal.dmg)
+- [EasyPaste 0.2.6 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.2.6/EasyPaste-0.2.6-universal.dmg)
 
 Ouvrir le DMG, glisser l’application dans **Applications**, puis l’ouvrir depuis ce dossier. Autoriser les fonctions souhaitées lorsque macOS le demande. Aucun compte développeur ni Xcode n’est nécessaire pour utiliser ces installateurs.
 
@@ -61,7 +61,7 @@ Les certificats, clés privées, identifiants Apple, historiques personnels et f
 
 ## Développement en cours
 
-La branche `main` contient les versions locales distribuées. Le [rapport de validation d’EasyPaste 0.2.5](app/EasyPaste/QA-0.2.5.md) détaille les essais et leurs limites.
+La branche `main` contient les versions locales distribuées. Le [rapport de validation d’EasyPaste 0.2.6](app/EasyPaste/QA-0.2.6.md) détaille les essais du formatage JSON, SQL, CSV et XML et leurs limites.
 
 Le code de synchronisation iCloud d’EasyPaste 0.3.0 est disponible sur la branche [codex/easypaste-icloud](https://github.com/k2r59/EsaySoft/tree/codex/easypaste-icloud). La configuration Apple et les essais CloudKit entre deux Macs restent à terminer. Cette version en développement n’est pas incluse dans les installateurs publics.
 

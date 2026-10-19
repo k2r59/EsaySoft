@@ -287,21 +287,49 @@ struct PreviewView: View {
     private let history: History
     private var window: NSPanel?
     private var clipID: UUID?
+    private var structuredModel: StructuredEditorModel?
+    private var restoringPreview = false
     init(history: History) { self.history = history }
     func present(_ clip: Clip?) {
+        if restoringPreview { window?.makeKeyAndOrderFront(nil); return }
+        if clipID == clip?.id, !history.structuredPreviewRequested, let window { window.makeKeyAndOrderFront(nil); return }
+        guard approveClose() else {
+            restoringPreview = true; history.previewing = structuredModel?.original; restoringPreview = false; return
+        }
         guard let clip else { close(); return }
-        if clipID == clip.id, let window { window.makeKeyAndOrderFront(nil); return }
         close()
         guard let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main else { return }
-        let visible = screen.visibleFrame, height = min(620, visible.height - 80)
-        let panel = NSPanel(contentRect: CGRect(x: visible.midX - 325, y: visible.midY - height / 2, width: 650, height: height), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let structured = clip.kind == .text && (clip.structuredFormat != nil || history.structuredPreviewRequested)
+        let visible = screen.visibleFrame, height = min(structured ? 680 : 620, visible.height - 80), width: CGFloat = structured ? min(840, visible.width - 60) : 650
+        let panel = NSPanel(contentRect: CGRect(x: visible.midX - width / 2, y: visible.midY - height / 2, width: width, height: height), styleMask: structured ? [.titled, .closable, .resizable] : [.titled, .closable], backing: .buffered, defer: false)
         panel.title = "Aperçu EasyPaste"; panel.isReleasedWhenClosed = false; panel.level = .floating
         panel.hidesOnDeactivate = false; panel.delegate = self; panel.backgroundColor = NSColor(Theme.bg)
-        let content = ScrollView { PreviewView(history: history, clip: clip, close: { [weak self] in self?.history.previewing = nil }) }
-            .frame(width: 650, height: height).background(Theme.bg).preferredColorScheme(.dark)
-        panel.contentView = NSHostingView(rootView: content)
+        if structured {
+            let model = StructuredEditorModel(clip: clip); structuredModel = model
+            panel.minSize = NSSize(width: 690, height: 570)
+            panel.contentView = NSHostingView(rootView: StructuredEditorView(model: model, history: history, close: { [weak self] in _ = self?.requestClose() }))
+        } else {
+            let content = ScrollView { PreviewView(history: history, clip: clip, close: { [weak self] in self?.history.previewing = nil }) }
+                .frame(width: 650, height: height).background(Theme.bg).preferredColorScheme(.dark)
+            panel.contentView = NSHostingView(rootView: content)
+        }
         window = panel; clipID = clip.id; panel.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { history.previewing = nil; return false }
-    private func close() { window?.orderOut(nil); window?.contentView = nil; window = nil; clipID = nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { requestClose(); return false }
+    @discardableResult func requestClose() -> Bool {
+        guard approveClose() else { return false }
+        structuredModel?.hasEdits = false
+        history.previewing = nil
+        return true
+    }
+    private func approveClose() -> Bool {
+        guard structuredModel?.saving != true else { window?.makeKeyAndOrderFront(nil); return false }
+        if structuredModel?.hasEdits == true {
+            let alert = NSAlert(); alert.messageText = "Fermer sans enregistrer ?"; alert.informativeText = "Tes modifications seront perdues."
+            alert.addButton(withTitle: "Continuer à modifier"); alert.addButton(withTitle: "Fermer")
+            guard alert.runModal() == .alertSecondButtonReturn else { return false }
+        }
+        return true
+    }
+    private func close() { structuredModel?.cancel(); structuredModel = nil; window?.orderOut(nil); window?.contentView = nil; window = nil; clipID = nil }
 }

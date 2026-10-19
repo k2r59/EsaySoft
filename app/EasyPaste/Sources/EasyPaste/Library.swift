@@ -150,6 +150,7 @@ struct MainView: View {
                 } else {
                     if selection.count == 1, let clip = selection.first {
                         if clip.kind == .image { Button { history.annotate?(clip) } label: { Label("Annoter", systemImage: "pencil.tip.crop.circle") }.buttonStyle(PasteButtonStyle()).disabled(history.annotating || history.captureBusy) }
+                        else if clip.structuredFormat != nil { Button { history.openFormatter(clip) } label: { Label("Formater…", systemImage: "curlybraces") }.buttonStyle(PasteButtonStyle()) }
                         else if clip.editable { Button { history.editing = clip } label: { Label("Modifier", systemImage: "pencil") }.buttonStyle(PasteButtonStyle()) }
                         else if clip.kind == .video { Button { history.previewing = clip } label: { Label("Lire", systemImage: "play") }.buttonStyle(PasteButtonStyle()) }
                     }
