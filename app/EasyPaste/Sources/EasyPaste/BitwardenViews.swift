@@ -125,7 +125,6 @@ struct BitwardenWindowView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var code = ""
-    @State private var region = BWRegion.europe
     @State private var provider = 0
     @State private var deleteCandidate: BWSend?
     @FocusState private var focus: Field?
@@ -137,7 +136,7 @@ struct BitwardenWindowView: View {
                     .frame(width: 44, height: 44).background(Theme.mint.opacity(0.09), in: RoundedRectangle(cornerRadius: 12)).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title).font(.system(size: 21, weight: .semibold))
-                    Text("Bitwarden Send").font(.system(size: 11)).foregroundStyle(Theme.muted)
+                    Text("Bitwarden Send · \(model.unlocked ? model.region.domain : BWRegion.international.domain)").font(.system(size: 11)).foregroundStyle(Theme.muted)
                 }
                 Spacer()
                 if model.unlocked && !model.busy { Button { model.lock() } label: { Image(systemName: "lock") }.buttonStyle(FullAreaButtonStyle(minimumSize: 32)).help("Verrouiller Bitwarden").accessibilityLabel("Verrouiller Bitwarden") }
@@ -165,7 +164,7 @@ struct BitwardenWindowView: View {
             Divider().opacity(0.3)
             footer
         }.padding(26).frame(width: 540, height: 620).background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
-            .onAppear { email = model.account; region = model.region; focus = .email }
+            .onAppear { email = model.account; focus = .email }
             .onChange(of: model.unlocked) { _, unlocked in password = ""; code = ""; if !unlocked { focus = .password } }
             .onChange(of: model.enabled) { _, _ in password = ""; code = "" }
             .onChange(of: model.providers) { _, values in code = ""; provider = values.first ?? 0; focus = .code }
@@ -190,26 +189,22 @@ struct BitwardenWindowView: View {
                 Button("Déverrouiller") { model.unlock() }.buttonStyle(PasteButtonStyle(primary: true)).disabled(model.busy)
                 Button("Utiliser un autre compte") { model.disconnect(); password = ""; code = "" }.buttonStyle(PasteButtonStyle()).disabled(model.busy)
             } else {
-                field("Serveur") { Picker("Serveur", selection: $region) { ForEach(BWRegion.allCases, id: \.self) { Text($0.label).tag($0) } }.labelsHidden() }
-                SettingsDetails("Quel serveur choisir ?") {
-                    Text("Dans ton coffre web, regarde l’adresse : vault.bitwarden.eu = Europe, vault.bitwarden.com = International. Les comptes des deux serveurs sont séparés.")
-                }
                 field("Adresse e-mail") { TextField("nom@exemple.fr", text: $email).focused($focus, equals: .email).textContentType(.username) }
                 field("Mot de passe maître") { SecureField("Mot de passe", text: $password).focused($focus, equals: .password).textContentType(.password) }
                 if !model.providers.isEmpty || model.needsDeviceCode {
                     if model.providers.count > 1 { Picker("Vérification", selection: $provider) { ForEach(model.providers, id: \.self) { Text($0 == 0 ? "Application d’authentification" : "Code par e-mail").tag($0) } } }
                     field(provider == 0 && !model.needsDeviceCode ? "Code d’authentification" : "Code reçu par e-mail") { TextField("Code", text: $code).focused($focus, equals: .code).textContentType(.oneTimeCode) }
                     if provider == 1 && !model.needsDeviceCode {
-                        Button("Envoyer un code par e-mail") { model.sendEmailCode(email: email, password: password, region: region) }.buttonStyle(PasteButtonStyle())
+                        Button("Envoyer un code par e-mail") { model.sendEmailCode(email: email, password: password) }.buttonStyle(PasteButtonStyle())
                         if model.status == "Code envoyé par e-mail" { Text(model.status).font(.system(size: 11)).foregroundStyle(Theme.mint) }
                     }
                 }
-                Button("Connecter") { model.login(email: email, password: password, region: region, code: code, provider: provider) }
+                Button("Connecter") { model.login(email: email, password: password, code: code, provider: provider) }
                     .buttonStyle(PasteButtonStyle(primary: true)).disabled(model.busy || email.isEmpty || password.isEmpty).keyboardShortcut(.defaultAction)
                 Text("La connexion est conservée dans le trousseau de ce Mac. Le mot de passe maître n’est pas enregistré.").font(.system(size: 11)).foregroundStyle(Theme.muted)
                 SettingsDetails("Compatibilité") {
                     Text("Intégration indépendante, sans CLI. Connexion par mot de passe, avec code de vérification si nécessaire. SSO, passkeys et clés de sécurité ne sont pas pris en charge dans cette fenêtre.")
-                    Button("Ouvrir Bitwarden") { NSWorkspace.shared.open(region.vault) }.buttonStyle(PasteButtonStyle())
+                    Button("Ouvrir Bitwarden") { NSWorkspace.shared.open(BWRegion.international.vault) }.buttonStyle(PasteButtonStyle())
                 }
             }
         }.textFieldStyle(.roundedBorder).disabled(model.busy)

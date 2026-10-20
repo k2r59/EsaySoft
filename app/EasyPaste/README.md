@@ -4,7 +4,7 @@ Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT.
 
 ## Installation
 
-1. Ouvrir `dist/EasyPaste-0.2.10-universal.dmg`.
+1. Ouvrir `dist/EasyPaste-0.2.11-universal.dmg`.
 2. Glisser EasyPaste dans Applications, puis l’ouvrir.
 3. Cliquer sur **Activer l’historique**. Les prochaines copies seront enregistrées.
 4. Depuis une autre application, ouvrir la barre rapide avec **Maj + Commande + V**.
@@ -260,6 +260,9 @@ crée immédiatement un lien de 7 jours avec la date et l’heure en titre.
 La version 0.2.10 ajoute les en-têtes de version exigés à la connexion et distingue
 les refus de compatibilité, d’identifiants et de limitation des tentatives.
 Voir [la validation du correctif](QA-0.2.10.md).
+
+La version 0.2.11 utilise uniquement `bitwarden.com` pour les nouvelles connexions ;
+le choix du serveur a été retiré de la fenêtre. [Validation](QA-0.2.11.md).
 Connexion et envoi réels avec un compte utilisateur restent à valider ; les tests
 automatisés utilisent des serveurs simulés et ne transmettent aucun historique.
 

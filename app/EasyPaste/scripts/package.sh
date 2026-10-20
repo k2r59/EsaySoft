@@ -26,7 +26,7 @@ EASYPASTE
 macOS 15 ou ultérieur. Mac Intel et Apple Silicon.
 Code source sous licence MIT.
 TEXT
-dmg=dist/EasyPaste-0.2.10-universal.dmg
+dmg=dist/EasyPaste-0.2.11-universal.dmg
 hdiutil create -volname EasyPaste -srcfolder "$staging" -format UDZO -fs HFS+ -ov "$dmg"
 if [[ -n "${CODE_SIGN_IDENTITY:-}" ]]; then
  codesign --force --timestamp --sign "$CODE_SIGN_IDENTITY" "$dmg"
@@ -40,13 +40,13 @@ if [[ -n "${NOTARY_PROFILE:-}" ]]; then
  spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
 fi
 ditto "$app" "$staging/EasyPaste.app"
-ditto -c -k --sequesterRsrc --keepParent "$staging/EasyPaste.app" dist/EasyPaste-0.2.10-universal.zip
+ditto -c -k --sequesterRsrc --keepParent "$staging/EasyPaste.app" dist/EasyPaste-0.2.11-universal.zip
 mkdir -p "$staging/EasyPaste-source"
-cp Package.swift LICENSE README.md QA-0.2.2.md QA-0.2.3.md QA-0.2.4.md QA-0.2.5.md QA-0.2.6.md QA-0.2.7.md QA-0.2.8.md QA-0.2.9.md QA-0.2.10.md THIRD-PARTY-NOTICES.md ASSET-PROMPT.txt .gitignore "$staging/EasyPaste-source/"
+cp Package.swift LICENSE README.md QA-0.2.2.md QA-0.2.3.md QA-0.2.4.md QA-0.2.5.md QA-0.2.6.md QA-0.2.7.md QA-0.2.8.md QA-0.2.9.md QA-0.2.10.md QA-0.2.11.md THIRD-PARTY-NOTICES.md ASSET-PROMPT.txt .gitignore "$staging/EasyPaste-source/"
 ditto Sources "$staging/EasyPaste-source/Sources"
 ditto Tests "$staging/EasyPaste-source/Tests"
 ditto scripts "$staging/EasyPaste-source/scripts"
 ditto docs "$staging/EasyPaste-source/docs"
-ditto -c -k --keepParent "$staging/EasyPaste-source" dist/EasyPaste-0.2.10-source.zip
-(cd dist && shasum -a 256 EasyPaste-0.2.10-universal.dmg EasyPaste-0.2.10-universal.zip EasyPaste-0.2.10-source.zip) > dist/SHA256SUMS
+ditto -c -k --keepParent "$staging/EasyPaste-source" dist/EasyPaste-0.2.11-source.zip
+(cd dist && shasum -a 256 EasyPaste-0.2.11-universal.dmg EasyPaste-0.2.11-universal.zip EasyPaste-0.2.11-source.zip) > dist/SHA256SUMS
 print "Installateur : $PWD/$dmg"

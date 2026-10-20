@@ -195,11 +195,24 @@ actor BWTestTransport: BWTransport {
         try await unlock(); model.lock(); XCTAssertFalse(model.unlocked); XCTAssertEqual(model.account, "me@example.com")
     }
     func testNativeLoginUsesOnlyPasswordHashAndPersistsSession() async throws {
-        model.setEnabled(true); model.login(email:"me@example.com", password:"password-test", region:.europe, code:"",provider:0)
+        model.setEnabled(true); model.login(email:"me@example.com", password:"password-test", code:"",provider:0)
         try await settle(); XCTAssertTrue(model.unlocked, model.error ?? "")
         let requests = await transport.snapshot(); let token = requests.first { $0.url?.path == "/connect/token" }!
+        XCTAssertEqual(token.url?.host, "identity.bitwarden.com")
         XCTAssertFalse(String(data: token.httpBody!, encoding:.utf8)!.contains("password-test"))
         let counts = await store.counts(); XCTAssertEqual(counts[1], 1)
+    }
+    func testNewLoginAlwaysUsesInternationalDespiteAnOldRegionPreference() async throws {
+        XCTAssertEqual(model.region, .international)
+        defaults.set(BWRegion.europe.rawValue, forKey: "bitwarden.region")
+        model.setEnabled(true)
+        model.login(email: "me@example.com", password: "password-test", code: "", provider: 0)
+        try await settle()
+        XCTAssertTrue(model.unlocked, model.error ?? "")
+        XCTAssertEqual(model.region, .international)
+        let requests = await transport.snapshot()
+        XCTAssertTrue(requests.allSatisfy { $0.url?.host?.hasSuffix(".bitwarden.com") == true })
+        XCTAssertEqual(defaults.string(forKey: "bitwarden.region"), BWRegion.international.rawValue)
     }
     func testQuickShareCopiesOnceOnlyAfterServerSuccessWithSevenDaysAndDateTitle() async throws {
         try await unlock(); model.publicOnly = true
@@ -360,8 +373,8 @@ final class BitwardenAuthenticationTests: XCTestCase {
             XCTAssertEqual(requests.count, 3)
             for request in requests {
                 XCTAssertEqual(request.value(forHTTPHeaderField: "Bitwarden-Client-Name"), "desktop")
-                XCTAssertEqual(request.value(forHTTPHeaderField: "Bitwarden-Client-Version"), "0.2.10")
-                XCTAssertEqual(request.value(forHTTPHeaderField: "User-Agent"), "EasyPaste/0.2.10")
+                XCTAssertEqual(request.value(forHTTPHeaderField: "Bitwarden-Client-Version"), "0.2.11")
+                XCTAssertEqual(request.value(forHTTPHeaderField: "User-Agent"), "EasyPaste/0.2.11")
                 XCTAssertEqual(request.url?.host, region.identity.host)
                 XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
             }

@@ -23,8 +23,8 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>app.easypaste.mac</string>
 <key>CFBundleIconFile</key><string>EasyPaste</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.2.10</string>
-<key>CFBundleVersion</key><string>15</string>
+<key>CFBundleShortVersionString</key><string>0.2.11</string>
+<key>CFBundleVersion</key><string>16</string>
 <key>CFBundleDevelopmentRegion</key><string>fr</string>
 <key>CFBundleLocalizations</key><array><string>fr</string></array>
 <key>LSMinimumSystemVersion</key><string>15.0</string>

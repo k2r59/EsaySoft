@@ -3,7 +3,8 @@
 ## Utilisation
 
 Dans **Réglages → Intégrations**, activer **Bitwarden**, puis connecter le compte
-sur le bon serveur : Europe (`bitwarden.eu`) ou International (`bitwarden.com`).
+International (`bitwarden.com`). Depuis la version 0.2.11, aucun choix de serveur
+n'est proposé pour les nouvelles connexions.
 La fonctionnalité est désactivée par défaut. Aucun menu Bitwarden, accès au
 trousseau ou trafic réseau Bitwarden n’est déclenché tant qu’elle reste désactivée.
 
@@ -117,8 +118,9 @@ le chiffrement V2 reste refusé avec un message de compatibilité explicite.
 Les erreurs de protocole ne sont plus présentées comme un mauvais mot de passe.
 Les réponses inconnues affichent seulement leur statut HTTP, sans corps de réponse.
 
-Les régions ont des comptes distincts. Pour retrouver celle d'un compte, consulter
-l'adresse du coffre habituel : `vault.bitwarden.eu` ou `vault.bitwarden.com`.
+Les régions ont des comptes distincts. Les nouvelles connexions utilisent
+exclusivement `bitwarden.com`. Une ancienne session EU déjà enregistrée reste
+liée à son serveur d'origine, pour ne pas rediriger ses jetons vers un autre hôte.
 EasyPaste ne tente jamais une connexion sur l'autre région automatiquement.
 
 Références primaires consultées le 19 octobre 2026 :

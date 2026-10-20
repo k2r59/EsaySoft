@@ -65,7 +65,7 @@ private final class BWNetworkOperation: NSObject, URLSessionDataDelegate, @unche
 struct BWClient: Sendable {
     // Advertise EasyPaste's actual version, not a recent official Bitwarden version.
     // The server must remain able to reject accounts using unsupported encryption.
-    static let clientVersion = "0.2.10"
+    static let clientVersion = "0.2.11"
     let transport: any BWTransport
     init(transport: any BWTransport = BWURLTransport()) { self.transport = transport }
     static func form(_ values: [String: String]) -> Data {

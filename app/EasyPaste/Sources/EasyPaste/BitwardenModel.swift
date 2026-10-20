@@ -38,7 +38,8 @@ import SwiftUI
     private weak var history: History?
     private var temporary: BWTemporaryDirectory?
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
-    var region: BWRegion { session?.region ?? BWRegion(rawValue: defaults.string(forKey: "bitwarden.region") ?? "") ?? .europe }
+    // Existing sessions retain their original host; new sign-ins use bitwarden.com.
+    var region: BWRegion { session?.region ?? BWRegion(rawValue: defaults.string(forKey: "bitwarden.region") ?? "") ?? .international }
     var canShare: Bool { enabled && !busy }
     init(defaults: UserDefaults = .standard, client: BWClient = BWClient(), store: any BWSessionStore = BWKeychainSessionStore()) {
         self.defaults = defaults; self.client = client; self.store = store
@@ -110,20 +111,20 @@ import SwiftUI
         session = value; unlocked = true; account = value.email; providers = []; needsDeviceCode = false
         defaults.set(value.email, forKey: "bitwarden.account"); defaults.set(value.region.rawValue, forKey: "bitwarden.region")
     }
-    func login(email: String, password: String, region: BWRegion, code: String, provider: Int) {
+    func login(email: String, password: String, code: String, provider: Int) {
         begin("Connexion…") { ticket in
             let device = self.defaults.string(forKey: "bitwarden.device") ?? UUID().uuidString
             self.defaults.set(device, forKey: "bitwarden.device")
-            let value = try await self.client.login(email: email, password: password, region: region, device: device, code: code, provider: provider, newDevice: self.needsDeviceCode)
+            let value = try await self.client.login(email: email, password: password, region: .international, device: device, code: code, provider: provider, newDevice: self.needsDeviceCode)
             try await self.saveSession(value, ticket: ticket)
             try await self.afterUnlock(ticket)
         }
     }
-    func sendEmailCode(email: String, password: String, region: BWRegion) {
+    func sendEmailCode(email: String, password: String) {
         guard providers.contains(1), !needsDeviceCode else { return }
         begin("Envoi du code…") { ticket in
             let device = self.defaults.string(forKey: "bitwarden.device") ?? UUID().uuidString
-            try await self.client.sendLoginEmail(email: email, password: password, region: region, device: device)
+            try await self.client.sendLoginEmail(email: email, password: password, region: .international, device: device)
             try self.check(ticket); self.status = "Code envoyé par e-mail"
         }
     }
