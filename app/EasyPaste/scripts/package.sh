@@ -6,6 +6,7 @@ if [[ -n "${NOTARY_PROFILE:-}" && -z "${CODE_SIGN_IDENTITY:-}" ]]; then
  exit 1
 fi
 ./scripts/build.sh
+version=$(python3 -c 'import json; print(json.load(open("scripts/release.json"))["version"])')
 app=${APP_BUNDLE_PATH:-dist/EasyPaste.app}
 staging=$(mktemp -d "${TMPDIR:-/tmp}/EasyPaste-package.XXXXXX")
 trap 'rm -rf "$staging"' EXIT
@@ -26,7 +27,7 @@ EASYPASTE
 macOS 15 ou ultérieur. Mac Intel et Apple Silicon.
 Code source sous licence MIT.
 TEXT
-dmg=dist/EasyPaste-0.2.11-universal.dmg
+dmg="dist/EasyPaste-$version-universal.dmg"
 hdiutil create -volname EasyPaste -srcfolder "$staging" -format UDZO -fs HFS+ -ov "$dmg"
 if [[ -n "${CODE_SIGN_IDENTITY:-}" ]]; then
  codesign --force --timestamp --sign "$CODE_SIGN_IDENTITY" "$dmg"
@@ -40,13 +41,13 @@ if [[ -n "${NOTARY_PROFILE:-}" ]]; then
  spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
 fi
 ditto "$app" "$staging/EasyPaste.app"
-ditto -c -k --sequesterRsrc --keepParent "$staging/EasyPaste.app" dist/EasyPaste-0.2.11-universal.zip
+ditto -c -k --sequesterRsrc --keepParent "$staging/EasyPaste.app" "dist/EasyPaste-$version-universal.zip"
 mkdir -p "$staging/EasyPaste-source"
-cp Package.swift LICENSE README.md QA-0.2.2.md QA-0.2.3.md QA-0.2.4.md QA-0.2.5.md QA-0.2.6.md QA-0.2.7.md QA-0.2.8.md QA-0.2.9.md QA-0.2.10.md QA-0.2.11.md THIRD-PARTY-NOTICES.md ASSET-PROMPT.txt .gitignore "$staging/EasyPaste-source/"
+cp Package.swift Package.resolved LICENSE README.md QA-*.md THIRD-PARTY-NOTICES.md ASSET-PROMPT.txt .gitignore "$staging/EasyPaste-source/"
 ditto Sources "$staging/EasyPaste-source/Sources"
 ditto Tests "$staging/EasyPaste-source/Tests"
 ditto scripts "$staging/EasyPaste-source/scripts"
 ditto docs "$staging/EasyPaste-source/docs"
-ditto -c -k --keepParent "$staging/EasyPaste-source" dist/EasyPaste-0.2.11-source.zip
-(cd dist && shasum -a 256 EasyPaste-0.2.11-universal.dmg EasyPaste-0.2.11-universal.zip EasyPaste-0.2.11-source.zip) > dist/SHA256SUMS
+ditto -c -k --keepParent "$staging/EasyPaste-source" "dist/EasyPaste-$version-source.zip"
+(cd dist && shasum -a 256 "EasyPaste-$version-universal.dmg" "EasyPaste-$version-universal.zip" "EasyPaste-$version-source.zip") > dist/SHA256SUMS
 print "Installateur : $PWD/$dmg"

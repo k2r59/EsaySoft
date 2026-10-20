@@ -38,6 +38,13 @@ struct ClipQuery {
 }
 
 @MainActor final class History: ObservableObject {
+    let updates = AppUpdates()
+    let sounds: SoundFeedback
+    var updateBusy: Bool {
+        AppUpdates.isBusy(recording: recording, capture: captureBusy, annotation: annotating,
+                          editor: editing != nil || newSnippet, preview: previewing != nil,
+                          sampling: samplingColor, sharing: bitwarden.busy)
+    }
     let bitwarden: BitwardenModel
     @Published var loading = true
     @Published private(set) var clips: [Clip] = [] { didSet { refresh() } }
@@ -106,6 +113,7 @@ struct ClipQuery {
     }
     init(vault: ClipVault? = nil, monitor: Bool = true, defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        self.sounds = monitor ? SoundFeedback(defaults: defaults) : SoundFeedback(defaults: defaults, playback: { _ in })
         self.bitwarden = BitwardenModel(defaults: defaults)
         enabled = defaults.bool(forKey: "monitoring")
         retention = defaults.object(forKey: "retention") == nil ? 30 : defaults.integer(forKey: "retention")
@@ -113,6 +121,7 @@ struct ClipQuery {
         mcpEnabled = defaults.bool(forKey: "mcpEnabled")
         compact = defaults.bool(forKey: "compact")
         changeCount = NSPasteboard.general.changeCount
+        sounds.muted = { [weak self] in self?.recording ?? true }
         if let vault {
             self.vault = vault
             do { clips = try vault.load(metadataOnly: true) } catch { storageError(error) }
@@ -192,7 +201,8 @@ struct ClipQuery {
                     var c = raw; c.fingerprint = Clip.fingerprint(c.payload); c.prepareThumbnail(); return c
                 }.value
                 importInFlight = false
-                guard enabled, !stopping else { return }; add(clip)
+                guard enabled, !stopping, !fault else { return }; add(clip)
+                sounds.play(.copy)
             }
         } catch { report(error.localizedDescription) }
     }
@@ -242,7 +252,7 @@ struct ClipQuery {
     }
     func stopMonitoring() { stopping = true; timer?.invalidate(); timer = nil }
     func flush() async { await withCheckedContinuation { c in disk.async { c.resume() } } }
-    func copy(_ clips: [Clip], plain: Bool = false, to pb: NSPasteboard = .general) async -> Bool {
+    func copy(_ clips: [Clip], plain: Bool = false, to pb: NSPasteboard = .general, sound: FeedbackSound? = .copy) async -> Bool {
         guard !clips.isEmpty else { return false }
         do {
             var full: [Clip] = []
@@ -278,6 +288,7 @@ struct ClipQuery {
             guard !items.isEmpty else { return false }
             pb.clearContents(); let ok = pb.writeObjects(items)
             if pb.name == NSPasteboard.general.name { changeCount = pb.changeCount }
+            if ok, pb.name == NSPasteboard.general.name, let sound { sounds.play(sound) }
             report(ok ? "Copié · ⌘V pour coller" : "Impossible d’écrire dans le presse-papiers.")
             return ok
         } catch { report("Copie impossible : \(error.localizedDescription)"); return false }
@@ -286,12 +297,14 @@ struct ClipQuery {
         guard text.utf8.count <= ClipboardReader.limit else { return false }
         pb.clearContents(); let ok = pb.setString(text, forType: .string)
         if pb.name == NSPasteboard.general.name { changeCount = pb.changeCount }
+        if ok, pb.name == NSPasteboard.general.name { sounds.play(.copy) }
         return ok
     }
     func copyPNG(_ data: Data, to pb: NSPasteboard = .general) -> Bool {
         guard data.count <= ClipboardReader.limit else { return false }
         pb.clearContents(); let ok = pb.setData(data, forType: .png)
         if pb.name == NSPasteboard.general.name { changeCount = pb.changeCount }
+        if ok, pb.name == NSPasteboard.general.name { sounds.play(.copy) }
         return ok
     }
     func togglePin(_ c: Clip) { mutate(c.id) { $0.pinned.toggle() } }

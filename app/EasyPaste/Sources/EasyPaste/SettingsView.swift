@@ -3,15 +3,54 @@ import AppKit
 import ApplicationServices
 import ServiceManagement
 
+enum SettingsCategory: String, CaseIterable, Identifiable {
+    case general = "Général", privacy = "Confidentialité", integrations = "Intégrations", updates = "Mises à jour"
+    var id: Self { self }
+    var icon: String {
+        switch self {
+        case .general: return "slider.horizontal.3"
+        case .privacy: return "lock.shield"
+        case .integrations: return "puzzlepiece.extension"
+        case .updates: return "arrow.triangle.2.circlepath"
+        }
+    }
+}
+
 struct SettingsView: View {
     @ObservedObject var history: History
     @State private var trusted = AXIsProcessTrusted()
     @State private var launch = SMAppService.mainApp.status == .enabled
     @State private var message = ""
+    @State private var category: SettingsCategory
+    init(history: History, initialCategory: SettingsCategory = .general) {
+        self.history = history; _category = State(initialValue: initialCategory)
+    }
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                Text("Réglages").font(.system(size: 27, weight: .semibold)).padding(.top, 43)
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Réglages").font(.system(size: 27, weight: .semibold))
+                Spacer()
+                Text("EasyPaste \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
+                    .font(.system(size: 11)).foregroundStyle(Theme.muted)
+            }.padding(.top, 43)
+            HStack(spacing: 6) {
+                ForEach(SettingsCategory.allCases) { item in
+                    Button { category = item } label: {
+                        Label(item.rawValue, systemImage: item.icon)
+                            .font(.system(size: 12, weight: .medium))
+                            .frame(maxWidth: .infinity, minHeight: 42)
+                            .foregroundStyle(category == item ? Theme.mint : Theme.muted)
+                            .background(category == item ? Theme.mint.opacity(0.1) : .clear,
+                                        in: RoundedRectangle(cornerRadius: 11))
+                            .contentShape(Rectangle())
+                    }.buttonStyle(FullAreaButtonStyle())
+                        .accessibilityValue(category == item ? "Sélectionné" : "")
+                }
+            }.padding(5).surface()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    switch category {
+                    case .general:
                 section("Général", icon: "slider.horizontal.3") {
                     PreferenceToggle("Enregistrer les copies", isOn: $history.enabled).disabled(history.fault || history.loading)
                     PreferenceToggle("Lancer EasyPaste au démarrage", isOn: Binding(get: { launch }, set: { value in
@@ -29,6 +68,9 @@ struct SettingsView: View {
                         Text("L’historique se met en pause à 1 Go. Maximum : 20 Mo par image ou texte. Les vidéos s’arrêtent avant 1 Go.")
                     }
                 }
+                section("Sons", icon: "speaker.wave.2") {
+                    SoundSettings(sounds: history.sounds)
+                }
                 section("Collage", icon: "cursorarrow.click.2") {
                     HStack(alignment: .center, spacing: 24) { VStack(alignment: .leading, spacing: 6) { Text(trusted ? "Collage direct autorisé" : "Collage direct").fontWeight(.medium); if !trusted { Text("Autorise l’Accessibilité pour coller directement. Sinon, utilise ⌘V après la copie.").font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true) } }; Spacer(); Button(trusted ? "Vérifier" : "Autoriser…") { if !trusted { let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary; _ = AXIsProcessTrustedWithOptions(options) }; trusted = AXIsProcessTrusted() }.buttonStyle(PasteButtonStyle(primary: !trusted)) }
                     Divider().opacity(0.3)
@@ -44,6 +86,7 @@ struct SettingsView: View {
                         Text("Pile : copie le suivant avec ⌃⌥⌘V, puis colle-le avec ⌘V.")
                     }
                 }
+                    case .privacy:
                 section("Confidentialité", icon: "lock.shield") {
                     Text("Historique chiffré sur ce Mac.").font(.system(size: 12))
                     SettingsDetails("Protection des données") {
@@ -56,6 +99,7 @@ struct SettingsView: View {
                     Text("Les exclusions s’appliquent aux prochaines copies.").font(.system(size: 11)).foregroundStyle(Theme.muted)
                     HStack { Text("\(ByteCountFormatter.string(fromByteCount: Int64(history.totalBytes), countStyle: .file)) de contenu · \(history.total) éléments").foregroundStyle(Theme.muted); Spacer(); Button("Effacer l’historique…") { clear() }.buttonStyle(PasteButtonStyle()) }.font(.system(size: 11))
                 }
+                    case .integrations:
                 section("Intégrations", icon: "puzzlepiece.extension") {
                     BitwardenSettings(model: history.bitwarden)
                 }
@@ -72,10 +116,18 @@ struct SettingsView: View {
                         }.buttonStyle(PasteButtonStyle())
                     }
                 }
-                Text("EasyPaste \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Développement") · Licence MIT").font(.system(size: 11)).foregroundStyle(Theme.muted)
-                if !message.isEmpty { Text(message).font(.system(size: 11)).foregroundStyle(Theme.mint) }
-            }.padding(.horizontal, 32).padding(.bottom, 30)
-        }.onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in trusted = AXIsProcessTrusted(); launch = SMAppService.mainApp.status == .enabled }
+                    case .updates:
+                section("Mises à jour", icon: "arrow.triangle.2.circlepath") {
+                    UpdateSettings(updates: history.updates, busy: history.updateBusy)
+                }
+                    }
+                    if !message.isEmpty { Text(message).font(.system(size: 11)).foregroundStyle(Theme.mint) }
+                }.padding(.bottom, 24)
+            }.id(category)
+        }.padding(.horizontal, 32)
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                trusted = AXIsProcessTrusted(); launch = SMAppService.mainApp.status == .enabled
+            }
     }
     private func section<Content: View>(_ title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12) { Label(title, systemImage: icon).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.mint).padding(.bottom, 4); content() }.font(.system(size: 12)).controlSize(.regular).padding(24).frame(maxWidth: .infinity, alignment: .leading).surface()
@@ -129,8 +181,14 @@ struct PreferenceToggle: View {
     @Binding var isOn: Bool
     init(_ title: String, isOn: Binding<Bool>) { self.title = title; _isOn = isOn }
     var body: some View {
-        PreferenceRow(title) {
-            Toggle(title, isOn: $isOn).labelsHidden().toggleStyle(.switch).controlSize(.small).accessibilityLabel(title)
-        }
+        Button { isOn.toggle() } label: {
+            PreferenceRow(title) {
+                Toggle(title, isOn: $isOn).labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .allowsHitTesting(false).accessibilityHidden(true)
+            }.contentShape(Rectangle())
+        }.buttonStyle(FullAreaButtonStyle())
+            .accessibilityRepresentation {
+                Toggle(title, isOn: $isOn).toggleStyle(.switch)
+            }
     }
 }

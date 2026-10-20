@@ -50,6 +50,10 @@ import CryptoKit
         window.contentView = NSHostingView(rootView: MainView(history: history)); window.isReleasedWhenClosed = false
         window.center(); window.setFrameAutosaveName("EasyPasteLibrary")
         buildMenu(); registerHotkeys()
+        history.updates.busy = { [weak self] in self?.history.updateBusy ?? true }
+        if demoDirectory == nil || Bundle.main.object(forInfoDictionaryKey: "EasyPasteUpdateQA") as? Bool == true {
+            history.updates.start()
+        }
         history.bitwarden.attach(history: history)
         _ = bitwardenWindow
         history.bitwarden.visibilityChanged = { [weak self] in self?.refreshBitwardenMenu() }
@@ -107,6 +111,7 @@ import CryptoKit
         let main = NSMenu(); let root = NSMenuItem(); let appMenu = NSMenu(); root.submenu = appMenu; main.addItem(root)
         appMenu.addItem(withTitle: "À propos d’EasyPaste", action: #selector(about), keyEquivalent: "")
         appMenu.addItem(withTitle: "Réglages…", action: #selector(settings), keyEquivalent: ",")
+        appMenu.addItem(withTitle: "Rechercher des mises à jour…", action: #selector(checkUpdates), keyEquivalent: "")
         appMenu.addItem(withTitle: "Arrêter la vidéo", action: #selector(stopVideo), keyEquivalent: "")
         appMenu.addItem(.separator()); appMenu.addItem(withTitle: "Quitter EasyPaste", action: #selector(quit), keyEquivalent: "q")
         for item in appMenu.items { item.target = self }
@@ -138,6 +143,7 @@ import CryptoKit
         menu.addItem(withTitle: "Pause / reprise de la collecte", action: #selector(toggleMonitoring), keyEquivalent: "")
         menu.addItem(withTitle: "Copier le suivant dans la pile", action: #selector(copyNext), keyEquivalent: "")
         menu.addItem(.separator()); menu.addItem(withTitle: "Réglages…", action: #selector(settings), keyEquivalent: "")
+        menu.addItem(withTitle: "Rechercher des mises à jour…", action: #selector(checkUpdates), keyEquivalent: "")
         menu.addItem(withTitle: "Quitter EasyPaste", action: #selector(quit), keyEquivalent: "")
         for item in menu.items { item.target = self }; status.menu = menu
     }
@@ -176,6 +182,10 @@ import CryptoKit
         rememberTarget(); closeShelf(restore: false); history.surface = "library"; window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
     }
     @objc func settings() { history.page = "settings"; showMain() }
+    @objc func checkUpdates() {
+        if history.updates.waitingToInstall { history.updates.installWhenReady() }
+        else { history.updates.check() }
+    }
     @objc func about() { let alert = NSAlert(); alert.messageText = "EasyPaste"; alert.informativeText = "Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Développement")\nLicence MIT\nmacOS 15 ou ultérieur"; alert.addButton(withTitle: "Fermer"); alert.runModal() }
     @objc func quit() { NSApp.terminate(nil) }
     @objc func toggleMonitoring() { guard !history.fault else { showMain(); return }; history.enabled.toggle() }
@@ -192,6 +202,10 @@ import CryptoKit
         colorSampler.sample()
     }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(checkUpdates) {
+            menuItem.title = history.updates.waitingToInstall ? "Installer la mise à jour et relancer…" : "Rechercher des mises à jour…"
+            return !history.updateBusy && (history.updates.canCheck || history.updates.waitingToInstall)
+        }
         if menuItem.action == #selector(shareBitwarden) || menuItem.action == #selector(shareBitwardenOptions) { return history.bitwarden.canShare && history.selection.count == 1 && history.selection.first?.trashedAt == nil }
         if menuItem.action == #selector(bitwardenSends) || menuItem.action == #selector(bitwardenAccount) { return history.bitwarden.canShare }
         if menuItem.action == #selector(lockBitwarden) { return history.bitwarden.unlocked }

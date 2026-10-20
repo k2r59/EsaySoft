@@ -17,9 +17,13 @@ Les installateurs de la [distribution locale du 17 octobre 2026](https://github.
 
 - [EasyShoot 0.2.2 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/local-2026-10-17/EasyShoot-0.2.2-universal.dmg)
 - [EasyTile 1.1.0 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/local-2026-10-17/EasyTile-1.1.0-universal.dmg)
-- [EasyPaste 0.2.8 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.2.8/EasyPaste-0.2.8-universal.dmg)
+- [EasyPaste 0.3.1 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.1/EasyPaste-0.3.1-universal.dmg)
 
 Ouvrir le DMG, glisser l’application dans **Applications**, puis l’ouvrir depuis ce dossier. Autoriser les fonctions souhaitées lorsque macOS le demande. Aucun compte développeur ni Xcode n’est nécessaire pour utiliser ces installateurs.
+
+EasyPaste 0.3.0 et versions suivantes proposent **Rechercher des mises à jour…**
+dans leur menu. Les utilisateurs d’une version 0.2.x installent une dernière fois
+le DMG pour activer ce mécanisme. L’historique est conservé.
 
 La release contient les empreintes `SHA256SUMS` et la licence MIT. Les archives « Source code » contiennent les projets à compiler, tandis que les fichiers `.dmg` contiennent les applications à installer.
 
@@ -29,7 +33,8 @@ Les trois applications nécessitent **macOS 15 ou ultérieur**. Les scripts prod
 
 ## Compiler une application
 
-Installer Xcode et ses outils de développement, avec Swift 6 et le SDK macOS. Aucune dépendance Swift externe n’est nécessaire.
+Installer Xcode et ses outils de développement, avec Swift 6 et le SDK macOS.
+Swift Package Manager télécharge Sparkle 2.10.0 pour les mises à jour d’EasyPaste.
 EasyPaste embarque l’implémentation C d’Argon2 sous CC0 pour les comptes Bitwarden concernés ;
 voir ses [mentions des composants tiers](app/EasyPaste/THIRD-PARTY-NOTICES.md).
 
@@ -67,7 +72,7 @@ Les certificats, clés privées, identifiants Apple, historiques personnels et f
 
 La branche `main` contient les versions locales distribuées. Le [rapport de validation d’EasyPaste 0.2.8](app/EasyPaste/QA-0.2.8.md) détaille les contrôles du rendu SVG et de la pipette. Les tests Markdown, JSON, SQL, CSV et XML restent inclus.
 
-Le code de synchronisation iCloud d’EasyPaste 0.3.0 est disponible sur la branche [codex/easypaste-icloud](https://github.com/k2r59/EsaySoft/tree/codex/easypaste-icloud). La configuration Apple et les essais CloudKit entre deux Macs restent à terminer. Cette version en développement n’est pas incluse dans les installateurs publics.
+Le code expérimental de synchronisation iCloud d’EasyPaste est disponible sur la branche [codex/easypaste-icloud](https://github.com/k2r59/EsaySoft/tree/codex/easypaste-icloud). La configuration Apple et les essais CloudKit entre deux Macs restent à terminer. Ce travail n’est pas inclus dans les installateurs publics.
 
 ## Licence et attributions
 

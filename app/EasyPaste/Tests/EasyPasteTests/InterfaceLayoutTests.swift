@@ -21,6 +21,17 @@ import CryptoKit
         let history = History(vault: try ClipVault(directory: directory, key: SymmetricKey(size: .bits256)), monitor: false, defaults: defaults)
         try check(MainView(history: history), size: CGSize(width: 1050, height: 740), name: "library-minimum")
     }
+    func testEverySettingsCategoryFitsMinimumWindow() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let name = "EasyPaste.settings.layout." + UUID().uuidString, defaults = UserDefaults(suiteName: name)!
+        defer { defaults.removePersistentDomain(forName: name) }
+        let history = History(vault: try ClipVault(directory: directory, key: SymmetricKey(size: .bits256)), monitor: false, defaults: defaults)
+        for category in SettingsCategory.allCases {
+            try check(SettingsView(history: history, initialCategory: category),
+                      size: CGSize(width: 837, height: 740), name: "settings-\(category)")
+        }
+    }
     private func check<V: View>(_ root: V, size: CGSize, name: String) throws {
         let host = NSHostingView(rootView: root)
         let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)

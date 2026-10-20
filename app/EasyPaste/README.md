@@ -4,13 +4,28 @@ Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT.
 
 ## Installation
 
-1. Ouvrir `dist/EasyPaste-0.2.11-universal.dmg`.
+1. Ouvrir `dist/EasyPaste-0.3.1-universal.dmg`.
 2. Glisser EasyPaste dans Applications, puis l’ouvrir.
 3. Cliquer sur **Activer l’historique**. Les prochaines copies seront enregistrées.
 4. Depuis une autre application, ouvrir la barre rapide avec **Maj + Commande + V**.
-5. Choisir une carte, puis appuyer sur **Entrée**. Pour le collage direct, autoriser EasyPaste dans **Réglages → Collage**. Sans cette autorisation, la sélection est copiée et peut être collée avec **Commande + V**.
+5. Choisir une carte, puis appuyer sur **Entrée**. Pour le collage direct, autoriser EasyPaste dans **Réglages → Général → Collage**. Sans cette autorisation, la sélection est copiée et peut être collée avec **Commande + V**.
 
 macOS 15 ou ultérieur. L’installateur universel contient les exécutables Apple Silicon et Intel. La fermeture de la bibliothèque laisse l’app disponible dans la barre des menus. Utiliser **Quitter EasyPaste** pour l’arrêter.
+
+## Mises à jour et réglages
+
+Depuis la version 0.3.0, choisir **Rechercher des mises à jour…** dans le menu
+EasyPaste ou dans **Réglages → Mises à jour**. Sparkle télécharge la version
+signée et notarisée depuis GitHub, puis propose **Installer et relancer**.
+Les vérifications automatiques sont facultatives. L’historique est conservé.
+Les utilisateurs d’une version 0.2.x doivent installer une dernière fois le DMG.
+
+Les réglages sont regroupés en quatre onglets : Général, Confidentialité,
+Intégrations et Mises à jour. Dans **Général → Sons**, deux interrupteurs
+permettent de régler séparément le tic de copie et le son de capture d’image
+ou de texte OCR. Ils sont silencieux pendant un enregistrement vidéo.
+
+La procédure de publication est documentée dans [docs/UPDATES.md](docs/UPDATES.md).
 
 ## Fonctions disponibles
 
