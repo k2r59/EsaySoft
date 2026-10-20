@@ -25,5 +25,16 @@ Pas de test sur un Mac Intel physique ni sur toutes les versions de macOS. Les e
 - 14 captures personnelles préexistantes comparées par SHA-256 avant/après : toutes identiques.
 - Sons PCM chargés et joués avec le lecteur macOS ; aucun fichier sonore externe.
 
-Les parcours graphiques (capture défilante sur une vraie page, marges cliquables des réglages, installation et relance dans l’application personnelle) restent à vérifier dès que le clavier et la souris sont disponibles. La release reste en préversion et la PR en brouillon jusque-là.
+## Parcours graphiques vérifiés
+
+- Sauvegarde de la version personnelle 0.2.2, puis installation de la version de départ signée/notarisée 0.3.0-rc build 4 dans Applications. Recherche native Sparkle → téléchargement du DMG public → « Install and Relaunch » → installation 0.3.0 build 5. Relance automatique confirmée par le changement de PID, avant toute requête de l’outil UI susceptible de lancer l’application.
+- Nouvelle recherche depuis 0.3.0 : dialogue français « Votre logiciel est à jour ». Signature Developer ID et acceptation Gatekeeper vérifiées après l’installation.
+- Réglages : clic dans l’espace vide de la ligne du son, puis rétablissement du réglage ; clic dans la marge de l’onglet Mises à jour. Les surfaces complètes répondent. Les sons restent activés, les vérifications automatiques restent désactivées.
+- Sélection et export défilant réels dans Safari, sur l’écran LG UltraFine Retina, avec la page locale `scripts/scroll-fixture.html` : trois portions assemblées sur fond clair, PNG de 1490 × 3900 pixels ; trois portions sur fond sombre, PNG de 1490 × 3628 pixels. Pause, défilement pendant la pause, reprise et export vérifiés.
+- Les deux exports ont été inspectés visuellement. Vision reconnaît les titres 01 à 09 dans l’ordre sur chacun ; l’analyse des pixels ne trouve aucune ligne entièrement noire. Les portions restent continues et les commandes d’EasyShoot ne figurent pas dans les images. Le pointeur avec halo de l’outil de contrôle est visible par endroits dans ces seules mires de test.
+- La copie de l’image claire conserve 1490 × 3900 pixels dans le presse-papiers, sans réduction. Une sélection annulée avec Échap n’a créé aucun fichier.
+- Les 14 captures personnelles préexistantes sont encore identiques par SHA-256 après les essais. Deux captures de contrôle ont été ajoutées à la bibliothèque.
+- Observation ponctuelle du processus : environ 100 Mio résidents pendant l’assemblage ; environ 74 Mio et 0 % CPU après l’export. Ce relevé local n’est pas un benchmark sur les autres Macs. Aucun nouveau rapport de crash EasyShoot trouvé.
+
+Les essais locaux autorisent la publication stable. Le signalement de Thierry devra néanmoins être confirmé sur sa page et son Mac ; ces tests ne prouvent pas que tous les contenus ou toutes les configurations sont capturables.
 
