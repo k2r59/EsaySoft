@@ -38,6 +38,7 @@ struct ClipQuery {
 }
 
 @MainActor final class History: ObservableObject {
+    let bitwarden: BitwardenModel
     @Published var loading = true
     @Published private(set) var clips: [Clip] = [] { didSet { refresh() } }
     @Published var boards: [Pinboard] = []
@@ -105,6 +106,7 @@ struct ClipQuery {
     }
     init(vault: ClipVault? = nil, monitor: Bool = true, defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        self.bitwarden = BitwardenModel(defaults: defaults)
         enabled = defaults.bool(forKey: "monitoring")
         retention = defaults.object(forKey: "retention") == nil ? 30 : defaults.integer(forKey: "retention")
         exclusions = defaults.stringArray(forKey: "exclusions") ?? []

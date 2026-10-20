@@ -150,6 +150,7 @@ struct ClipActions: View {
             Button(clip.pinned ? "Retirer des favoris" : "Ajouter aux favoris") { history.togglePin(clip) }
             Menu("Collections") { ForEach(history.boards) { board in Button((clip.boards.contains(board.id) ? "✓ " : "") + board.name) { history.toggleBoard(clip, board) } }; Divider(); Button("Nouvelle collection…") { history.showNewBoard = true } }
             Button("Ajouter à la pile") { history.queue(clip) }
+            BitwardenClipMenu(model: history.bitwarden, clip: clip)
             Divider()
             Button("Mettre à la corbeille", role: .destructive) { history.trash(clip) }
         }

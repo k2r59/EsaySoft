@@ -30,6 +30,7 @@ import CryptoKit
     private lazy var annotations = AnnotationController(history: history)
     private lazy var previews = PreviewController(history: history)
     private lazy var colorSampler = ColorSamplerController(history: history)
+    private lazy var bitwardenWindow = BitwardenWindowController(model: history.bitwarden)
     private var recordingStatus: NSStatusItem?
     override init() {
         if CommandLine.arguments.contains("--demo") || Bundle.main.object(forInfoDictionaryKey: "EasyPasteDemo") as? Bool == true {
@@ -49,6 +50,10 @@ import CryptoKit
         window.contentView = NSHostingView(rootView: MainView(history: history)); window.isReleasedWhenClosed = false
         window.center(); window.setFrameAutosaveName("EasyPasteLibrary")
         buildMenu(); registerHotkeys()
+        history.bitwarden.attach(history: history)
+        _ = bitwardenWindow
+        history.bitwarden.visibilityChanged = { [weak self] in self?.refreshBitwardenMenu() }
+        refreshBitwardenMenu()
         history.capture = { [weak self] action in self?.rememberTarget(); self?.captures.run(action) }
         history.annotate = { [weak self] clip in self?.annotations.open(clip) }
         history.previewChanged = { [weak self] clip in self?.previews.present(clip) }
@@ -95,7 +100,7 @@ import CryptoKit
         guard previews.requestClose() else { return .terminateCancel }
         history.stopMonitoring()
         // Flush queued atomic writes before exiting, without blocking the interface.
-        Task { await history.flush(); if let demoDirectory { try? FileManager.default.removeItem(at: demoDirectory) }; NSApp.reply(toApplicationShouldTerminate: true) }
+        Task { await history.bitwarden.shutdown(); await history.flush(); if let demoDirectory { try? FileManager.default.removeItem(at: demoDirectory) }; NSApp.reply(toApplicationShouldTerminate: true) }
         return .terminateLater
     }
     private func buildMenu() {
@@ -139,6 +144,33 @@ import CryptoKit
     private func rememberTarget() {
         if let app = NSWorkspace.shared.frontmostApplication, app.processIdentifier != ProcessInfo.processInfo.processIdentifier { target = app }
     }
+    private func refreshBitwardenMenu() {
+        let tag = 8240
+        for menu in [status?.menu, NSApp.mainMenu].compactMap({ $0 }) {
+            if let old = menu.item(withTag: tag) { menu.removeItem(old) }
+            guard history.bitwarden.enabled else { continue }
+            let root = NSMenuItem(title: "Bitwarden", action: nil, keyEquivalent: ""); root.tag = tag
+            root.image = NSImage(systemSymbolName: "lock.shield", accessibilityDescription: "Bitwarden")
+            let submenu = NSMenu(title: "Bitwarden")
+            for (title, action) in [
+                (history.bitwarden.publicOnly ? "Copier un lien" : "Créer un lien…", #selector(shareBitwarden)),
+                ("Partager avec options…", #selector(shareBitwardenOptions)),
+                ("Mes partages…", #selector(bitwardenSends)),
+                ("Mon compte…", #selector(bitwardenAccount)),
+                ("Verrouiller", #selector(lockBitwarden))
+            ] {
+                if action == #selector(shareBitwardenOptions) && !history.bitwarden.publicOnly { continue }
+                let item = submenu.addItem(withTitle: title, action: action, keyEquivalent: ""); item.target = self
+            }
+            root.submenu = submenu
+            menu.insertItem(root, at: min(2, menu.items.count))
+        }
+    }
+    @objc private func shareBitwarden() { guard history.selection.count == 1, let clip = history.selection.first else { return }; history.bitwarden.share(clip) }
+    @objc private func shareBitwardenOptions() { guard history.selection.count == 1, let clip = history.selection.first else { return }; history.bitwarden.share(clip, forceOptions: true) }
+    @objc private func bitwardenSends() { history.bitwarden.showSends() }
+    @objc private func bitwardenAccount() { history.bitwarden.showAccount() }
+    @objc private func lockBitwarden() { history.bitwarden.lock() }
     @objc func showMain() {
         if (history.captureBusy || history.recording), captures.revealActiveControls() { return }
         rememberTarget(); closeShelf(restore: false); history.surface = "library"; window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
@@ -160,6 +192,9 @@ import CryptoKit
         colorSampler.sample()
     }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(shareBitwarden) || menuItem.action == #selector(shareBitwardenOptions) { return history.bitwarden.canShare && history.selection.count == 1 && history.selection.first?.trashedAt == nil }
+        if menuItem.action == #selector(bitwardenSends) || menuItem.action == #selector(bitwardenAccount) { return history.bitwarden.canShare }
+        if menuItem.action == #selector(lockBitwarden) { return history.bitwarden.unlocked }
         if menuItem.action == #selector(stopVideo) { return history.recording }
         if menuItem.action == #selector(captureFromMenu(_:)) || menuItem.action == #selector(sampleColor) { return !history.captureBusy && !history.samplingColor && !history.recording && !history.annotating && !history.loading && !history.fault }
         return true

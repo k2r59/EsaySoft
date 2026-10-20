@@ -2,13 +2,17 @@
 set -euo pipefail
 cd "${0:A:h:h}"
 swift build -j 2 -c release --arch arm64 --arch x86_64
-app=dist/EasyPaste.app
+app=${APP_BUNDLE_PATH:-dist/EasyPaste.app}
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 swift scripts/generate-icon.swift .build/EasyPaste.iconset
-iconutil -c icns .build/EasyPaste.iconset -o "$app/Contents/Resources/EasyPaste.icns"
+rm -f .build/EasyPaste.icns
+iconutil -c icns .build/EasyPaste.iconset -o .build/EasyPaste.icns
+cp .build/EasyPaste.icns "$app/Contents/Resources/EasyPaste.icns"
 binary_dir=$(swift build -j 2 -c release --arch arm64 --arch x86_64 --show-bin-path)
 cp "$binary_dir/EasyPaste" "$app/Contents/MacOS/EasyPaste"
 cp LICENSE "$app/Contents/Resources/LICENSE.txt"
+cp THIRD-PARTY-NOTICES.md "$app/Contents/Resources/THIRD-PARTY-NOTICES.md"
+cp Sources/CArgon2/LICENSE "$app/Contents/Resources/Argon2-LICENSE.txt"
 cp Sources/EasyPaste/Resources/clipboard-studio.png "$app/Contents/Resources/clipboard-studio.png"
 cat > "$app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -19,8 +23,8 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>app.easypaste.mac</string>
 <key>CFBundleIconFile</key><string>EasyPaste</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.2.8</string>
-<key>CFBundleVersion</key><string>13</string>
+<key>CFBundleShortVersionString</key><string>0.2.11</string>
+<key>CFBundleVersion</key><string>16</string>
 <key>CFBundleDevelopmentRegion</key><string>fr</string>
 <key>CFBundleLocalizations</key><array><string>fr</string></array>
 <key>LSMinimumSystemVersion</key><string>15.0</string>
