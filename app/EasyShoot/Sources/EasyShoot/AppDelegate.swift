@@ -4,7 +4,7 @@ import Carbon
 import SwiftUI
 import ScreenCaptureKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+@MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var openedFilesAtLaunch=false
     var status: NSStatusItem!
     var home: HomeController?
@@ -12,10 +12,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var editors: [EditorController] = []
     var permissionNoticeOpen = false
     var busy = false
+    private var ocrInProgress=0
     var lastRect: CGRect?
     var selectors: [NSWindow] = []
     let recorder = Recorder()
-    let store = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("EasyShoot/Captures")
+    let updates = AppUpdates()
+    let sounds = SoundFeedback()
+    var updateBusy: Bool {
+        busy || ocrInProgress>0 || !selectors.isEmpty || recorder.isBusy ||
+        scrolling?.session.isActive == true || !editors.isEmpty ||
+        videoEditors.contains { $0.model.exporting || $0.model.hasUnexportedChanges }
+    }
+    nonisolated let store = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("EasyShoot/Captures")
     var hotkey: EventHotKeyRef?
     var ocrHotkey: EventHotKeyRef?
     var toastPanel: NSPanel?
@@ -32,6 +40,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if CommandLine.arguments.contains("--mcp") { return }
         status = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         status.button?.image = NSImage(systemSymbolName: "viewfinder", accessibilityDescription: "EasyShoot")
+        sounds.muted = { [weak self] in self?.recorder.isBusy == true }
+        if !CommandLine.arguments.contains("--demo") {
+            updates.busy = { [weak self] in self?.updateBusy == true }
+            updates.start()
+        }
         setupMenu()
         installHotkey()
         if let index=CommandLine.arguments.firstIndex(of:"--preview"),index+1 < CommandLine.arguments.count { showQuickCapture(URL(fileURLWithPath:CommandLine.arguments[index+1])) }
@@ -43,8 +56,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         return true
     }
     func applicationShouldTerminate(_ sender:NSApplication)->NSApplication.TerminateReply {
-        if recorder.isRecording || videoEditors.contains(where:{$0.model.exporting}) {
+        if busy || ocrInProgress>0 || !selectors.isEmpty {
+            message("Capture en cours","Termine la capture avant de quitter EasyShoot.");return .terminateCancel
+        }
+        if recorder.isBusy || videoEditors.contains(where:{$0.model.exporting}) {
             message("Opération en cours","Termine l’enregistrement ou l’export avant de quitter EasyShoot.");return .terminateCancel
+        }
+        if scrolling?.session.isActive == true || editors.contains(where:{!$0.canvas.marks.isEmpty}) {
+            message("Modifications en cours","Termine la capture défilante ou ferme l’éditeur d’annotations avant de quitter EasyShoot.");return .terminateCancel
         }
         if videoEditors.contains(where:{$0.model.hasUnexportedChanges}) {
             let alert=NSAlert();alert.messageText="Quitter sans exporter le montage ?";alert.informativeText="Les vidéos originales sont conservées. Les modifications non exportées seront perdues.";alert.addButton(withTitle:"Continuer le montage");alert.addButton(withTitle:"Quitter")
@@ -85,6 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         m.addItem(item("Historique des captures", #selector(history), "clock.arrow.circlepath", "h"))
         m.addItem(.separator())
         m.addItem(item("Réglages et autorisations…", #selector(settings), "gearshape", ","))
+        m.addItem(item("Rechercher des mises à jour…", #selector(checkUpdates), "arrow.triangle.2.circlepath"))
         m.addItem(item("À propos d’EasyShoot", #selector(about), "info.circle"))
         m.addItem(item("Relancer EasyShoot", #selector(relaunch), "arrow.clockwise"))
         m.addItem(item("Quitter", #selector(quit), "power", "q"))
@@ -111,7 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 guard alert.runModal() == .alertFirstButtonReturn,choices.indices.contains(picker.indexOfSelectedItem) else{return}
                 let image=try await NativeScreenCapture.window(choices[picker.indexOfSelectedItem])
                 let url=store.appendingPathComponent("Capture-\(UUID().uuidString).png")
-                try await NativeScreenCapture.savePNG(image,to:url);showQuickCapture(url)
+                try await NativeScreenCapture.savePNG(image,to:url);sounds.play(.capture);showQuickCapture(url)
             } catch {fail(error)}
         }
     }
@@ -151,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 let image=try await NativeScreenCapture.region(rect)
                 let url=store.appendingPathComponent("Capture-\(UUID().uuidString).png")
                 try await NativeScreenCapture.savePNG(image,to:url)
-                if recognize {self.recognize(image,quietly:true)} else {showQuickCapture(url)}
+                if recognize {self.recognize(image,quietly:true)} else {sounds.play(.capture);showQuickCapture(url)}
             } catch {fail(error)}
         }
     }
@@ -199,16 +219,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         recognize(pixels,quietly:quietly)
     }
     func recognize(_ image: CGImage, quietly:Bool = false) {
+        ocrInProgress+=1
         DispatchQueue.global(qos: .userInitiated).async {
             let request = VNRecognizeTextRequest(); request.recognitionLevel = .accurate; request.recognitionLanguages = ["fr-FR", "en-US"]; request.usesLanguageCorrection = true
             do {
                 try VNImageRequestHandler(cgImage:image).perform([request])
                 let text = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
                 DispatchQueue.main.async {
+                    self.ocrInProgress-=1
                     if text.isEmpty { self.showToast("Aucun texte détecté",detail:"Sélectionne une zone contenant du texte lisible.",success:false) }
-                    else { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string); if quietly { self.showToast("Texte copié",detail:"\(text.count) caractères · Prêt à coller avec ⌘V") } else { self.message("Texte copié", text) } }
+                    else { NSPasteboard.general.clearContents(); if NSPasteboard.general.setString(text, forType: .string) { self.sounds.play(quietly ? .capture : .copy) }; if quietly { self.showToast("Texte copié",detail:"\(text.count) caractères · Prêt à coller avec ⌘V") } else { self.message("Texte copié", text) } }
                 }
-            } catch { DispatchQueue.main.async { self.fail(error) } }
+            } catch { DispatchQueue.main.async { self.ocrInProgress-=1;self.fail(error) } }
         }
     }
     func showQuickCapture(_ url:URL) {
@@ -232,6 +254,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     @objc func record() {
         if recorder.isRecording { Task { do { try await recorder.stop(); setupMenu() } catch { fail(error) } }; return }
+        guard !recorder.isBusy else {message("Enregistrement en cours","Attends la fin de la préparation ou de l’enregistrement.");return}
         if scrolling?.window?.isVisible == true {message("Capture défilante en cours","Termine la capture défilante avant de démarrer un enregistrement.");return}
         guard ensureCaptureAccess() else{return}
         let a = NSAlert(); a.messageText = "Enregistrer l’écran principal"; a.informativeText = "Vidéo MP4 à 30 images/s avec le son système. Utilise le menu EasyShoot pour arrêter."; a.addButton(withTitle: "Enregistrer"); a.addButton(withTitle: "Annuler")
@@ -239,13 +262,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let url = store.appendingPathComponent("Enregistrement-\(UUID().uuidString).mp4")
         Task { [self] in do { try await recorder.start(url: url,completed: { [weak self] file in self?.showQuickCapture(file) }) { [weak self] in self?.setupMenu() }; setupMenu() } catch { fail(error) } }
     }
+    @objc func checkUpdates() { updates.check() }
     @objc func settings() {
-        let a = NSAlert(); a.messageText = "EasyShoot · Réglages"; a.informativeText = "Raccourcis globaux : ⌃⌥⌘2 pour capturer une zone, ⌃⌥⌘T pour copier le texte à l’écran.\n\nLes images et vidéos restent sur ton Mac.\nStockage : \(store.path)\n\nAutorise EasyShoot dans Confidentialité et sécurité → Enregistrement de l’écran et de l’audio système."; a.addButton(withTitle: "Fermer"); a.addButton(withTitle: "Autorisations macOS"); a.addButton(withTitle: "Dossier des captures")
-        let r = a.runModal(); if r == .alertSecondButtonReturn {openScreenPermissions()}; if r == .alertThirdButtonReturn { NSWorkspace.shared.open(store) }
+        showHome()
+        home?.navigation.page=2
     }
     @objc func showHome() { if home == nil { home=HomeController(owner:self) };home?.showWindow(nil);NSApp.activate(ignoringOtherApps:true) }
     func showWelcome() { UserDefaults.standard.set(true, forKey: "welcomed"); message("Bienvenue dans EasyShoot", "Retrouve EasyShoot dans la barre de menus, avec l’icône de viseur.\n\nCapture une zone avec ⌃⌥⌘2. Annote, copie, exporte ou épingle l’image. OCR et historique fonctionnent localement.\n\nmacOS demandera l’autorisation d’enregistrer l’écran lors de la première capture.") }
-    @objc func about() { message("EasyShoot · 0.2", "Application macOS locale de capture et d’annotation.\n\nPrototype : captures, OCR, annotations, épinglage, historique et vidéo MP4.\n\nCapture défilante verticale et montage vidéo : coupes, segments, vitesse, cadrage et audio. Les GIF et la caméra ne sont pas encore intégrés.") }
+    @objc func about() { message("EasyShoot · \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")", "Application macOS locale de capture et d’annotation.\n\nPrototype : captures, OCR, annotations, épinglage, historique et vidéo MP4.\n\nCapture défilante verticale et montage vidéo : coupes, segments, vitesse, cadrage et audio. Les GIF et la caméra ne sont pas encore intégrés.") }
     @objc func relaunch() {
         if recorder.isRecording { message("Enregistrement en cours","Arrête l’enregistrement avant de relancer EasyShoot.");return }
         if videoEditors.contains(where:{$0.model.exporting}) {message("Export en cours","Attends la fin de l’export vidéo avant de relancer.");return}
@@ -258,7 +282,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         task.arguments=["-c","sleep 1; /usr/bin/open -a \"$1\" --args --reopened","easyshoot-relaunch",Bundle.main.bundleURL.path]
         do { try task.run();NSApp.terminate(nil) } catch { fail(error) }
     }
-    @objc func quit() { if videoEditors.contains(where:{$0.model.exporting}) {message("Export en cours","Annule l’export ou attends sa fin avant de quitter.");return};scrolling?.session.cancel(); if recorder.isRecording { message("Enregistrement en cours", "Arrête l’enregistrement avant de quitter."); return }; NSApp.terminate(nil) }
+    @objc func quit() { if scrolling?.session.finishing == true {message("Assemblage en cours","Attends la fin de l’enregistrement du PNG avant de quitter.");return}; if videoEditors.contains(where:{$0.model.exporting}) {message("Export en cours","Annule l’export ou attends sa fin avant de quitter.");return};scrolling?.session.cancel(); if recorder.isRecording { message("Enregistrement en cours", "Arrête l’enregistrement avant de quitter."); return }; NSApp.terminate(nil) }
     func installHotkey() {
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         InstallEventHandler(GetApplicationEventTarget(), { _, event, ptr in
@@ -277,7 +301,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let executable=Bundle.main.executableURL?.path ?? "/Applications/EasyShoot.app/Contents/MacOS/EasyShoot"
         let config:[String:Any]=["mcpServers":["easyshoot":["command":executable,"args":["--mcp"]]]]
         guard let data=try? JSONSerialization.data(withJSONObject:config,options:[.prettyPrinted,.sortedKeys]),let text=String(data:data,encoding:.utf8) else{return}
-        NSPasteboard.general.clearContents();NSPasteboard.general.setString(text,forType:.string)
+        NSPasteboard.general.clearContents();if NSPasteboard.general.setString(text,forType:.string) {sounds.play(.copy)}
         showToast("Configuration MCP copiée",detail:"Connexion locale · aucun serveur à héberger")
     }
     func showToast(_ title:String,detail:String,success:Bool=true) {

@@ -1,0 +1,6 @@
+<!doctype html><html lang="fr"><meta charset="utf-8"><title>EasyShoot — Page de contrôle</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#edf1f6;font:20px -apple-system,system-ui;color:#172235}main{width:760px;margin:0 auto}section{height:220px;padding:28px 40px;border-bottom:2px solid #8395ad}section:nth-child(even){background:#dbe5ed}section:nth-child(3n){background:#fff1dd}h2{font-size:26px;margin:0 0 16px}p{margin:8px 0;line-height:1.5}.rule{height:3px;background:#de713e;width:100%;margin-top:18px}body.dark{background:#101722;color:#e1e8f5}body.dark section:nth-child(even){background:#1c293a}body.dark section:nth-child(3n){background:#2b2435}</style>
+<main id="page"></main><script>
+if(location.hash==='#dark')document.body.className='dark';
+for(let i=1;i<=30;i++){let s=document.createElement('section');s.innerHTML=`<h2>Portion ${String(i).padStart(2,'0')} · EasyShoot</h2><p>Capture défilante — contrôle du texte et des couleurs.</p><p>Ligne ${i*7} : été, façade, cœur, 1234567890.</p><div class="rule" style="width:${40+(i*17)%60}%"></div>`;document.querySelector('main').append(s)}
+</script></html>

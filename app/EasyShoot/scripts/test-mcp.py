@@ -10,7 +10,7 @@ import tempfile
 import unittest
 
 PROJECT = Path(__file__).resolve().parent.parent
-BINARY = PROJECT / "dist/EasyShoot.app/Contents/MacOS/EasyShoot"
+BINARY = Path(os.environ.get("EASYSHOOT_TEST_BINARY", str(PROJECT / "dist/EasyShoot.app/Contents/MacOS/EasyShoot")))
 
 class Client:
     def __init__(self, *args):

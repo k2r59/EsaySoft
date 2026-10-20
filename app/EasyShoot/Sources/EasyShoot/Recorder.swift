@@ -9,7 +9,12 @@ final class Recorder: NSObject, SCRecordingOutputDelegate, SCStreamDelegate {
     private var changed: (() -> Void)?
     private var completed: ((URL) -> Void)?
     private(set) var isRecording=false
+    private var starting=false
+    var isBusy:Bool { starting || stream != nil }
     @MainActor func start(url:URL, completed:@escaping(URL)->Void, changed:@escaping () -> Void) async throws {
+        guard !isBusy else {throw VideoEngine.failure("Un enregistrement est déjà en cours.")}
+        starting=true
+        defer {starting=false}
         let content=try await SCShareableContent.excludingDesktopWindows(false,onScreenWindowsOnly:true)
         guard let display=content.displays.first(where:{$0.displayID == CGMainDisplayID()}) else { throw NSError(domain:"EasyShoot",code:1,userInfo:[NSLocalizedDescriptionKey:"Aucun écran disponible."]) }
         let own=content.applications.filter{$0.processID == ProcessInfo.processInfo.processIdentifier}

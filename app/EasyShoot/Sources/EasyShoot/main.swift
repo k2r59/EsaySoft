@@ -1,13 +1,13 @@
 import AppKit
 
 // CLI transports must never register a competing GUI application with LaunchServices.
-let delegate = AppDelegate()
+let delegate = MainActor.assumeIsolated { AppDelegate() }
 if CommandLine.arguments.contains("--feature-tests") {
     Task.detached {do {try await runFeatureTests();exit(0)} catch {fputs("FAIL: \(error.localizedDescription)\n",stderr);exit(1)}}
     dispatchMain()
 }
 if CommandLine.arguments.contains("--self-test") {
-    do { try runSelfTests(delegate);exit(0) } catch { fputs("FAIL: \(error.localizedDescription)\n",stderr);exit(1) }
+    do { try MainActor.assumeIsolated { try runSelfTests(delegate) };exit(0) } catch { fputs("FAIL: \(error.localizedDescription)\n",stderr);exit(1) }
 }
 if CommandLine.arguments.contains("--mcp") {
     MCPServer(owner:delegate).serve()

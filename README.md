@@ -15,7 +15,7 @@ seuls les éléments choisis sont transmis après activation et connexion.
 
 Les installateurs de la [distribution locale du 17 octobre 2026](https://github.com/k2r59/EsaySoft/releases/tag/local-2026-10-17) sont signés avec Developer ID et notarisés par Apple :
 
-- [EasyShoot 0.2.2 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/local-2026-10-17/EasyShoot-0.2.2-universal.dmg)
+- [EasyShoot 0.3.0 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easyshoot-v0.3.0/EasyShoot-0.3.0-universal.dmg)
 - [EasyTile 1.1.0 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/local-2026-10-17/EasyTile-1.1.0-universal.dmg)
 - [EasyPaste 0.3.1 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.1/EasyPaste-0.3.1-universal.dmg)
 
