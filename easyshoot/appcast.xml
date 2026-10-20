@@ -1,0 +1,30 @@
+<?xml version="1.0" standalone="yes"?><!-- sparkle-sign-warning:
+IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
+--><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>EasyShoot</title>
+        <item>
+            <title>0.3.0</title>
+            <pubDate>Tue, 20 Oct 2026 14:58:44 +0200</pubDate>
+            <sparkle:version>5</sparkle:version>
+            <sparkle:shortVersionString>0.3.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyShoot 0.3.0
+
+- Mises à jour intégrées depuis GitHub : menu « Rechercher des mises à jour… ». Vérification automatique facultative ; installation toujours à la demande.
+- Capture défilante : rejet des images noires ou vides, deux nouvelles tentatives en cas d’image noire transitoire, pause en cas de problème persistant. Les portions déjà capturées restent enregistrables.
+- Capture Retina à la résolution native, sans compression avec perte. Les commandes flottantes sont exclues de la capture sans clignoter.
+- Sons discrets à la copie et à la capture image/OCR, réglables séparément et silencieux pendant une vidéo.
+- Réglages organisés en deux onglets : Général et Mises à jour.
+
+Les versions 0.2.x nécessitent une dernière installation du DMG. Les mises à jour suivantes pourront ensuite être installées depuis EasyShoot.
+
+Mac Intel et Apple Silicon, macOS 15 ou ultérieur. Captures locales. Code original MIT, licences des composants tiers incluses.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easyshoot-v0.3.0/EasyShoot-0.3.0-universal.dmg" length="3131603" type="application/octet-stream" sparkle:edSignature="AdJINaYHEdQ15RwmbPiDsY86p7cdGahzIvd1XqZl6FfKQULuS3aYJ5uy7lOlZjm82s7TFGBAP9+mKrIbGu4jBA=="></enclosure>
+        </item>
+    </channel>
+</rss><!-- sparkle-signatures:
+edSignature: VSUVeE9JyBK4kei9HNAmIz+fkaL5zhAI/87NqY1Gox+iZM7y4+qIS8PW9i9OaB+tE5JXkf6ypNwbndBWn7LkAg==
+length: 2136
+-->
