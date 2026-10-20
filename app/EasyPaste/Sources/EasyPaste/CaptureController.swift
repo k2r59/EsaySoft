@@ -162,7 +162,8 @@ struct CaptureMenu: View {
                 try Task.checkCancellation(); guard operation == id else { return }
                 clip = try await history.saveOCR(text)
             } else { clip = try await history.saveImage(data) }
-            let copied = await history.copy([clip]); showResult?()
+            history.sounds.play(.capture)
+            let copied = await history.copy([clip], sound: nil); showResult?()
             history.report(copied ? (action == .text ? "Texte copié · ⌘V pour coller" : "Capture copiée · ⌘V pour coller") : "Capture enregistrée dans l’historique.")
         } catch is CancellationError { if operation == id { showResult?() } }
         catch { if operation == id { showResult?(); history.report(error.localizedDescription) } }

@@ -17,6 +17,7 @@ cp LICENSE "$app/Contents/Resources/LICENSE.txt"
 cp THIRD-PARTY-NOTICES.md "$app/Contents/Resources/THIRD-PARTY-NOTICES.md"
 cp Sources/CArgon2/LICENSE "$app/Contents/Resources/Argon2-LICENSE.txt"
 cp Sources/EasyPaste/Resources/clipboard-studio.png "$app/Contents/Resources/clipboard-studio.png"
+cp Sources/EasyPaste/Resources/feedback-*.wav "$app/Contents/Resources/"
 cat > "$app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -47,7 +48,7 @@ with open(sys.argv[1], "rb") as source:
 info.update(CFBundleShortVersionString=os.environ.get("EASYPASTE_TEST_VERSION", config["version"]),
             CFBundleVersion=os.environ.get("EASYPASTE_TEST_BUILD", config["build"]),
             SUFeedURL=config["feed"], SUPublicEDKey=config["publicKey"],
-            SUEnableAutomaticChecks=False, SUAutomaticallyUpdate=False,
+            SUEnableAutomaticChecks=False, SUAutomaticallyUpdate=False, SUAllowsAutomaticUpdates=False,
             SUSendProfileInfo=False, SUScheduledCheckInterval=86400,
             SUVerifyUpdateBeforeExtraction=True, SURequireSignedFeed=True)
 with open(sys.argv[1], "wb") as target:

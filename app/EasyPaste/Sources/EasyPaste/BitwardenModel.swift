@@ -209,6 +209,7 @@ import SwiftUI
             try await cleanup.value; throw CancellationError()
         }
         created = send; copied = copyLink(send.link)
+        if copied { history?.sounds.play(.copy) }
         status = copied ? "Lien copié" : "Lien créé · copie impossible"
         sends.insert(send, at: 0)
         if copied { notify?("Lien copié · \(options.days) jours") }
@@ -230,7 +231,7 @@ import SwiftUI
             try self.check(ticket); self.sends.removeAll { $0.id == send.id }
         }
     }
-    func recopy(_ send: BWSend) { copied = copyLink(send.link); if copied { notify?("Lien copié") } }
+    func recopy(_ send: BWSend) { copied = copyLink(send.link); if copied { history?.sounds.play(.copy); notify?("Lien copié") } }
     var quickPresentation: Bool { quick }
     func close() {
         guard !busy else { cancel(); return }

@@ -64,11 +64,15 @@ def deploy(feed):
     else:
         api("git/refs", {"ref": "refs/heads/gh-pages", "sha": commit["sha"]})
     if api("pages", missing=True) is None:
-        api("pages", {"source": {"branch": "gh-pages", "path": "/"}})
-    else:
-        source = api("pages").get("source", {})
-        if source != {"branch": "gh-pages", "path": "/"}:
-            raise RuntimeError("GitHub Pages utilise une autre source. Ne pas la remplacer automatiquement.")
+        try:
+            api("pages", {"source": {"branch": "gh-pages", "path": "/"}})
+        except RuntimeError as error:
+            # GitHub can enable Pages automatically when gh-pages first appears.
+            if "(HTTP 409)" not in str(error):
+                raise
+    source = api("pages").get("source", {})
+    if source != {"branch": "gh-pages", "path": "/"}:
+        raise RuntimeError("GitHub Pages utilise une autre source. Ne pas la remplacer automatiquement.")
 
 
 def main():
