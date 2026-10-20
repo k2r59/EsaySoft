@@ -109,6 +109,18 @@ points d’accès de leurs clients, sans embarquer la CLI ni le SDK interne, don
 l’interface est annoncée comme instable et non prise en charge pour des tiers.
 Une évolution du protocole peut nécessiter une mise à jour d’EasyPaste.
 
+Depuis la version 0.2.10, les requêtes incluent `Bitwarden-Client-Name` et
+`Bitwarden-Client-Version`, également exigés lors de la connexion. EasyPaste
+annonce sa propre version ; il ne se fait pas passer pour une version officielle
+compatible avec des formats de chiffrement non implémentés. Un compte exigeant
+le chiffrement V2 reste refusé avec un message de compatibilité explicite.
+Les erreurs de protocole ne sont plus présentées comme un mauvais mot de passe.
+Les réponses inconnues affichent seulement leur statut HTTP, sans corps de réponse.
+
+Les régions ont des comptes distincts. Pour retrouver celle d'un compte, consulter
+l'adresse du coffre habituel : `vault.bitwarden.eu` ou `vault.bitwarden.com`.
+EasyPaste ne tente jamais une connexion sur l'autre région automatiquement.
+
 Références primaires consultées le 19 octobre 2026 :
 
 - https://bitwarden.com/help/bitwarden-apis/
@@ -121,5 +133,7 @@ Références primaires consultées le 19 octobre 2026 :
 - https://github.com/bitwarden/server/blob/main/src/Api/Tools/Controllers/SendsController.cs
 - https://developer.apple.com/documentation/technotes/tn3137-on-mac-keychains
 - https://developer.apple.com/documentation/localauthentication/lacontext
+- https://github.com/bitwarden/server/blob/main/src/Identity/IdentityServer/RequestValidators/ClientVersionValidator.cs
+- https://github.com/bitwarden/server/blob/main/src/Identity/IdentityServer/RequestValidators/BaseRequestValidator.cs
 
 Les tests de compatibilité et leurs limites sont détaillés dans `QA-0.2.9.md`.

@@ -63,6 +63,9 @@ private final class BWNetworkOperation: NSObject, URLSessionDataDelegate, @unche
 }
 
 struct BWClient: Sendable {
+    // Advertise EasyPaste's actual version, not a recent official Bitwarden version.
+    // The server must remain able to reject accounts using unsupported encryption.
+    static let clientVersion = "0.2.10"
     let transport: any BWTransport
     init(transport: any BWTransport = BWURLTransport()) { self.transport = transport }
     static func form(_ values: [String: String]) -> Data {
@@ -73,7 +76,9 @@ struct BWClient: Sendable {
         var r = URLRequest(url: url); r.httpMethod = method; r.httpBody = body
         r.setValue(form ? "application/x-www-form-urlencoded" : "application/json", forHTTPHeaderField: "Content-Type")
         r.setValue("application/json", forHTTPHeaderField: "Accept")
-        r.setValue("EasyPaste/0.2.9", forHTTPHeaderField: "User-Agent")
+        r.setValue("EasyPaste/\(Self.clientVersion)", forHTTPHeaderField: "User-Agent")
+        r.setValue("desktop", forHTTPHeaderField: "Bitwarden-Client-Name")
+        r.setValue(Self.clientVersion, forHTTPHeaderField: "Bitwarden-Client-Version")
         r.setValue("7", forHTTPHeaderField: "Device-Type")
         if let token { r.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         return r
@@ -110,6 +115,10 @@ struct BWClient: Sendable {
             else { form["twoFactorToken"] = code.trimmingCharacters(in: .whitespacesAndNewlines); form["twoFactorProvider"] = String(provider); form["twoFactorRemember"] = "0" }
         }
         let response = try await transport.execute(request(region.identity.appendingPathComponent("connect/token"), body: Self.form(form), form: true), file: nil, progress: { _ in })
+        if response.status == 429 { throw BWError.tooManyAttempts }
+        if !(200...299).contains(response.status), (try? json(response)) == nil {
+            throw BWError.loginRejected(response.status)
+        }
         let value = try json(response)
         let errorModel = value.bwValue("errorModel") as? [String: Any]
         if errorModel?.bwString("message")?.lowercased() == "new device verification required" { throw BWError.newDevice }
@@ -121,7 +130,7 @@ struct BWClient: Sendable {
         }
         if value.bwValue("HCaptcha_SiteKey") != nil || value.bwValue("hCaptchaSiteKey") != nil { throw BWError.captcha }
         guard (200...299).contains(response.status) else {
-            if response.status == 400 || response.status == 401 { throw BWError.invalidCredentials }; try check(response); throw BWError.invalidResponse
+            throw Self.loginFailure(value, status: response.status, hasCode: !code.isEmpty)
         }
         let unlock = (value.bwValue("userDecryptionOptions") as? [String: Any])?.bwValue("masterPasswordUnlock") as? [String: Any]
         guard let encrypted = value.bwString("key") ?? unlock?.bwString("masterKeyWrappedUserKey"), let access = value.bwString("access_token"), !access.isEmpty,
@@ -129,6 +138,28 @@ struct BWClient: Sendable {
         let userKey = try BWCrypto.decrypt(encrypted, key: BWCrypto.stretched(master))
         guard userKey.count == 64 else { throw BWError.invalidCipher }
         return BWSession(email: email, region: region, refreshToken: refresh, userKey: userKey, accessToken: access, expires: Date().addingTimeInterval(Double(min(86400, max(60, value.bwInt("expires_in") ?? 3600)))))
+    }
+    /// Classify only known protocol values. Never expose the response body, which
+    /// can contain authentication data or server-supplied personal information.
+    static func loginFailure(_ value: [String: Any], status: Int, hasCode: Bool) -> BWError {
+        let code = value.bwString("error")?.lowercased() ?? ""
+        let description = value.bwString("error_description")?.lowercased() ?? ""
+        let message = (value.bwValue("errorModel") as? [String: Any])?.bwString("message")?.lowercased() ?? ""
+        switch code {
+        case "version_header_missing", "invalid_client", "unauthorized_client", "unsupported_grant_type", "invalid_scope":
+            return .clientUpdateRequired
+        case "invalid_client_version":
+            return .unsupportedEncryption
+        default: break
+        }
+        if status == 429 { return .tooManyAttempts }
+        if description == "invalid_username_or_password" || message == "username or password is incorrect. try again." {
+            return .invalidCredentials
+        }
+        if hasCode && (description == "invalid_two_factor_token" || message == "two-step token is invalid. try again.") {
+            return .invalidVerificationCode
+        }
+        return .loginRejected(status)
     }
     func sendLoginEmail(email: String, password: String, region: BWRegion, device: String) async throws {
         let email = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()

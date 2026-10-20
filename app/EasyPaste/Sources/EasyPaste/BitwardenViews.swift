@@ -191,6 +191,9 @@ struct BitwardenWindowView: View {
                 Button("Utiliser un autre compte") { model.disconnect(); password = ""; code = "" }.buttonStyle(PasteButtonStyle()).disabled(model.busy)
             } else {
                 field("Serveur") { Picker("Serveur", selection: $region) { ForEach(BWRegion.allCases, id: \.self) { Text($0.label).tag($0) } }.labelsHidden() }
+                SettingsDetails("Quel serveur choisir ?") {
+                    Text("Dans ton coffre web, regarde l’adresse : vault.bitwarden.eu = Europe, vault.bitwarden.com = International. Les comptes des deux serveurs sont séparés.")
+                }
                 field("Adresse e-mail") { TextField("nom@exemple.fr", text: $email).focused($focus, equals: .email).textContentType(.username) }
                 field("Mot de passe maître") { SecureField("Mot de passe", text: $password).focused($focus, equals: .password).textContentType(.password) }
                 if !model.providers.isEmpty || model.needsDeviceCode {

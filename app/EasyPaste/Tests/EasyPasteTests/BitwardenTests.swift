@@ -344,6 +344,70 @@ actor BWScriptedTransport: BWTransport {
 final class BitwardenAuthenticationTests: XCTestCase {
     private func response(_ value: [String:Any], status:Int = 200) -> BWHTTPResponse { BWHTTPResponse(status:status,data:try! JSONSerialization.data(withJSONObject:value)) }
     private var prelogin: BWHTTPResponse { response(["kdf":0,"kdfIterations":100000]) }
+    func testRequiredClientHeadersOnBothRegionsAndRefresh() async throws {
+        for region in BWRegion.allCases {
+            let transport = BWScriptedTransport([prelogin, response(["error": "version_header_missing"], status: 400),
+                                                response(["access_token": "TEST-ACCESS", "expires_in": 3600])])
+            let client = BWClient(transport: transport)
+            do {
+                _ = try await client.login(email: "me@example.com", password: "password-test", region: region, device: "test")
+                XCTFail("Server refusal should fail")
+            } catch { XCTAssertEqual(error as? BWError, .clientUpdateRequired) }
+            let session = BWSession(email: "me@example.com", region: region, refreshToken: "TEST-REFRESH",
+                                    userKey: Data(repeating: 7, count: 64), accessToken: "", expires: .distantPast)
+            _ = try await client.refresh(session)
+            let requests = await transport.snapshot()
+            XCTAssertEqual(requests.count, 3)
+            for request in requests {
+                XCTAssertEqual(request.value(forHTTPHeaderField: "Bitwarden-Client-Name"), "desktop")
+                XCTAssertEqual(request.value(forHTTPHeaderField: "Bitwarden-Client-Version"), "0.2.10")
+                XCTAssertEqual(request.value(forHTTPHeaderField: "User-Agent"), "EasyPaste/0.2.10")
+                XCTAssertEqual(request.url?.host, region.identity.host)
+                XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+            }
+        }
+    }
+    func testLoginRefusalsDistinguishClientErrorsFromWrongCredentials() async throws {
+        let cases: [([String: Any], BWError)] = [
+            (["error": "version_header_missing"], .clientUpdateRequired),
+            (["error": "invalid_client_version"], .unsupportedEncryption),
+            (["error": "invalid_client"], .clientUpdateRequired),
+            (["error": "invalid_scope"], .clientUpdateRequired),
+            (["error": "invalid_grant", "error_description": "invalid_username_or_password"], .invalidCredentials),
+            (["ErrorModel": ["Message": "Username or password is incorrect. Try again."]], .invalidCredentials),
+            (["error": "invalid_grant"], .loginRejected(400)),
+            (["error": "unknown", "error_description": "SECRET-TOKEN", "ErrorModel": ["Message": "SECRET-TOKEN"]], .loginRejected(400))
+        ]
+        for (body, expected) in cases {
+            let transport = BWScriptedTransport([prelogin, response(body, status: 400)])
+            do {
+                _ = try await BWClient(transport: transport).login(email: "me@example.com", password: "password-test", region: .europe, device: "test")
+                XCTFail("Refused login must fail")
+            } catch {
+                XCTAssertEqual(error as? BWError, expected)
+                XCTAssertFalse(error.localizedDescription.contains("SECRET-TOKEN"))
+            }
+            let requests = await transport.snapshot()
+            XCTAssertEqual(requests.count, 2, "No automatic retry or alternate-region credential forwarding")
+        }
+    }
+    func testRateLimitAndNonJSONLoginRefusalsRemainActionable() async throws {
+        for (status, expected) in [(429, BWError.tooManyAttempts), (403, .loginRejected(403)), (503, .loginRejected(503))] {
+            let transport = BWScriptedTransport([prelogin, BWHTTPResponse(status: status, data: Data("<html>SECRET-TOKEN</html>".utf8))])
+            do {
+                _ = try await BWClient(transport: transport).login(email: "me@example.com", password: "password-test", region: .europe, device: "test")
+                XCTFail("Refused login must fail")
+            } catch {
+                XCTAssertEqual(error as? BWError, expected)
+                XCTAssertFalse(error.localizedDescription.contains("SECRET-TOKEN"))
+            }
+        }
+    }
+    func testRejectedOTPIsNotReportedAsBadMasterPassword() {
+        let value: [String: Any] = ["error": "invalid_grant", "ErrorModel": ["Message": "Two-step token is invalid. Try again."]]
+        XCTAssertEqual(BWClient.loginFailure(value, status: 400, hasCode: true), .invalidVerificationCode)
+        XCTAssertEqual(BWClient.loginFailure(value, status: 400, hasCode: false), .loginRejected(400))
+    }
     func testTwoFactorAndNewDeviceChallenges() async throws {
         for (reply, expected) in [
             (response(["twoFactorProviders2":["0":[:],"1":[:]]], status:400), BWError.twoFactor([0,1])),

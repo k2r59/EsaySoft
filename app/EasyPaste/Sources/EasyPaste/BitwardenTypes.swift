@@ -17,6 +17,7 @@ enum BWRegion: String, Codable, CaseIterable {
 enum BWError: LocalizedError, Equatable {
     case disabled, locked, invalidResponse, invalidCipher, unsupportedKDF, invalidCredentials
     case twoFactor([Int]), newDevice, captcha, unsupportedAuthentication, expiredSession
+    case clientUpdateRequired, unsupportedEncryption, loginRejected(Int), invalidVerificationCode, tooManyAttempts
     case premium, server(Int), network, tooLarge, textTooLarge, invalidFile, emptyText, invalidEmails, cancelled
     case keychain(Int32), storage, partialUpload(String), unknownCreation
     var errorDescription: String? {
@@ -26,7 +27,12 @@ enum BWError: LocalizedError, Equatable {
         case .invalidResponse: return "Réponse Bitwarden non reconnue. Aucun nouveau lien n’a été copié."
         case .invalidCipher: return "Le contenu chiffré n’a pas pu être vérifié."
         case .unsupportedKDF: return "Les paramètres de chiffrement de ce compte dépassent les limites prises en charge par EasyPaste."
-        case .invalidCredentials: return "Connexion refusée. Vérifie le serveur, l’adresse e-mail, le mot de passe et le code."
+        case .invalidCredentials: return "Bitwarden ne reconnaît pas cette adresse ou ce mot de passe maître sur le serveur choisi. Vérifie-les dans l’app officielle."
+        case .clientUpdateRequired: return "Bitwarden refuse la version du client EasyPaste. Une mise à jour d’EasyPaste est nécessaire ; ce refus ne signale pas un mauvais mot de passe."
+        case .unsupportedEncryption: return "Ce compte utilise une version de chiffrement que cette intégration ne prend pas encore en charge. Utilise Bitwarden pour créer le partage."
+        case .loginRejected(let status): return "Bitwarden refuse la connexion (HTTP \(status)). La cause n’est pas identifiée ; ce message ne confirme pas un mauvais mot de passe."
+        case .invalidVerificationCode: return "Le code de vérification a été refusé. Saisis un nouveau code."
+        case .tooManyAttempts: return "Bitwarden limite temporairement les tentatives. Patiente avant de réessayer."
         case .twoFactor: return "Saisis le code de vérification Bitwarden."
         case .newDevice: return "Bitwarden a envoyé un code par e-mail pour vérifier ce nouvel appareil."
         case .captcha: return "Bitwarden demande une vérification CAPTCHA. Connecte-toi dans son application officielle avant de réessayer."
