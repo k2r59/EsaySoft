@@ -1,8 +1,30 @@
-<?xml version="1.0" standalone="yes"?><!-- sparkle-sign-warning:
+<?xml version="1.0" standalone="yes"?>
+<!-- sparkle-sign-warning:
 IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
---><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+-->
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <title>EasyPaste</title>
+        <item>
+            <title>0.3.1</title>
+            <pubDate>Tue, 20 Oct 2026 12:26:32 +0200</pubDate>
+            <sparkle:version>18</sparkle:version>
+            <sparkle:shortVersionString>0.3.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[Des réglages plus lisibles et des retours sonores discrets.
+
+- Quatre onglets : Général, Confidentialité, Intégrations et Mises à jour.
+- Un tic à la copie et un son distinct après une capture d’image ou de texte OCR.
+- Deux interrupteurs pour couper chaque son ; silence pendant les vidéos.
+- Toute la ligne des interrupteurs et toute la surface des onglets sont cliquables.
+- Installation directe depuis EasyPaste 0.3.0, avec conservation de l’historique.
+
+Depuis une version 0.2.x, installer une fois le DMG pour bénéficier des mises à jour intégrées.
+
+macOS 15 ou ultérieur · Mac Intel et Apple Silicon · Licence MIT.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.1/EasyPaste-0.3.1-universal.dmg" length="9444614" type="application/octet-stream" sparkle:edSignature="iAWkT3Uw2PyLPZrueKjM1sWpKbv1AWH8fATMH26IaqOr8Agce5NiOQy6dpWHNJb358jR8CvN+Xl0edxc7BaWBQ=="/>
+        </item>
         <item>
             <title>0.3.0</title>
             <pubDate>Tue, 20 Oct 2026 12:05:49 +0200</pubDate>
@@ -21,10 +43,11 @@ Cette première version doit être installée une fois avec le DMG. Les suivante
 
 macOS 15 ou ultérieur · Mac Intel et Apple Silicon · Licence MIT.
 ]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.0/EasyPaste-0.3.0-universal.dmg" length="9388513" type="application/octet-stream" sparkle:edSignature="Z3dg6Epnifvdum1akIpJ25J0J8C2wiVD57R86LV/CDDw5FmmQml8w/vfOM0q8wsPd6Rq7sRN3hRSV9Ic0n7HBQ=="></enclosure>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.0/EasyPaste-0.3.0-universal.dmg" length="9388513" type="application/octet-stream" sparkle:edSignature="Z3dg6Epnifvdum1akIpJ25J0J8C2wiVD57R86LV/CDDw5FmmQml8w/vfOM0q8wsPd6Rq7sRN3hRSV9Ic0n7HBQ=="/>
         </item>
     </channel>
-</rss><!-- sparkle-signatures:
-edSignature: VqG0S62GSIjWx/HfCaggwGbDc3MDKtpkahxVsvtxMOXccxpy9cZnIZMAyjXjLcs6ARzXZ/qfcD7TXaQoTtDoCg==
-length: 1843
+</rss>
+<!-- sparkle-signatures:
+edSignature: ++RIKZAhTGCbX8Uns40PNhIS9iHdo0AkDkKTbKVUzEQ3rbo5YCcuTqANeKdcdMf54gpSM6zxdsdcE1v3JBq3DA==
+length: 3176
 -->
