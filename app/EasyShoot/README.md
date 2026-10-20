@@ -1,6 +1,6 @@
 # EasyShoot
 
-EasyShoot est une application macOS locale de capture, d’annotation et de montage vidéo. Le code source est disponible sous [licence MIT](LICENSE). La version 0.2 contient un espace de capture, une bibliothèque visuelle, un éditeur d’annotations et un éditeur vidéo avec timeline.
+EasyShoot est une application macOS locale de capture, d’annotation et de montage vidéo. Le code source est disponible sous [licence MIT](LICENSE). La version 0.3 contient un espace de capture, une bibliothèque visuelle, un éditeur d’annotations et un éditeur vidéo avec timeline.
 
 ## Compiler et lancer
 
@@ -18,7 +18,7 @@ L’application apparaît dans la barre de menus avec une icône de viseur. Le s
 
 La distribution universelle contient les exécutables Intel et Apple Silicon. Elle nécessite macOS 15 ou une version ultérieure.
 
-1. Ouvrir `EasyShoot-0.2.2-universal.dmg`.
+1. Ouvrir `EasyShoot-0.3.0-universal.dmg`.
 2. Glisser EasyShoot dans le raccourci Applications.
 3. Ouvrir EasyShoot depuis Applications.
 
@@ -167,3 +167,14 @@ Les essais d’interface ont vérifié la division et la suppression d’un segm
 Les captures de l’application et la capture défilante utilisent ScreenCaptureKit dans le processus signé d’EasyShoot. Une erreur de capture met la capture défilante en pause : elle ne relance pas les demandes en boucle.
 
 Ouvre EasyShoot depuis Applications. Clique sur « Autoriser la capture », puis active cette copie dans Réglages Système → Confidentialité et sécurité → Enregistrement de l’écran et de l’audio système. Si macOS demande de quitter l’app, rouvre-la depuis Applications après activation. Les demandes de confirmation imposées par macOS restent sous le contrôle du système.
+
+## Nouveautés 0.3.0
+
+Mises à jour intégrées depuis le menu EasyShoot, sons de capture et de copie facultatifs, réglages simplifiés, captures Retina et protection contre les portions noires pendant la capture défilante. Les portions déjà réussies restent enregistrables si le contenu suivant devient indisponible. Les captures protégées, les en-têtes fixes et les grands sauts ne sont pas pris en charge.
+
+- [Notes de version](docs/RELEASE-0.3.0.md)
+- [Contrôles et limites](QA-0.3.0.md)
+- [Publication des mises à jour](docs/UPDATES.md)
+- [Composants tiers](THIRD-PARTY-NOTICES.md)
+
+Les versions 0.2.x nécessitent une dernière installation manuelle. Ensuite, utiliser « Rechercher des mises à jour… ». Vérifier automatiquement est facultatif ; l’installation reste à la demande.

@@ -26,7 +26,7 @@ final class EditorController: NSWindowController, NSWindowDelegate {
     @objc func undoMark() { if !canvas.marks.isEmpty { canvas.marks.removeLast();canvas.needsDisplay=true } }
     @objc func clearMarks() { canvas.marks=[];canvas.needsDisplay=true }
     @objc func extract() { coordinator.recognize(canvas.rendered()) }
-    @objc func copyImage() { NSPasteboard.general.clearContents();NSPasteboard.general.writeObjects([canvas.rendered()]) }
+    @objc func copyImage() { NSPasteboard.general.clearContents();if NSPasteboard.general.writeObjects([canvas.rendered()]) {coordinator.sounds.play(.copy)} }
     @objc func exportImage() {
         let p=NSSavePanel();p.allowedContentTypes=[.png];p.nameFieldStringValue="EasyShoot.png"
         guard p.runModal() == .OK,let u=p.url,let tiff=canvas.rendered().tiffRepresentation,let rep=NSBitmapImageRep(data:tiff),let data=rep.representation(using:.png,properties:[:]) else{return}

@@ -1,7 +1,7 @@
 import AppKit
 import Vision
 
-func runSelfTests(_ owner:AppDelegate) throws {
+@MainActor func runSelfTests(_ owner:AppDelegate) throws {
     func check(_ condition:Bool,_ message:String) throws { if !condition { throw NSError(domain:"EasyShoot.SelfTest",code:1,userInfo:[NSLocalizedDescriptionKey:message]) };print("PASS: \(message)") }
     guard let image=owner.demoImage() else { throw NSError(domain:"EasyShoot.SelfTest",code:2) }
     let canvas=AnnotationView(image:image)

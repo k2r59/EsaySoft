@@ -52,7 +52,7 @@ enum ScrollStitcher {
         if unchanged<0.7 {return ScrollMatch(kind:.duplicate,error:unchanged)}
         let minOverlap=max(50,h/5)
         var candidates=[(Int,Double)]()
-        for offset in 2..<(h-minOverlap) { candidates.append((offset,difference(a,b,offset:offset))) }
+        for offset in 2..<max(2,h-minOverlap) { candidates.append((offset,difference(a,b,offset:offset))) }
         candidates.sort{$0.1<$1.1}
         guard !candidates.isEmpty else{return ScrollMatch(kind:.unmatched)}
         // Downsampling can shift text edges by a fraction of a pixel on Retina.
@@ -106,7 +106,9 @@ struct ScrollAccumulator {
     var height:Int { strips.reduce(0){$0+$1.height} }
     var width:Int { last?.width ?? 0 }
     mutating func append(_ image:CGImage)throws->ScrollMatch {
-        guard let previous=last else {strips=[try ScrollStitcher.copy(image)];last=image;return ScrollMatch(kind:.shifted,offset:image.height)}
+        guard let previous=last else {
+            guard image.width<=40_000_000/image.height,image.height<=50000 else{throw ScrollStitcher.failure("Limite de 40 mégapixels atteinte.")}
+            strips=[try ScrollStitcher.copy(image)];last=image;return ScrollMatch(kind:.shifted,offset:image.height)}
         let match=try ScrollStitcher.match(previous,image)
         if match.kind == .shifted {
             guard (height+match.offset)*width<=40_000_000,height+match.offset<=50000 else{throw ScrollStitcher.failure("Limite de taille atteinte. Termine cette capture avant de continuer.")}

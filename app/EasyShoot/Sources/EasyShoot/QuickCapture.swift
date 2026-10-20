@@ -24,8 +24,12 @@ final class QuickCaptureController:NSWindowController {
     }
     func copy() {
         NSPasteboard.general.clearContents()
-        if isVideo { NSPasteboard.general.writeObjects([url as NSURL]) }
-        else if let image=NSImage(contentsOf:url) { NSPasteboard.general.writeObjects([image]) }
+        let copied:Bool
+        if isVideo { copied=NSPasteboard.general.writeObjects([url as NSURL]) }
+        else if let image=NSImage(contentsOf:url) { copied=NSPasteboard.general.writeObjects([image]) }
+        else {copied=false}
+        guard copied else {coordinator.message("Copie impossible","Le fichier n’est plus disponible.");return}
+        coordinator.sounds.play(.copy)
         coordinator.showToast(isVideo ? "Vidéo copiée":"Image copiée",detail:"Prête à coller avec ⌘V")
         dismiss()
     }

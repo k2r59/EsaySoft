@@ -15,19 +15,23 @@ struct Brand:View {
     var body:some View { HStack(spacing:10) { Image(systemName:"viewfinder").font(.system(size:19,weight:.semibold)).foregroundStyle(Color.esAccent).frame(width:36,height:36).background(Color.esAccent.opacity(0.12),in:RoundedRectangle(cornerRadius:11));Text("EasyShoot").font(.system(size:19,weight:.bold,design:.rounded)).tracking(-0.5) } }
 }
 struct KeyCap:View { let label:String;var body:some View { Text(label).font(.system(size:11,weight:.medium,design:.monospaced)).foregroundStyle(Color.esMuted).padding(.horizontal,7).padding(.vertical,4).background(.white.opacity(0.05),in:RoundedRectangle(cornerRadius:5)).overlay(RoundedRectangle(cornerRadius:5).stroke(.white.opacity(0.08))) } }
-struct ActionButton:View { let title:String;let symbol:String;var primary=false;let action:()->Void;var body:some View { Button(action:action) { Label(title,systemImage:symbol).font(.system(size:12,weight:.semibold)).padding(.horizontal,15).frame(height:36).foregroundStyle(primary ? Color.black.opacity(0.88):Color.white).background(primary ? Color.esAccent:Color.white.opacity(0.07),in:RoundedRectangle(cornerRadius:9)) }.buttonStyle(HoverButtonStyle()) } }
+struct ActionButton:View { let title:String;let symbol:String;var primary=false;let action:()->Void;var body:some View { Button(action:action) { Label(title,systemImage:symbol).font(.system(size:12,weight:.semibold)).padding(.horizontal,15).frame(height:36).foregroundStyle(primary ? Color.black.opacity(0.88):Color.white).background(primary ? Color.esAccent:Color.white.opacity(0.07),in:RoundedRectangle(cornerRadius:9)).contentShape(Rectangle()) }.buttonStyle(HoverButtonStyle()) } }
+
+final class HomeNavigation:ObservableObject { @Published var page=0 }
 
 final class HomeController:NSWindowController {
+    let navigation=HomeNavigation()
     init(owner:AppDelegate) {
         let w=NSWindow(contentRect:NSRect(x:0,y:0,width:1180,height:820),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
         super.init(window:w);w.title="EasyShoot";w.titleVisibility = .hidden;w.titlebarAppearsTransparent=true;w.backgroundColor=NSColor(Color.esBackground);w.minSize=NSSize(width:1040,height:730);w.center();w.isReleasedWhenClosed=false
-        w.contentView=NSHostingView(rootView:HomeView(owner:owner).preferredColorScheme(.dark))
+        w.contentView=NSHostingView(rootView:HomeView(owner:owner,navigation:navigation).preferredColorScheme(.dark))
     }
     required init?(coder:NSCoder) { fatalError() }
 }
 struct HomeView:View {
     unowned let owner:AppDelegate
-    @State private var page=0
+    @ObservedObject var navigation:HomeNavigation
+    private var page:Int {navigation.page}
     @StateObject private var library=CaptureLibrary()
     private var captures:[CaptureEntry] { library.entries }
     @State private var authorized=CGPreflightScreenCaptureAccess()
@@ -41,7 +45,7 @@ struct HomeView:View {
                 nav("Préférences", "slider.horizontal.3", 2)
                 Spacer()
                 VStack(alignment:.leading,spacing:9) { HStack(spacing:7) { Circle().fill(Color.green.opacity(0.85)).frame(width:5,height:5);Text("100 % sur ton Mac").font(.system(size:11,weight:.medium)) };Text("Tes captures restent privées.\nAucun compte nécessaire.").font(.system(size:11)).foregroundStyle(Color.esMuted).lineSpacing(4) }.padding(15).background(.white.opacity(0.035),in:RoundedRectangle(cornerRadius:12))
-                HStack { Text("EasyShoot").font(.system(size:10,weight:.medium));Spacer();Text("0.2 · Aperçu").font(.system(size:10)).foregroundStyle(Color.esMuted) }.padding(.top,22)
+                HStack { Text("EasyShoot").font(.system(size:10,weight:.medium));Spacer();Text(Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "").font(.system(size:10)).foregroundStyle(Color.esMuted) }.padding(.top,22)
             }.padding(.horizontal,22).padding(.bottom,24).frame(width:220).background(Color.esSidebar)
             Rectangle().fill(.white.opacity(0.055)).frame(width:1)
             ScrollView {
@@ -54,7 +58,7 @@ struct HomeView:View {
             }.background(Color.esBackground)
         }.onAppear(perform:refresh).onReceive(NotificationCenter.default.publisher(for:NSApplication.didBecomeActiveNotification)) { _ in refresh() }.onReceive(NotificationCenter.default.publisher(for:Notification.Name("EasyShootCapturesChanged"))) { _ in refresh() }
     }
-    func nav(_ title:String,_ symbol:String,_ id:Int)->some View { Button { page=id;refresh() } label: { HStack(spacing:12) { Image(systemName:symbol).font(.system(size:15)).frame(width:19);Text(title).font(.system(size:13,weight:page == id ? .semibold:.regular));Spacer();if page == id { RoundedRectangle(cornerRadius:2).fill(Color.esAccent).frame(width:3,height:15) } }.foregroundStyle(page == id ? Color.white:Color.esMuted).padding(.horizontal,13).frame(height:43).background(page == id ? Color.white.opacity(0.07):Color.clear,in:RoundedRectangle(cornerRadius:9)) }.buttonStyle(HoverButtonStyle()).padding(.bottom,5) }
+    func nav(_ title:String,_ symbol:String,_ id:Int)->some View { Button { navigation.page=id;refresh() } label: { HStack(spacing:12) { Image(systemName:symbol).font(.system(size:15)).frame(width:19);Text(title).font(.system(size:13,weight:page == id ? .semibold:.regular));Spacer();if page == id { RoundedRectangle(cornerRadius:2).fill(Color.esAccent).frame(width:3,height:15) } }.foregroundStyle(page == id ? Color.white:Color.esMuted).padding(.horizontal,13).frame(height:43).background(page == id ? Color.white.opacity(0.07):Color.clear,in:RoundedRectangle(cornerRadius:9)) }.buttonStyle(HoverButtonStyle()).padding(.bottom,5) }
     var capturePage:some View {
         VStack(alignment:.leading,spacing:27) {
             VStack(alignment:.leading,spacing:10) { Text("Une idée. Une capture.").font(.system(size:34,weight:.semibold)).tracking(-1.2);Text("Capture l’essentiel, ajoute ton regard et passe à la suite.").font(.system(size:13)).foregroundStyle(Color.esMuted) }
@@ -76,7 +80,7 @@ struct HomeView:View {
             }.padding(27).frame(maxWidth:.infinity,alignment:.leading).background(LinearGradient(colors:[Color.esSurface,Color(red:0.12,green:0.105,blue:0.12)],startPoint:.leading,endPoint:.trailing),in:RoundedRectangle(cornerRadius:18)).overlay(RoundedRectangle(cornerRadius:18).stroke(.white.opacity(0.07)))
             HStack(spacing:12) { captureCard("Fenêtre","Une app, sans distraction.","macwindow") { capture(owner.window) };captureCard("Écran entier","Tout garder en un instant.","display") { capture(owner.fullscreen) };captureCard("Extraire le texte","Sélection à la souris · ⌃⌥⌘T","text.viewfinder") { capture(owner.ocr) } }
             HStack(spacing:12) { captureCard("Capture défilante","Une page entière, en une image.","rectangle.expand.vertical") { capture(owner.scrollingCapture) };captureCard("Montage vidéo","Couper, recadrer et exporter.","film.stack") { owner.openVideo() } }
-            HStack { Text("Captures récentes").font(.system(size:15,weight:.semibold));Spacer();Button("Tout voir →") { page=1;refresh() }.buttonStyle(HoverButtonStyle()).font(.system(size:11,weight:.medium)).foregroundStyle(Color.esMuted) }
+            HStack { Text("Captures récentes").font(.system(size:15,weight:.semibold));Spacer();Button("Tout voir →") { navigation.page=1;refresh() }.buttonStyle(HoverButtonStyle()).font(.system(size:11,weight:.medium)).foregroundStyle(Color.esMuted) }
             recentGrid(limit:3)
             HStack(spacing:18) { Button { owner.openImage() } label: { Label("Ouvrir une image",systemImage:"folder") };Button { owner.pasteImage() } label: { Label("Coller une image",systemImage:"clipboard") };Spacer();Button { owner.record() } label: { Label(owner.recorder.isRecording ? "Arrêter la vidéo" : "Enregistrer l’écran",systemImage:"record.circle") } }.buttonStyle(HoverButtonStyle()).font(.system(size:11)).foregroundStyle(Color.esMuted)
         }
@@ -105,10 +109,7 @@ struct HomeView:View {
             }
         }
     }
-    var settingsPage:some View { VStack(alignment:.leading,spacing:24) { Text("À ta façon.").font(.system(size:34,weight:.semibold)).tracking(-1);Text("Les essentiels, sans complexité.").font(.system(size:13)).foregroundStyle(Color.esMuted)
-        VStack(alignment:.leading,spacing:22) { HStack { Label("Raccourci de capture",systemImage:"keyboard");Spacer();KeyCap(label:"⌃ ⌥ ⌘ 2") };Divider().overlay(.white.opacity(0.05));HStack { Label("Extraire le texte à l’écran",systemImage:"text.viewfinder");Spacer();KeyCap(label:"⌃ ⌥ ⌘ T") };Divider().overlay(.white.opacity(0.05));HStack { Label("Enregistrement de l’écran",systemImage:"lock.shield");Spacer();ActionButton(title:"Gérer l’autorisation",symbol:"arrow.up.right") { owner.settings() } };Divider();HStack { Label("Stockage local",systemImage:"internaldrive");Spacer();ActionButton(title:"Afficher dans le Finder",symbol:"folder") { NSWorkspace.shared.open(owner.store) } };Divider();HStack { Label("MCP local · stdio",systemImage:"point.3.connected.trianglepath.dotted");Spacer();ActionButton(title:"Copier la configuration",symbol:"doc.on.doc") { owner.copyMCPConfiguration() } };Text(owner.store.path).font(.system(size:10,design:.monospaced)).foregroundStyle(Color.esMuted).textSelection(.enabled) }.font(.system(size:12)).modifier(Surface())
-        VStack(alignment:.leading,spacing:12) { Text("Version de développement").font(.system(size:13,weight:.semibold));Text("Capture et annotation, OCR local, capture défilante verticale et montage vidéo. Les GIF et la caméra restent à développer.").font(.system(size:12)).foregroundStyle(Color.esMuted).lineSpacing(5) }.modifier(Surface())
-    } }
+    var settingsPage:some View { ShootSettingsView(owner:owner,sounds:owner.sounds,updates:owner.updates) }
     func capture(_ action:()->Void) { owner.home?.window?.orderOut(nil);action() }
     func refresh() { authorized=CGPreflightScreenCaptureAccess();library.refresh(in:owner.store) }
 }

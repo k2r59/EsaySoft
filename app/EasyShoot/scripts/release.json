@@ -1,0 +1,7 @@
+{
+  "version": "0.3.0",
+  "build": "5",
+  "feed": "https://k2r59.github.io/EsaySoft/easyshoot/appcast.xml",
+  "publicKey": "CLbzNWKyO9dG7KtaCAT/oq1jodKkzPZicSHL/bM4s2I=",
+  "keychainAccount": "local.easyshoot.app"
+}
