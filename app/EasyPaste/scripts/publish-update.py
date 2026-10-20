@@ -139,8 +139,9 @@ def main():
         assert int(enclosure.attrib["length"]) == dmg.stat().st_size
         assert len(base64.b64decode(enclosure.attrib[f"{{{NS['s']}}}edSignature"])) == 64
         assert b"edSignature" in contents and b"<!--" in contents
-        run(str(tools / "sign_update"), "--account", config["keychainAccount"], "--verify", str(feed))
-        run(str(tools / "sign_update"), "--account", config["keychainAccount"], "--verify", str(dmg),
+        verify = str(ROOT / "scripts/verify-update.swift")
+        run("swift", verify, config["publicKey"], str(feed))
+        run("swift", verify, config["publicKey"], str(dmg),
             enclosure.attrib[f"{{{NS['s']}}}edSignature"])
         output = dist / "appcast.xml"
         output.write_bytes(contents)
