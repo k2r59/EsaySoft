@@ -59,6 +59,9 @@ struct SettingsView: View {
                 section("Intégrations", icon: "puzzlepiece.extension") {
                     BitwardenSettings(model: history.bitwarden)
                 }
+                section("Mises à jour", icon: "arrow.triangle.2.circlepath") {
+                    UpdateSettings(updates: history.updates, busy: history.updateBusy)
+                }
                 section("Assistants · MCP", icon: "point.3.connected.trianglepath.dotted") {
                     PreferenceToggle("Activer le connecteur local", isOn: $history.mcpEnabled)
                     Text("L’assistant peut lire uniquement les collections autorisées.").font(.system(size: 11)).foregroundStyle(Theme.muted)

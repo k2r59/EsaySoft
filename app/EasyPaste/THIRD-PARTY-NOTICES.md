@@ -3,6 +3,18 @@
 Le code original d’EasyPaste reste sous licence MIT. Les composants ci-dessous
 conservent leurs conditions propres.
 
+## Sparkle
+
+Les mises à jour utilisent Sparkle 2.10.0, sous licence MIT, avec ses composants
+tiers sous licences BSD et zlib. Le framework est fourni par le projet officiel,
+verrouillé par `Package.resolved` et la somme de contrôle du paquet Swift.
+
+- Projet : https://github.com/sparkle-project/Sparkle
+- Licences complètes : `Sparkle-LICENSE.txt` dans les ressources de l’application
+  et `docs/Sparkle-LICENSE.txt` dans les sources.
+- Le framework et ses services sont signés avec l’identité Developer ID d’EasyPaste.
+- La licence MIT du code d’EasyPaste reste inchangée.
+
 ## Argon2
 
 L’implémentation de référence C d’Argon2 est utilisée pour la connexion aux comptes

@@ -38,6 +38,12 @@ struct ClipQuery {
 }
 
 @MainActor final class History: ObservableObject {
+    let updates = AppUpdates()
+    var updateBusy: Bool {
+        AppUpdates.isBusy(recording: recording, capture: captureBusy, annotation: annotating,
+                          editor: editing != nil || newSnippet, preview: previewing != nil,
+                          sampling: samplingColor, sharing: bitwarden.busy)
+    }
     let bitwarden: BitwardenModel
     @Published var loading = true
     @Published private(set) var clips: [Clip] = [] { didSet { refresh() } }

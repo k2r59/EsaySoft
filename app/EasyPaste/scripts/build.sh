@@ -3,7 +3,10 @@ set -euo pipefail
 cd "${0:A:h:h}"
 swift build -j 2 -c release --arch arm64 --arch x86_64
 app=${APP_BUNDLE_PATH:-dist/EasyPaste.app}
-mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$app/Contents/Frameworks"
+sparkle=.build/artifacts/sparkle/Sparkle
+ditto "$sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework" "$app/Contents/Frameworks/Sparkle.framework"
+cp "$sparkle/LICENSE" "$app/Contents/Resources/Sparkle-LICENSE.txt"
 swift scripts/generate-icon.swift .build/EasyPaste.iconset
 rm -f .build/EasyPaste.icns
 iconutil -c icns .build/EasyPaste.iconset -o .build/EasyPaste.icns
@@ -36,12 +39,37 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>NSHumanReadableCopyright</key><string>Copyright © 2026 EasyPaste contributors. MIT License.</string>
 </dict></plist>
 PLIST
+python3 - "$app/Contents/Info.plist" <<'PY'
+import json, os, plistlib, sys
+config = json.load(open("scripts/release.json"))
+with open(sys.argv[1], "rb") as source:
+    info = plistlib.load(source)
+info.update(CFBundleShortVersionString=os.environ.get("EASYPASTE_TEST_VERSION", config["version"]),
+            CFBundleVersion=os.environ.get("EASYPASTE_TEST_BUILD", config["build"]),
+            SUFeedURL=config["feed"], SUPublicEDKey=config["publicKey"],
+            SUEnableAutomaticChecks=False, SUAutomaticallyUpdate=False,
+            SUSendProfileInfo=False, SUScheduledCheckInterval=86400,
+            SUVerifyUpdateBeforeExtraction=True, SURequireSignedFeed=True)
+with open(sys.argv[1], "wb") as target:
+    plistlib.dump(info, target)
+PY
+framework="$app/Contents/Frameworks/Sparkle.framework"
+# Sign nested services from the inside out; preserve the downloader's sandbox.
+sign_args=(--force --sign "${CODE_SIGN_IDENTITY:--}")
+if [[ -n "${CODE_SIGN_IDENTITY:-}" ]]; then
+ sign_args+=(--options runtime --timestamp)
+fi
+codesign "${sign_args[@]}" "$framework/Versions/B/XPCServices/Installer.xpc"
+codesign "${sign_args[@]}" --preserve-metadata=entitlements "$framework/Versions/B/XPCServices/Downloader.xpc"
+codesign "${sign_args[@]}" "$framework/Versions/B/Autoupdate"
+codesign "${sign_args[@]}" "$framework/Versions/B/Updater.app"
+codesign "${sign_args[@]}" "$framework"
 if [[ -n "${CODE_SIGN_IDENTITY:-}" ]]; then
  codesign --force --entitlements scripts/EasyPaste.entitlements --options runtime --timestamp --sign "$CODE_SIGN_IDENTITY" "$app"
 else
  codesign --force --entitlements scripts/EasyPaste.entitlements --sign - "$app"
 fi
-codesign --verify --strict "$app"
+codesign --verify --deep --strict "$app"
 lipo "$app/Contents/MacOS/EasyPaste" -verify_arch arm64
 lipo "$app/Contents/MacOS/EasyPaste" -verify_arch x86_64
 print "Application : $PWD/$app"
