@@ -79,9 +79,14 @@ import CryptoKit
         resignObserver = NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in Task { @MainActor in self?.closeShelf(restore: false) } }
         if demoDirectory != nil { fillDemo() }
         let loginLaunch = NSAppleEventManager.shared().currentAppleEvent?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
-        if !loginLaunch { showMain() }
+        if !loginLaunch { revealShelf() }
     }
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool { showMain(); return true }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        if (history.captureBusy || history.recording), captures.revealActiveControls() { return false }
+        revealShelf()
+        // We handled reopening ourselves; AppKit must not restore the library.
+        return false
+    }
     func windowDidBecomeKey(_ notification: Notification) {
         // A click back into the library can bypass showMain(), for example after
         // a save panel closes. Present editors and previews in the visible host.
@@ -216,7 +221,7 @@ import CryptoKit
     }
     private func revealShelf() {
         if shelf?.isVisible != true { toggleShelf() }
-        else { history.surface = "shelf"; shelf?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
+        else { window.orderOut(nil); history.surface = "shelf"; shelf?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
     }
     private func recordingStatus(_ text: String?) {
         guard let text else {
@@ -237,7 +242,15 @@ import CryptoKit
     @objc private func stopVideo() { captures.stop() }
     @objc func toggleShelf() {
         if shelf?.isVisible == true { closeShelf(); return }
-        rememberTarget(); history.prepareShelf()
+        // An unfinished editor belongs to its host window; leave it accessible.
+        guard window.attachedSheet == nil else {
+            window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); return
+        }
+        rememberTarget()
+        // Activating the app raises its visible windows. Hide the library first
+        // so the user's destination application stays visible behind the shelf.
+        window.orderOut(nil)
+        history.prepareShelf()
         if shelf == nil {
             let panel = ShelfPanel(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
             panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = true; panel.level = .floating

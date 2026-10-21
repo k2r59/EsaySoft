@@ -4,7 +4,7 @@ Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT.
 
 ## Installation
 
-1. Ouvrir `dist/EasyPaste-0.3.4-universal.dmg`.
+1. Ouvrir `dist/EasyPaste-0.3.5-universal.dmg`.
 2. Glisser EasyPaste dans Applications, puis l’ouvrir.
 3. Cliquer sur **Activer l’historique**. Les prochaines copies seront enregistrées.
 4. Depuis une autre application, ouvrir la barre rapide avec **Maj + Commande + V**.
@@ -294,3 +294,5 @@ Voir les [mentions des composants tiers](THIRD-PARTY-NOTICES.md).
 Un clic ou Entrée colle la carte sélectionnée dans l’application précédente ; Maj+Entrée colle en texte brut. Cmd-clic et Maj-clic servent à sélectionner plusieurs cartes, puis Entrée les colle. Les menus, les boutons d’annotation et le glisser-déposer restent accessibles.
 
 La barre conserve la dernière sélection tant qu’aucun nouveau contenu n’est copié. Une nouvelle copie, y compris celle d’un ancien élément déjà présent, sélectionne sa carte. Rouvrir la barre efface les filtres de recherche. Le collage direct nécessite l’autorisation Accessibilité pour EasyPaste ; si elle manque, l’application propose d’ouvrir le réglage.
+
+Au lancement manuel et à la réouverture, seule la barre rapide apparaît. Elle masque la bibliothèque si celle-ci était ouverte. La bibliothèque et les réglages restent accessibles explicitement depuis la barre ou le menu EasyPaste. Le lancement au démarrage reste silencieux. Un éditeur non terminé reste accessible avant de changer de fenêtre.
