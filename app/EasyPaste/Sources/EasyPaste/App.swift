@@ -237,7 +237,7 @@ import CryptoKit
     @objc private func stopVideo() { captures.stop() }
     @objc func toggleShelf() {
         if shelf?.isVisible == true { closeShelf(); return }
-        rememberTarget(); history.surface = "shelf"; history.collection = "all"; history.query = ""; history.filter = nil; history.sourceFilter = ""; history.todayOnly = false
+        rememberTarget(); history.prepareShelf()
         if shelf == nil {
             let panel = ShelfPanel(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
             panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = true; panel.level = .floating
@@ -265,11 +265,21 @@ import CryptoKit
         Task {
             defer { isPasting = false }
             guard await history.copy(clips, plain: plain) else { return }
+            guard AXIsProcessTrusted() else {
+                let alert = NSAlert()
+                alert.messageText = "Activer le collage direct"
+                alert.informativeText = "Le contenu est copié. Autorise EasyPaste dans Accessibilité pour le coller d’un clic dans tes applications."
+                alert.addButton(withTitle: "Ouvrir les réglages")
+                alert.addButton(withTitle: "Plus tard")
+                if alert.runModal() == .alertFirstButtonReturn {
+                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+                }
+                return
+            }
             if history.collection == "stack" { history.consumeStack(clips) }
             closeShelf(restore: false)
             guard let destination, !destination.isTerminated, destination.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
             guard destination.activate(options: []) else { return }
-            guard AXIsProcessTrusted() else { history.report("Copié. Autorise le collage direct dans les réglages, ou utilise ⌘V."); return }
             try? await Task.sleep(nanoseconds: 180_000_000)
             guard NSWorkspace.shared.frontmostApplication?.processIdentifier == destination.processIdentifier,
                   let down = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true),

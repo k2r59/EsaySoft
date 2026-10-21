@@ -80,10 +80,25 @@ enum AnnotationRenderer {
             context.setLineWidth(mark.width); context.setLineCap(.round); context.setLineJoin(.round)
             switch mark.tool {
             case .arrow:
-                context.move(to: start); context.addLine(to: end); context.strokePath()
-                let angle = atan2(end.y-start.y, end.x-start.x), length = max(mark.width*4, 12)
-                let a = CGPoint(x: end.x-length*cos(angle-0.5), y: end.y-length*sin(angle-0.5))
-                let b = CGPoint(x: end.x-length*cos(angle+0.5), y: end.y-length*sin(angle+0.5))
+                let distance = hypot(end.x-start.x, end.y-start.y)
+                guard distance > 0, distance.isFinite, mark.width > 0, mark.width.isFinite else {
+                    context.restoreGState(); continue
+                }
+                let ux = (end.x-start.x)/distance, uy = (end.y-start.y)/distance
+                let depth = min(distance, max(mark.width*4, 12)*cos(0.5))
+                let halfBase = depth*tan(0.5)
+                let base = CGPoint(x: end.x-depth*ux, y: end.y-depth*uy)
+                let a = CGPoint(x: base.x-halfBase*uy, y: base.y+halfBase*ux)
+                let b = CGPoint(x: base.x+halfBase*uy, y: base.y-halfBase*ux)
+                // The rounded shaft ends under the head, never at its sharp tip.
+                // Very short filled arrows are just a triangle, without an
+                // oversized round cap sticking out on either side of the tip.
+                if mark.arrowhead != .filled || distance > depth {
+                    let inset = mark.arrowhead == .filled ? depth : mark.arrowhead == .open ? min(mark.width/2, distance) : 0
+                    context.move(to: start)
+                    context.addLine(to: CGPoint(x: end.x-inset*ux, y: end.y-inset*uy))
+                    context.strokePath()
+                }
                 if mark.arrowhead == .dot { context.fillEllipse(in: CGRect(x: end.x-mark.width*1.6, y: end.y-mark.width*1.6, width: mark.width*3.2, height: mark.width*3.2)) }
                 else {
                     context.move(to: a); context.addLine(to: end); context.addLine(to: b)

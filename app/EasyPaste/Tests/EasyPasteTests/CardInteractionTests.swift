@@ -72,4 +72,99 @@ import XCTest
         try await Task.sleep(for: .milliseconds(20))
         XCTAssertEqual(history.selected, clips[2].id)
     }
+    func testShelfClickPastesExactlyOnceWithoutWaitingForAnotherClick() {
+        let clip = history.visible[2]
+        var pasted: [[UUID]] = []
+        history.paste = { clips, plain in pasted.append(clips.map(\.id)); XCTAssertFalse(plain) }
+        let action = CardInteraction(history: history, clip: clip, pasteOnClick: true)
+        action.select(clickCount: 1, modifiers: [])
+        XCTAssertEqual(pasted, [[clip.id]])
+        XCTAssertEqual(history.selected, clip.id)
+        action.select(clickCount: 2, modifiers: [])
+        XCTAssertEqual(pasted.count, 1)
+    }
+
+    func testShelfModifiedClicksKeepMultiSelectionWithoutPasting() {
+        history.paste = { _, _ in XCTFail("A selection modifier must not paste") }
+        history.select(history.visible[0])
+        let action = CardInteraction(history: history, clip: history.visible[2], pasteOnClick: true)
+        action.select(clickCount: 1, modifiers: .shift)
+        XCTAssertEqual(history.selectedIDs.count, 3)
+        action.select(clickCount: 1, modifiers: .command)
+        XCTAssertEqual(history.selectedIDs.count, 2)
+        action.select(clickCount: 1, modifiers: .control)
+    }
+
+    func testReopeningShelfKeepsSelectionAndArrowNavigationPosition() async throws {
+        let clips = history.visible
+        history.select(clips[1])
+        for _ in 0..<3 {
+            history.prepareShelf()
+            try await settle()
+            XCTAssertEqual(history.selected, clips[1].id)
+            XCTAssertEqual(history.selection.map(\.id), [clips[1].id])
+        }
+        history.moveSelection(1)
+        XCTAssertEqual(history.selected, clips[2].id)
+    }
+
+    func testNewCopySelectsNewestItemAndClearsPreviousMultiSelection() async throws {
+        history.select(history.visible[1])
+        history.select(history.visible[2], modifiers: .command)
+        let fresh = makeClip("Nouvelle copie")
+        history.add(fresh)
+        XCTAssertEqual(history.selected, fresh.id)
+        try await settle()
+        history.prepareShelf(); try await settle()
+        XCTAssertEqual(history.visible.first?.id, fresh.id)
+        XCTAssertEqual(history.selection.map(\.id), [fresh.id])
+    }
+
+    func testRecopyingOldContentSelectsItsExistingCardAtTheFront() async throws {
+        let old = history.visible.last!
+        history.select(history.visible[0])
+        history.add(makeClip(old.text))
+        try await settle()
+        XCTAssertEqual(history.visible.count, 3)
+        XCTAssertEqual(history.visible.first?.id, old.id)
+        XCTAssertEqual(history.selected, old.id)
+    }
+
+    func testCopyHiddenBySearchBecomesSelectedWhenShelfReopens() async throws {
+        history.query = "Un"; try await settle()
+        let fresh = makeClip("Copie hors recherche")
+        history.add(fresh); try await settle()
+        XCTAssertFalse(history.visible.contains { $0.id == fresh.id })
+        history.prepareShelf(); try await settle()
+        XCTAssertEqual(history.selected, fresh.id)
+        XCTAssertEqual(history.selection.map(\.id), [fresh.id])
+    }
+
+    func testExplicitNavigationWinsOverPendingCopyAndMetadataRefresh() async throws {
+        history.query = "Un"; try await settle()
+        history.add(makeClip("Copie hors recherche")); try await settle()
+        let chosen = history.visible[0]
+        history.select(chosen)
+        history.mutate(chosen.id) { $0.pinned = true }
+        history.prepareShelf(); try await settle()
+        XCTAssertEqual(history.selected, chosen.id)
+    }
+
+    func testCopyingHistoryItemDoesNotResetSelection() async throws {
+        let chosen = history.visible[2]
+        history.select(chosen)
+        let board = NSPasteboard.withUniqueName()
+        defer { board.releaseGlobally() }
+        let copied = await history.copy([chosen], to: board, sound: nil)
+        XCTAssertTrue(copied)
+        history.prepareShelf(); try await settle()
+        XCTAssertEqual(history.selected, chosen.id)
+        XCTAssertEqual(board.string(forType: .string), chosen.text)
+    }
+
+    private func settle() async throws {
+        await history.flush()
+        try await Task.sleep(for: .milliseconds(220))
+    }
+
 }
