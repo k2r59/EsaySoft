@@ -21,8 +21,7 @@ struct LibraryClipCard: View {
         .padding(12).background(Theme.panel, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? Theme.mint : (hovered ? Theme.hoverBorder : Theme.border), lineWidth: selected ? 2 : 1))
         .contentShape(RoundedRectangle(cornerRadius: 14))
-        .onTapGesture(count: 2) { if clip.trashedAt != nil { history.restore(clip) } else { history.paste?([clip], false) } }
-        .onTapGesture { history.select(clip, modifiers: NSEvent.modifierFlags); NSApp.keyWindow?.makeFirstResponder(nil) }
+        .modifier(CardInteraction(history: history, clip: clip))
         .onHover { hovered = $0 }
         .contextMenu { ClipActions(history: history, clip: clip) }
         .onDrag { DragProvider.make(clip, history: history) }

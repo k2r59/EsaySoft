@@ -88,12 +88,12 @@ struct ClipCard: View {
         .overlay(RoundedRectangle(cornerRadius: 17).strokeBorder(selected ? Theme.mint.opacity(0.9) : (hovered ? Theme.hoverBorder : Theme.border), lineWidth: selected ? 1.5 : 1))
         .shadow(color: .black.opacity(0.13), radius: 8, y: 4)
         .contentShape(RoundedRectangle(cornerRadius: 15))
-        .onTapGesture(count: 2) { if clip.trashedAt != nil { history.restore(clip) } else { history.paste?([clip], false) } }
-        .onTapGesture { history.select(clip, modifiers: NSEvent.modifierFlags); NSApp.keyWindow?.makeFirstResponder(nil) }
+        .modifier(CardInteraction(history: history, clip: clip))
         .onHover { hovered = $0 }
         .contextMenu { ClipActions(history: history, clip: clip) }
         .onDrag { DragProvider.make(clip, history: history) }
         .accessibilityElement(children: .contain).accessibilityLabel("\(clip.title), \(clip.kind.label), \(clip.source)")
+        .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityAction { history.select(clip); NSApp.keyWindow?.makeFirstResponder(nil) }
     }
 }
