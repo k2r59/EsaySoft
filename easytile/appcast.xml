@@ -1,0 +1,30 @@
+<?xml version="1.0" standalone="yes"?><!-- sparkle-sign-warning:
+IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
+--><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>EasyTile</title>
+        <item>
+            <title>1.2.0</title>
+            <pubDate>Wed, 21 Oct 2026 14:23:33 +0200</pubDate>
+            <sparkle:version>3</sparkle:version>
+            <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyTile 1.2.0
+
+- Thèmes Clair, Sombre et Automatique, appliqués aux dispositions, à l’éditeur et aux palettes. Clair par défaut.
+- Option Ouvrir EasyTile au démarrage, avec l’état réel de l’autorisation macOS.
+- Mises à jour depuis l’app : vérification quotidienne, installation manuelle ou automatique à la fermeture.
+- Préférences regroupées, contrôles alignés et boutons cliquables sur toute leur surface.
+- Mises à jour signées, application universelle Intel et Apple Silicon, notarisée par Apple.
+
+Depuis EasyTile 1.1.x, installe une fois ce DMG dans Applications. Les prochaines versions seront proposées directement dans EasyTile. Les dispositions et préférences sont conservées.
+
+macOS 15 ou ultérieur. Code source MIT ; Sparkle conserve ses licences BSD et zlib.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easytile-v1.2.0/EasyTile-1.2.0-universal.dmg" length="3905691" type="application/octet-stream" sparkle:edSignature="aRmMQAO9l0e12wmyVDRA9l8xATAt0SOYCtKwPaR19BMaqL3kyR6WSPAdwptlYR5FePw7g+INJKFZWMfD51PWBA=="></enclosure>
+        </item>
+    </channel>
+</rss><!-- sparkle-signatures:
+edSignature: puxAWQDmb86tdpgSJRJYqVrsvN3Y1B5tfj2cTSVnxAT9HtU36mGx6ykJvhXZtGeC9ZPDD1igkFNViU01gh3DBw==
+length: 1942
+-->
