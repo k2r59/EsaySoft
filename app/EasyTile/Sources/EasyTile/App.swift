@@ -19,9 +19,11 @@ struct EasyTileMain {
     }
 }
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     let store = TileStore()
     let engine = WindowEngine()
+    let updates = AppUpdates()
+    let login = LoginLaunch()
     private var window: NSWindow!
     private var status: NSStatusItem!
     private var palette: PalettePanel?
@@ -46,10 +48,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var dragKeyMonitor: Any?
     private var resignObserver: NSObjectProtocol?
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppAppearance.stored().apply()
         window = NSWindow(contentRect: NSRect(x:0,y:0,width:1170,height:920),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
         window.title = "EasyTile"; window.titlebarAppearsTransparent = true; window.titleVisibility = .hidden
         window.backgroundColor = NSColor(Theme.bg); window.minSize = NSSize(width:1000,height:740)
-        window.contentView = NSHostingView(rootView:MainView(store:store,engine:engine)); window.isReleasedWhenClosed = false
+        window.contentView = NSHostingView(rootView:MainView(store:store,engine:engine,updates:updates,login:login)); window.isReleasedWhenClosed = false
         window.center(); window.setFrameAutosaveName("EasyTileWorkspace")
         buildMenu()
         store.showPalette = { [weak self] in self?.togglePalette() }
@@ -65,13 +68,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return event
         }
         resignObserver = NotificationCenter.default.addObserver(forName:NSApplication.didResignActiveNotification,object:nil,queue:.main) { [weak self] _ in Task { @MainActor in self?.closePalette(restoreFocus: false) } }
-        showMain()
+        updates.busy = { [weak self] in
+            guard let self else { return false }
+            return AppUpdates.isBusy(editor: self.store.showEditor, dragging: self.initialMouse != nil,
+                                     placement: self.engine.isPlacing, palette: self.palette?.isVisible == true)
+        }
+        updates.start()
+        if !LoginLaunch.isLoginLaunch(NSAppleEventManager.shared().currentAppleEvent) { showMain() }
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender:NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender:NSApplication,hasVisibleWindows:Bool) -> Bool { showMain(); return true }
     private func buildMenu() {
         let appMenu = NSMenu(); let main = NSMenu(); let root = NSMenuItem(); root.submenu = appMenu; main.addItem(root)
         appMenu.addItem(withTitle:"À propos d’EasyTile",action:#selector(showMain),keyEquivalent:"")
+        appMenu.addItem(withTitle:"Préférences…",action:#selector(showPreferences),keyEquivalent:",")
+        appMenu.addItem(withTitle:"Rechercher une mise à jour…",action:#selector(checkUpdates),keyEquivalent:"")
         appMenu.addItem(.separator()); appMenu.addItem(withTitle:"Quitter EasyTile",action:#selector(quit),keyEquivalent:"q")
         let edit = NSMenuItem(title:"Édition",action:nil,keyEquivalent:""); let editMenu = NSMenu(title:"Édition")
         for (title,selector,key) in [("Couper",#selector(NSText.cut(_:)),"x"),("Copier",#selector(NSText.copy(_:)),"c"),("Coller",#selector(NSText.paste(_:)),"v"),("Tout sélectionner",#selector(NSText.selectAll(_:)),"a")] { editMenu.addItem(withTitle:title,action:selector,keyEquivalent:key) }
@@ -82,10 +93,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle:"Organiser mes fenêtres…",action:#selector(showMain),keyEquivalent:"")
         menu.addItem(withTitle:"Palette rapide   ⌃⌥espace",action:#selector(togglePalette),keyEquivalent:"")
         menu.addItem(withTitle:"Annuler le dernier placement",action:#selector(undo),keyEquivalent:"")
+        menu.addItem(.separator())
+        menu.addItem(withTitle:"Préférences…",action:#selector(showPreferences),keyEquivalent:",")
+        menu.addItem(withTitle:"Rechercher une mise à jour…",action:#selector(checkUpdates),keyEquivalent:"")
         menu.addItem(.separator()); menu.addItem(withTitle:"Quitter EasyTile",action:#selector(quit),keyEquivalent:"")
         for item in menu.items { item.target = self }; status.menu = menu
     }
     @objc func showMain() { engine.refresh(); window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps:true) }
+    @objc func showPreferences() { store.page = "settings"; showMain() }
+    @objc func checkUpdates() {
+        if updates.waitingToInstall { updates.installWhenReady() } else { updates.check() }
+    }
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(checkUpdates) {
+            menuItem.title = updates.waitingToInstall ? "Installer la mise à jour et relancer…" : "Rechercher une mise à jour…"
+            return (updates.canCheck || updates.waitingToInstall) && !updates.busy()
+        }
+        return true
+    }
     @objc func quit() { NSApp.terminate(nil) }
     @objc func undo() { engine.undo() }
     func closePalette(restoreFocus: Bool = true) {
@@ -249,10 +274,10 @@ struct PaletteView:View {
     let close:()->Void
     var body: some View {
         VStack(alignment:.leading,spacing:19) {
-            HStack { Image(systemName:"rectangle.split.2x2.fill").foregroundStyle(Theme.mint); Text("Une place pour \(engine.selected?.name ?? "ta fenêtre")").font(.system(size:16,weight:.semibold)).lineLimit(1); Spacer(); Button(action:close) { KeyCap(text:"esc") }.buttonStyle(.plain) }
+            HStack { Image(systemName:"rectangle.split.2x2.fill").foregroundStyle(Theme.mint); Text("Une place pour \(engine.selected?.name ?? "ta fenêtre")").font(.system(size:16,weight:.semibold)).lineLimit(1); Spacer(); Button(action:close) { KeyCap(text:"esc") }.buttonStyle(TilePlainButtonStyle()) }
             HStack { Text(store.layout.name).foregroundStyle(Theme.muted); Spacer(); Picker("Disposition",selection:$store.selectedLayoutID) { ForEach(store.layouts) { Text($0.name).tag($0.id) } }.labelsHidden().fixedSize() }.font(.system(size:12))
             MonitorView(layout:store.layout,enabled:engine.selected != nil,compact:true) { z in engine.apply(z,gap:store.gap); close() }.frame(maxWidth: .infinity)
             Text(engine.selected == nil ? "Aucune fenêtre disponible. Ouvre une fenêtre puis réessaie." : "Clique sur une zone, ou appuie sur son numéro.").font(.system(size:11)).foregroundStyle(Theme.muted)
-        }.padding(26).frame(width:580,height:430).background(Theme.panel,in:RoundedRectangle(cornerRadius:23)).overlay(RoundedRectangle(cornerRadius:23).strokeBorder(.white.opacity(0.14))).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
+        }.padding(26).frame(width:580,height:430).background(Theme.panel,in:RoundedRectangle(cornerRadius:23)).overlay(RoundedRectangle(cornerRadius:23).strokeBorder(Theme.ink.opacity(0.14))).foregroundStyle(Theme.ink)
     }
 }

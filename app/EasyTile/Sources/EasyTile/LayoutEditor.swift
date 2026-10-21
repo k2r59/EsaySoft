@@ -27,7 +27,7 @@ struct LayoutEditor: View {
                     Path { p in
                         for c in 0...cols { let x = geo.size.width * Double(c)/Double(cols); p.move(to: CGPoint(x:x,y:0)); p.addLine(to: CGPoint(x:x,y:geo.size.height)) }
                         for r in 0...rows { let y = geo.size.height * Double(r)/Double(rows); p.move(to: CGPoint(x:0,y:y)); p.addLine(to: CGPoint(x:geo.size.width,y:y)) }
-                    }.stroke(.white.opacity(0.09),lineWidth: 1)
+                    }.stroke(Theme.ink.opacity(0.09),lineWidth: 1)
                     ForEach(Array(zones.enumerated()),id: \.element.id) { index,z in zoneView(z, color: Theme.colors[index%4], size: geo.size) }
                     if let start, let end { zoneView(zone(from:start,to:end,size:geo.size),color: Theme.mint,size:geo.size).opacity(0.7) }
                 }.contentShape(Rectangle()).gesture(DragGesture(minimumDistance:0).onChanged { v in if start == nil { start = v.startLocation }; end = v.location }.onEnded { v in
@@ -40,7 +40,7 @@ struct LayoutEditor: View {
             }.frame(height: 300).accessibilityLabel("Grille de création, 12 colonnes et 8 lignes. Dessiner avec la souris.")
             Text(hint).font(.system(size: 11)).foregroundStyle(Theme.muted)
             HStack { Button("Retirer la dernière zone") { if !zones.isEmpty { zones.removeLast() } }.buttonStyle(TileButtonStyle()).disabled(zones.isEmpty); Spacer(); Button("Annuler") { dismiss() }.buttonStyle(TileButtonStyle()); Button("Enregistrer la disposition") { store.save(name,zones:zones); dismiss() }.buttonStyle(TileButtonStyle(primary:true)).disabled(zones.isEmpty) }
-        }.padding(28).frame(width: 700).background(Theme.panel).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
+        }.padding(28).frame(width: 700).background(Theme.panel).foregroundStyle(Theme.ink)
     }
     private func zoneView(_ z: TileZone,color:Color,size:CGSize) -> some View {
         RoundedRectangle(cornerRadius:7).fill(color.opacity(0.2)).overlay(RoundedRectangle(cornerRadius:7).strokeBorder(color.opacity(0.7))).overlay(Text(z.label).font(.system(size:11,weight:.semibold)).foregroundStyle(color)).frame(width:max(1,size.width*z.width-6),height:max(1,size.height*z.height-6)).offset(x:size.width*z.x+3,y:size.height*z.y+3)

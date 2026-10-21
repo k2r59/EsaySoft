@@ -4,22 +4,26 @@ import AppKit
 struct MainView: View {
     @ObservedObject var store: TileStore
     @ObservedObject var engine: WindowEngine
+    @ObservedObject var updates: AppUpdates
+    @ObservedObject var login: LoginLaunch
     var body: some View {
         HStack(spacing: 0) {
             sidebar.frame(width: 210)
-            Rectangle().fill(.white.opacity(0.06)).frame(width: 1)
-            VStack(spacing: 0) {
+            Rectangle().fill(Theme.ink.opacity(0.06)).frame(width: 1)
+            GeometryReader { bounds in
+              VStack(spacing: 0) {
                 topbar
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         if store.page == "layouts" { layoutPage }
                         else if store.page == "shortcuts" { shortcutsPage }
-                        else { settingsPage }
+                        else { PreferencesView(store: store, engine: engine, updates: updates, login: login) }
                     }.padding(28).frame(maxWidth: 1050, alignment: .leading).frame(maxWidth: .infinity)
                 }
                 footer
+              }.frame(width: bounds.size.width, height: bounds.size.height)
             }
-        }.background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
+        }.background(Theme.bg).foregroundStyle(Theme.ink)
         .frame(minWidth: 1000, minHeight: 740)
         .sheet(isPresented: $store.showEditor) { LayoutEditor(store: store) }
     }
@@ -40,16 +44,16 @@ struct MainView: View {
                 Text("Une palette, quelques touches.\nTout trouve sa place.").font(.system(size: 11)).foregroundStyle(Theme.muted).lineSpacing(4)
                 Button { store.showPalette?() } label: { HStack { Text("Palette rapide"); Spacer(); Image(systemName: "arrow.up.right") } }.buttonStyle(TileButtonStyle())
                 HStack { KeyCap(text: "⌃"); KeyCap(text: "⌥"); KeyCap(text: "espace") }
-            }.padding(15).background(LinearGradient(colors: [Theme.mint.opacity(0.08),.clear],startPoint: .topLeading,endPoint: .bottomTrailing),in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.065)))
-            HStack { Circle().fill(engine.trusted ? Theme.mint : .orange).frame(width: 5,height: 5); Text(engine.trusted ? "Prêt à organiser" : "Autorisation nécessaire"); Spacer(); Text("1.1") }.font(.system(size: 10)).foregroundStyle(Theme.muted).padding(.top, 21).padding(.bottom, 22)
+            }.padding(15).background(LinearGradient(colors: [Theme.mint.opacity(0.08),.clear],startPoint: .topLeading,endPoint: .bottomTrailing),in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.ink.opacity(0.065)))
+            HStack { Circle().fill(engine.trusted ? Theme.mint : Theme.warning).frame(width: 5,height: 5); Text(engine.trusted ? "Prêt à organiser" : "Autorisation nécessaire"); Spacer(); Text(AppVersion.current) }.font(.system(size: 10)).foregroundStyle(Theme.muted).padding(.top, 21).padding(.bottom, 22)
         }.padding(.horizontal, 18).background(Theme.panel.opacity(0.45))
     }
     private func nav(_ id: String, _ title: String, _ icon: String) -> some View {
         Button { store.page = id } label: {
             HStack(spacing: 12) { Image(systemName: icon).frame(width: 20); Text(title); Spacer(); if store.page == id { Circle().fill(Theme.mint).frame(width: 5,height: 5) } }
                 .font(.system(size: 12,weight: store.page == id ? .semibold : .regular)).padding(.horizontal, 12).padding(.vertical, 12)
-                .foregroundStyle(store.page == id ? Theme.ink : Theme.muted).background(store.page == id ? Color.white.opacity(0.065) : .clear,in: RoundedRectangle(cornerRadius: 9))
-        }.buttonStyle(.plain).padding(.bottom, 5)
+                .foregroundStyle(store.page == id ? Theme.ink : Theme.muted).background(store.page == id ? Theme.ink.opacity(0.065) : .clear,in: RoundedRectangle(cornerRadius: 9))
+        }.buttonStyle(TilePlainButtonStyle()).padding(.bottom, 5)
     }
     private var topbar: some View {
         HStack {
@@ -57,7 +61,7 @@ struct MainView: View {
             Spacer()
             Image(systemName: "display").foregroundStyle(Theme.mint)
             Picker("Écran", selection: $engine.screenIndex) { ForEach(Array(engine.screens.enumerated()), id: \.offset) { i, s in Text(s.localizedName).tag(i) } }.labelsHidden().pickerStyle(.menu).fixedSize().help("Écran sur lequel placer la fenêtre")
-        }.padding(.horizontal,32).frame(height: 56).padding(.top, 20).overlay(alignment: .bottom) { Rectangle().fill(.white.opacity(0.06)).frame(height: 1) }
+        }.padding(.horizontal,32).frame(height: 56).padding(.top, 20).overlay(alignment: .bottom) { Rectangle().fill(Theme.ink.opacity(0.06)).frame(height: 1) }
     }
     private var layoutPage: some View {
         Group {
@@ -129,11 +133,11 @@ struct MainView: View {
             heading("Moins de clics.\nPlus de fluidité.", "Garde les mains sur le clavier, les idées sur l’écran.")
             VStack(spacing: 0) {
                 shortcut("La palette rapide", "Toutes les zones de la disposition active, au-dessus de ton bureau.","⌃ ⌥ espace","rectangle.3.group")
-                Divider().overlay(.white.opacity(0.05))
+                Divider().overlay(Theme.ink.opacity(0.05))
                 shortcut("Moitié gauche / droite", "Un raccourci direct pour tes deux placements les plus utiles.","⌃ ⌥ ← / →","rectangle.split.2x1")
-                Divider().overlay(.white.opacity(0.05))
+                Divider().overlay(Theme.ink.opacity(0.05))
                 shortcut("Agrandir / centrer", "Vers le haut pour agrandir, vers le bas pour centrer à 80 %.","⌃ ⌥ ↑ / ↓","arrow.up.left.and.arrow.down.right")
-                Divider().overlay(.white.opacity(0.05))
+                Divider().overlay(Theme.ink.opacity(0.05))
                 shortcut("Annuler le placement", "Retrouve la taille et la position précédentes.","⌃ ⌥ ⌫","arrow.uturn.backward")
             }.surface()
             VStack(alignment: .leading,spacing: 14) {
@@ -148,26 +152,8 @@ struct MainView: View {
         HStack(spacing: 17) { Image(systemName: icon).font(.system(size: 22)).foregroundStyle(Theme.mint).frame(width: 34); VStack(alignment: .leading,spacing: 6) { Text(title).font(.system(size: 14,weight: .medium)); Text(desc).font(.system(size: 11)).foregroundStyle(Theme.muted) }; Spacer(); KeyCap(text: key) }.padding(23)
     }
     private func heading(_ title: String,_ subtitle: String) -> some View { VStack(alignment: .leading,spacing: 12) { Text(title).font(.system(size: 35,weight: .semibold)).tracking(-1); Text(subtitle).font(.system(size: 12)).foregroundStyle(Theme.muted) } }
-    private var settingsPage: some View {
-        VStack(alignment: .leading,spacing: 24) {
-            heading("Simple par nature.\nPersonnel par choix.", "Seulement ce qui change vraiment ton quotidien.")
-            if !engine.trusted { accessBanner }
-            VStack(alignment: .leading,spacing: 19) {
-                Label("Glisser pour placer",systemImage: "hand.draw").font(.system(size: 17,weight: .semibold))
-                Toggle("Afficher le menu pendant le déplacement",isOn: $store.dragEnabled).tint(Theme.mint)
-                Text("Déplace une fenêtre : le menu apparaît en haut de l’écran. Sans relâcher la souris, survole une zone pour voir l’aperçu, puis relâche pour placer la fenêtre. Relâche en dehors du menu ou appuie sur Échap pour conserver ton déplacement libre.").font(.system(size: 12)).foregroundStyle(Theme.muted).lineSpacing(5)
-                Text("Tu peux laisser cette option désactivée et utiliser uniquement la palette.").font(.system(size: 11)).foregroundStyle(Theme.muted)
-            }.padding(24).surface()
-            VStack(alignment: .leading,spacing: 14) {
-                Label("Sur ton Mac, tout simplement",systemImage: "lock.shield").font(.system(size: 17,weight: .semibold))
-                Text("Aucun compte. Aucun service cloud. Aucune capture d’écran. EasyTile conserve uniquement tes dispositions et préférences sur ce Mac. Les titres des fenêtres ne sont pas enregistrés.").font(.system(size: 12)).foregroundStyle(Theme.muted).lineSpacing(5)
-                HStack { Label(engine.trusted ? "Accessibilité autorisée" : "Accessibilité à autoriser",systemImage: engine.trusted ? "checkmark.circle.fill" : "exclamationmark.circle").foregroundStyle(engine.trusted ? Theme.mint : .orange); Spacer(); Button("Ouvrir les autorisations") { engine.requestAccess() }.buttonStyle(TileButtonStyle()) }.font(.system(size: 12))
-            }.padding(24).surface()
-            HStack { VStack(alignment: .leading,spacing: 7) { Text("EasyTile 1.1").font(.system(size: 15,weight: .semibold)); Text("Application macOS native · Code source sous licence MIT").font(.system(size: 11)).foregroundStyle(Theme.muted) }; Spacer(); Button("Quitter EasyTile") { NSApp.terminate(nil) }.buttonStyle(TileButtonStyle()) }.padding(24).surface()
-        }
-    }
     private var footer: some View {
-        HStack(spacing: 8) { Image(systemName: engine.isError ? "exclamationmark.circle" : "circle.dotted").foregroundStyle(engine.isError ? .orange : Theme.mint); Text(engine.message).lineLimit(2); Spacer(); Text("LOCAL · NATIF · MIT").font(.system(size: 8,weight: .medium)).tracking(1.4) }.font(.system(size: 10)).foregroundStyle(Theme.muted).padding(.horizontal,25).frame(minHeight: 40).background(Theme.panel.opacity(0.7)).accessibilityElement(children: .combine)
+        HStack(spacing: 8) { Image(systemName: engine.isError ? "exclamationmark.circle" : "circle.dotted").foregroundStyle(engine.isError ? Theme.warning : Theme.mint); Text(engine.message).lineLimit(2); Spacer(); Text("LOCAL · NATIF · MIT").font(.system(size: 8,weight: .medium)).tracking(1.4) }.font(.system(size: 10)).foregroundStyle(Theme.muted).padding(.horizontal,25).frame(minHeight: 40).background(Theme.panel.opacity(0.7)).accessibilityElement(children: .combine)
     }
 }
 
@@ -183,7 +169,7 @@ struct MonitorView: View {
         VStack(spacing: 0) {
             GeometryReader { geo in
                 ZStack(alignment: .topLeading) {
-                    RoundedRectangle(cornerRadius: compact ? 9 : 13).fill(LinearGradient(colors: [Color(red: 0.12,green: 0.2,blue: 0.24),Color(red: 0.18,green: 0.16,blue: 0.27),Theme.bg],startPoint: .topLeading,endPoint: .bottomTrailing))
+                    RoundedRectangle(cornerRadius: compact ? 9 : 13).fill(LinearGradient(colors: [Theme.mint.opacity(0.06),Theme.colors[1].opacity(0.06),Theme.bg],startPoint: .topLeading,endPoint: .bottomTrailing))
                     ForEach(Array(layout.zones.enumerated()), id: \.element.id) { index, zone in
                         let inset: CGFloat = compact ? 4 : CGFloat(4 + gap * 0.17)
                         let color = Theme.colors[index % Theme.colors.count]
@@ -196,14 +182,14 @@ struct MonitorView: View {
                                     if !compact { Text(zone.label).font(.system(size: 11,weight: .medium)).foregroundStyle(Theme.ink); if hovered == zone.id { Image(systemName: "arrow.up.right").font(.system(size: 11)).foregroundStyle(color) } }
                                 }
                             }.contentShape(Rectangle())
-                        }.buttonStyle(.plain).disabled(!enabled).onHover { over in hovered = over ? zone.id : nil }
+                        }.buttonStyle(TilePlainButtonStyle()).disabled(!enabled).onHover { over in hovered = over ? zone.id : nil }
                             .frame(width: max(1,geo.size.width * zone.width-inset*2),height: max(1,geo.size.height * zone.height-inset*2)).offset(x: geo.size.width*zone.x+inset,y: geo.size.height*zone.y+inset)
                             .accessibilityLabel("Zone \(index+1), \(zone.label)").help("Placer la fenêtre : \(zone.label)")
                     }
                 }
             }.aspectRatio(min(max(aspect,1.25),2.5),contentMode: .fit).frame(maxHeight: compact ? 180 : 230)
-                .padding(compact ? 5 : 7).background(Color.black.opacity(0.3),in: RoundedRectangle(cornerRadius: compact ? 12 : 19)).overlay(RoundedRectangle(cornerRadius: compact ? 12 : 19).strokeBorder(.white.opacity(0.13)))
-            if !compact { UnevenRoundedRectangle(bottomLeadingRadius: 6,bottomTrailingRadius: 6).fill(LinearGradient(colors: [.white.opacity(0.12),.white.opacity(0.025)],startPoint: .top,endPoint: .bottom)).frame(width: 65,height: 13); Capsule().fill(.white.opacity(0.1)).frame(width: 110,height: 4) }
+                .padding(compact ? 5 : 7).background(Theme.raised,in: RoundedRectangle(cornerRadius: compact ? 12 : 19)).overlay(RoundedRectangle(cornerRadius: compact ? 12 : 19).strokeBorder(Theme.ink.opacity(0.13)))
+            if !compact { UnevenRoundedRectangle(bottomLeadingRadius: 6,bottomTrailingRadius: 6).fill(LinearGradient(colors: [Theme.ink.opacity(0.12),Theme.ink.opacity(0.025)],startPoint: .top,endPoint: .bottom)).frame(width: 65,height: 13); Capsule().fill(Theme.ink.opacity(0.1)).frame(width: 110,height: 4) }
         }
     }
 }
@@ -213,8 +199,8 @@ struct LayoutCard: View {
     let action: () -> Void
     private func miniZone(_ z: TileZone, index: Int, size: CGSize) -> some View {
         let color = Theme.colors[index % 4]
-        let fill = selected ? color.opacity(0.38) : Color.white.opacity(0.09)
-        let stroke = selected ? color.opacity(0.6) : Color.white.opacity(0.1)
+        let fill = selected ? color.opacity(0.38) : Theme.ink.opacity(0.09)
+        let stroke = selected ? color.opacity(0.6) : Theme.ink.opacity(0.1)
         return RoundedRectangle(cornerRadius: 3).fill(fill)
             .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(stroke))
             .frame(width: max(1,size.width*z.width-4),height: max(1,size.height*z.height-4))
@@ -232,7 +218,7 @@ struct LayoutCard: View {
                     }
                 }.frame(height: 55)
                 HStack { Text(layout.name).font(.system(size: 11,weight: .medium)).lineLimit(1); Spacer(); if selected { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.mint).font(.system(size: 12)) } }
-            }.padding(13).background(selected ? Theme.mint.opacity(0.055) : Theme.panel,in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(selected ? Theme.mint.opacity(0.6) : .white.opacity(0.07)))
-        }.buttonStyle(.plain).accessibilityLabel("Disposition \(layout.name)\(selected ? ", sélectionnée" : "")")
+            }.padding(13).background(selected ? Theme.mint.opacity(0.055) : Theme.panel,in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(selected ? Theme.mint.opacity(0.6) : Theme.ink.opacity(0.07)))
+        }.buttonStyle(TilePlainButtonStyle()).accessibilityLabel("Disposition \(layout.name)\(selected ? ", sélectionnée" : "")")
     }
 }

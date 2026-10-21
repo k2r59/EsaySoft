@@ -32,7 +32,7 @@ struct DragPaletteView: View {
     @ObservedObject var state: DragPaletteState
     var body: some View {
         ZStack(alignment:.topLeading) {
-            RoundedRectangle(cornerRadius:18).fill(Theme.panel.opacity(0.98)).overlay(RoundedRectangle(cornerRadius:18).strokeBorder(.white.opacity(0.17)))
+            RoundedRectangle(cornerRadius:18).fill(Theme.panel.opacity(0.98)).overlay(RoundedRectangle(cornerRadius:18).strokeBorder(Theme.ink.opacity(0.17)))
             HStack(spacing:9) {
                 Image(systemName:"rectangle.3.group.fill").foregroundStyle(Theme.mint)
                 Text(state.choice == nil ? "Où veux-tu placer cette fenêtre ?" : "Relâche pour placer la fenêtre").font(.system(size:12,weight:.semibold))
@@ -54,6 +54,6 @@ struct DragPaletteView: View {
                     Text(layout.name).font(.system(size:9,weight:.medium)).foregroundStyle(state.choice?.layoutIndex == index ? Theme.mint : Theme.muted).lineLimit(1).frame(width:82).offset(x:4,y:62)
                 }.frame(width:card.width,height:card.height).offset(x:card.minX,y:card.minY)
             }
-        }.frame(width:state.geometry.size.width,height:state.geometry.size.height).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
+        }.frame(width:state.geometry.size.width,height:state.geometry.size.height).foregroundStyle(Theme.ink)
     }
 }
