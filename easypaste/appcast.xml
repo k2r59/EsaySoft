@@ -6,6 +6,22 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyPaste</title>
         <item>
+            <title>0.3.3</title>
+            <pubDate>Wed, 21 Oct 2026 15:47:52 +0200</pubDate>
+            <sparkle:version>20</sparkle:version>
+            <sparkle:shortVersionString>0.3.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[La sélection des cartes réagit dès le premier clic, sans attendre un éventuel double-clic.
+
+- Correction dans la barre rapide et dans les vues grille et liste de l’historique.
+- Double-clic, sélection multiple avec Cmd/Maj et boutons intégrés conservés.
+- État de sélection de la barre rapide exposé aux outils d’accessibilité.
+
+macOS 15 ou ultérieur · Mac Intel et Apple Silicon · Licence MIT.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.3/EasyPaste-0.3.3-universal.dmg" length="9474549" type="application/octet-stream" sparkle:edSignature="T2H7HL7zZocPObTh+MdzD80XIytOaTZywR45zcn3HVHcUwXVrkhknQ0bqrsiDA3sK78XYTF3sFkdKNOVonqYCw=="/>
+        </item>
+        <item>
             <title>0.3.2</title>
             <pubDate>Wed, 21 Oct 2026 12:09:31 +0200</pubDate>
             <sparkle:version>19</sparkle:version>
@@ -45,29 +61,9 @@ macOS 15 ou ultérieur · Mac Intel et Apple Silicon · Licence MIT.
 ]]></description>
             <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.1/EasyPaste-0.3.1-universal.dmg" length="9444614" type="application/octet-stream" sparkle:edSignature="iAWkT3Uw2PyLPZrueKjM1sWpKbv1AWH8fATMH26IaqOr8Agce5NiOQy6dpWHNJb358jR8CvN+Xl0edxc7BaWBQ=="/>
         </item>
-        <item>
-            <title>0.3.0</title>
-            <pubDate>Tue, 20 Oct 2026 12:05:49 +0200</pubDate>
-            <sparkle:version>17</sparkle:version>
-            <sparkle:shortVersionString>0.3.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[EasyPaste peut désormais se mettre à jour directement depuis son menu et ses réglages.
-
-- Rechercher, télécharger et installer une nouvelle version sans remplacer l’app à la main.
-- Vérifications automatiques facultatives, une fois par jour.
-- Installation protégée pendant les captures, les annotations et les partages.
-- Historique, collections et réglages conservés.
-- Applications signées et notarisées par Apple ; téléchargements et informations de mise à jour signés avec Sparkle.
-
-Cette première version doit être installée une fois avec le DMG. Les suivantes pourront être installées depuis EasyPaste.
-
-macOS 15 ou ultérieur · Mac Intel et Apple Silicon · Licence MIT.
-]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.0/EasyPaste-0.3.0-universal.dmg" length="9388513" type="application/octet-stream" sparkle:edSignature="Z3dg6Epnifvdum1akIpJ25J0J8C2wiVD57R86LV/CDDw5FmmQml8w/vfOM0q8wsPd6Rq7sRN3hRSV9Ic0n7HBQ=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: OHbS8DJc/yrxnc7odxl3vng6lw/R/Z33ye26u6IYwu5pVHfyLydM+t/CV22lL6SAmND9JPyHHQtUpqsl0f2mDg==
-length: 4465
+edSignature: AGipdeDQtN+WN8HHR5bmkoLyR9zQ/AU3W6DKeR/ht2EQcvo/5+Ss1SM4gi1HAr2t//doKaOz+a96AM6xJfSNAQ==
+length: 4175
 -->
