@@ -21,7 +21,7 @@ struct MainView: View {
             if history.page == "settings" { SettingsView(history: history) }
             else { library }
         }
-        .background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
+        .background(Theme.bg).foregroundStyle(Theme.ink)
         .environment(\.locale, Locale(identifier: "fr_FR"))
         .modifier(HistorySheets(history: history))
     }
@@ -136,7 +136,7 @@ struct MainView: View {
                     Label(history.toast ?? history.notice, systemImage: history.fault ? "exclamationmark.circle" : "checkmark.circle").lineLimit(2)
                     Spacer()
                     if !history.recentlyTrashed.isEmpty { Button("Annuler la suppression") { history.undoTrash() }.buttonStyle(FullAreaButtonStyle()) }
-                }.font(.system(size: 11)).foregroundStyle(history.fault ? .orange : Theme.mint)
+                }.font(.system(size: 11)).foregroundStyle(history.fault ? Theme.warning : Theme.mint)
             }
             HStack(spacing: 10) {
                 Image(systemName: selection.isEmpty ? "cursorarrow" : "checkmark.square.fill").font(.system(size: 20)).foregroundStyle(Theme.mint)
@@ -199,14 +199,14 @@ struct LibraryCaptureActions: View {
             HStack(spacing: 0) {
                 Button { history.capture?(.area) } label: { Label(history.captureBusy ? "Capture…" : "Capturer une zone", systemImage: "viewfinder").padding(.horizontal, 13).frame(height: 40) }
                     .buttonStyle(FullAreaButtonStyle()).disabled(unavailable)
-                Rectangle().fill(Theme.bg.opacity(0.2)).frame(width: 1, height: 24)
+                Rectangle().fill(Theme.onAccent.opacity(0.3)).frame(width: 1, height: 24)
                 Menu { ForEach([CaptureAction.area, .window, .screen], id: \.self) { action in Button(action.title) { history.capture?(action) } } }
-                label: { Image(systemName: "chevron.down").frame(width: 29, height: 40).contentShape(Rectangle()) }
+                label: { Image(systemName: "chevron.down").foregroundColor(Theme.onAccent).frame(width: 29, height: 40).contentShape(Rectangle()) }
                     .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().disabled(unavailable).accessibilityLabel("Autres captures d’écran")
-            }.foregroundStyle(Theme.bg).background(Theme.mint.opacity(unavailable ? 0.45 : 1), in: RoundedRectangle(cornerRadius: 10))
+            }.foregroundStyle(Theme.onAccent).background(Theme.mint.opacity(unavailable ? 0.45 : 1), in: RoundedRectangle(cornerRadius: 10))
             Button { history.capture?(.text) } label: { Label("Extraire du texte", systemImage: "text.viewfinder") }.buttonStyle(PasteButtonStyle()).disabled(unavailable)
             Button { if history.recording { history.stopRecording?() } else { history.capture?(.video) } } label: { Label(history.recording ? "Arrêter" : "Vidéo", systemImage: history.recording ? "stop.circle.fill" : "video") }
-                .buttonStyle(PasteButtonStyle()).foregroundStyle(history.recording ? .red : Theme.ink).disabled(unavailable && !history.recording)
+                .buttonStyle(PasteButtonStyle()).foregroundStyle(history.recording ? Theme.danger : Theme.ink).disabled(unavailable && !history.recording)
         }.font(.system(size: 12, weight: .semibold)).fixedSize()
     }
 }
@@ -238,7 +238,7 @@ struct LibraryFilters: View {
         let selected = history.filter == kind
         return Button { history.filter = kind } label: {
             Text(label).font(.system(size: 12, weight: selected ? .semibold : .regular)).padding(.horizontal, 12).frame(height: 34)
-                .foregroundStyle(selected ? Theme.bg : Theme.muted).background(selected ? Theme.mint : .clear, in: RoundedRectangle(cornerRadius: 8))
+                .foregroundStyle(selected ? Theme.onAccent : Theme.muted).background(selected ? Theme.mint : .clear, in: RoundedRectangle(cornerRadius: 8))
         }.buttonStyle(FullAreaButtonStyle()).accessibilityAddTraits(selected ? .isSelected : [])
     }
     private func layoutButton(_ icon: String, label: String, isList: Bool) -> some View {

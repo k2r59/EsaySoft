@@ -25,6 +25,7 @@ struct HistorySheets: ViewModifier {
     init() {
         textView.isRichText = true; textView.allowsUndo = true; textView.isEditable = true
         textView.font = .systemFont(ofSize: 15); textView.textColor = .black
+        textView.insertionPointColor = .black
         textView.backgroundColor = .white; textView.drawsBackground = true
         textView.textContainerInset = NSSize(width: 20, height: 20)
         textView.isAutomaticQuoteSubstitutionEnabled = false
@@ -108,7 +109,7 @@ struct EditorView: View {
             }
             if model.ready { RichTextEditor(model: model).frame(height: 310).clipShape(RoundedRectangle(cornerRadius: 12)) }
             else { ProgressView("Ouverture du texte…").frame(height: 310).frame(maxWidth: .infinity) }
-            HStack { Text(error).font(.system(size: 11)).foregroundStyle(.orange); Spacer(); Button("Enregistrer") {
+            HStack { Text(error).font(.system(size: 11)).foregroundStyle(Theme.warning); Spacer(); Button("Enregistrer") {
                 let text = model.textView.string
                 guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { error = "Saisis un texte avant d’enregistrer."; return }
                 guard text.utf8.count + (model.rtf?.count ?? 0) <= ClipboardReader.limit else { error = "Ce texte dépasse la limite de 20 Mo."; return }
@@ -116,7 +117,7 @@ struct EditorView: View {
                 if let clip { history.edit(clip.id, title: name, text: text, rtf: model.rtf) } else { history.makeSnippet(name, text: text, rtf: model.rtf) }
                 dismiss()
             }.buttonStyle(PasteButtonStyle(primary: true)).disabled(!model.ready).keyboardShortcut("s", modifiers: .command) }
-        }.padding(26).frame(width: 640).background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
+        }.padding(26).frame(width: 640).background(Theme.bg).foregroundStyle(Theme.ink)
         .task { title = clip?.title ?? ""; do { if let clip { model.load(try await history.fullClip(clip)) } else { model.load(nil) } } catch { self.error = error.localizedDescription } }
     }
     private func format(_ icon: String, _ label: String, action: @escaping () -> Void) -> some View { Button(action: action) { Image(systemName: icon).frame(width: 25, height: 25) }.buttonStyle(PasteButtonStyle()).help(label).accessibilityLabel(label) }
@@ -131,7 +132,7 @@ struct NewBoardView: View {
             Text("Ses éléments sont conservés sans limite de durée.").font(.system(size: 12)).foregroundStyle(Theme.muted)
             TextField("Nom de la collection", text: $name).textFieldStyle(.roundedBorder).onSubmit { save() }.accessibilityLabel("Nom de la collection")
             HStack { Button("Annuler") { dismiss() }.buttonStyle(PasteButtonStyle()); Spacer(); Button("Créer la collection") { save() }.buttonStyle(PasteButtonStyle(primary: true)).disabled(name.trimmingCharacters(in: .whitespaces).isEmpty) }
-        }.padding(28).frame(width: 400).background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
+        }.padding(28).frame(width: 400).background(Theme.bg).foregroundStyle(Theme.ink)
     }
     private func save() { guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }; history.addBoard(name); dismiss() }
 }
@@ -252,7 +253,7 @@ struct PreviewView: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack { VStack(alignment: .leading, spacing: 5) { eyebrow("APERÇU"); Text(clip.title).font(.system(size: 18, weight: .semibold)).lineLimit(2) }; Spacer(); Button("Fermer", action: close).buttonStyle(PasteButtonStyle()).keyboardShortcut(.cancelAction) }
             if let full {
-                if !videoWarning.isEmpty { Label(videoWarning, systemImage: "exclamationmark.triangle").font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
+                if !videoWarning.isEmpty { Label(videoWarning, systemImage: "exclamationmark.triangle").font(.system(size: 11)).foregroundStyle(Theme.warning).fixedSize(horizontal: false, vertical: true) }
                 if full.kind == .image, let data = full.imageData { ImagePreview(data: data) }
                 else if full.kind == .video, let player { VideoPreview(player: player) }
                 else if full.kind == .file, let path = full.text.split(separator: "\n").first {
@@ -263,8 +264,8 @@ struct PreviewView: View {
                 if !full.ocr.isEmpty { ScrollView { Text(full.ocr).textSelection(.enabled).font(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 85) }
                 HStack { Text("\(full.source) · \(full.date.formatted(.dateTime.locale(Locale(identifier: "fr_FR")).day().month().hour().minute()))").font(.system(size: 10)).foregroundStyle(Theme.muted); Spacer(); if full.kind == .link || full.kind == .file { Button("Ouvrir") { openClip(full) }.buttonStyle(PasteButtonStyle()) }; if full.kind == .video { Button("Enregistrer…") { history.exportVideo(full) }.buttonStyle(PasteButtonStyle()) }; if !full.ocr.isEmpty { Button("Copier le texte") { Task { _ = await history.copy([full], plain: true) } }.buttonStyle(PasteButtonStyle()) }; Button("Copier") { Task { _ = await history.copy([full]) } }.buttonStyle(PasteButtonStyle(primary: true)) }
             } else if error.isEmpty { ProgressView("Chargement…").frame(maxWidth: .infinity).frame(height: 250) }
-            else { Text(error).foregroundStyle(.orange) }
-        }.padding(25).frame(width: 650).background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
+            else { Text(error).foregroundStyle(Theme.warning) }
+        }.padding(25).frame(width: 650).background(Theme.bg).foregroundStyle(Theme.ink)
         .task {
             do {
                 let value = try await history.fullClip(clip)
@@ -313,7 +314,7 @@ struct PreviewView: View {
             panel.contentView = NSHostingView(rootView: StructuredEditorView(model: model, history: history, close: { [weak self] in _ = self?.requestClose() }))
         } else {
             let content = ScrollView { PreviewView(history: history, clip: clip, close: { [weak self] in self?.history.previewing = nil }) }
-                .frame(width: 650, height: height).background(Theme.bg).preferredColorScheme(.dark)
+                .frame(width: 650, height: height).background(Theme.bg)
             panel.contentView = NSHostingView(rootView: content)
         }
         window = panel; clipID = clip.id; panel.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)

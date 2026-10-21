@@ -26,7 +26,7 @@ struct SVGPreviewView: View {
                     if background == 0 { Checkerboard() } else { (background == 1 ? Color.white : Color(white: 0.12)) }
                     if let image { Image(nsImage: image).resizable().scaledToFit().padding(24).frame(width: geometry.size.width, height: geometry.size.height) }
                     else if error.isEmpty { ProgressView("Rendu SVG…").padding(14).background(Theme.raised, in: RoundedRectangle(cornerRadius: 10)) }
-                    else { Text(error).font(.system(size: 12)).foregroundStyle(.orange).padding(20).background(Theme.panel) }
+                    else { Text(error).font(.system(size: 12)).foregroundStyle(Theme.warning).padding(20).background(Theme.panel) }
                 }.clipShape(RoundedRectangle(cornerRadius: 10))
             }
             HStack {
@@ -103,7 +103,7 @@ struct SVGFilePreview: View {
             Toggle("Afficher le source", isOn: $showSource).toggleStyle(.button).buttonStyle(PasteButtonStyle())
             if showSource { ScrollView([.horizontal, .vertical]) { Text(StructuredText.prefix(source, bytes: StructuredText.displayLimit)).font(.system(size: 12, design: .monospaced)).textSelection(.enabled).padding(12) } }
             else if let document { SVGPreviewView(document: document, history: history) }
-            else if !error.isEmpty { Text(error).font(.system(size: 12)).foregroundStyle(.orange).padding(16) }
+            else if !error.isEmpty { Text(error).font(.system(size: 12)).foregroundStyle(Theme.warning).padding(16) }
             else { ProgressView("Vérification du SVG…") }
         }.frame(height: 390).task(id: url) {
             source = ""; document = nil; error = ""

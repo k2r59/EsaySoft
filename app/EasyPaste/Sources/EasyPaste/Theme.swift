@@ -3,15 +3,33 @@ import SwiftUI
 import ImageIO
 
 enum Theme {
-    static let bg = Color(red: 0.050, green: 0.055, blue: 0.075)
-    static let panel = Color(red: 0.085, green: 0.095, blue: 0.120)
-    static let border = Color.white.opacity(0.09)
-    static let raised = Color(red: 0.125, green: 0.140, blue: 0.175)
-    static let ink = Color(red: 0.95, green: 0.96, blue: 0.98)
-    static let muted = Color(red: 0.61, green: 0.65, blue: 0.73)
-    static let mint = Color(red: 0.61, green: 0.97, blue: 0.80)
-    static let colors: [Color] = [mint, Color(red: 0.71, green: 0.68, blue: 1), Color(red: 1, green: 0.76, blue: 0.57), Color(red: 0.98, green: 0.66, blue: 0.80)]
+    // Named dynamic colors are resolved by the window's effective appearance.
+    // Switching themes changes presentation only: no history reload or image decoding.
+    static func adaptive(_ name: String, light: UInt32, dark: UInt32) -> Color {
+        Color(nsColor: NSColor(name: NSColor.Name("EasyPaste." + name)) { appearance in
+            let hex = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+            return NSColor(srgbRed: CGFloat((hex >> 16) & 255) / 255,
+                           green: CGFloat((hex >> 8) & 255) / 255,
+                           blue: CGFloat(hex & 255) / 255, alpha: 1)
+        })
+    }
+    static let bg = adaptive("background", light: 0xF4F6F8, dark: 0x0D0E13)
+    static let panel = adaptive("panel", light: 0xFFFFFF, dark: 0x16181F)
+    static let raised = adaptive("raised", light: 0xE7EBEF, dark: 0x20242D)
+    static let ink = adaptive("ink", light: 0x17232D, dark: 0xF2F5FA)
+    static let muted = adaptive("muted", light: 0x556474, dark: 0x9CA6BA)
+    static let mint = adaptive("accent", light: 0x11694F, dark: 0x9CF7CC)
+    static let onAccent = adaptive("onAccent", light: 0xFFFFFF, dark: 0x0D0E13)
+    static let warning = adaptive("warning", light: 0x915519, dark: 0xFFC291)
+    static let danger = adaptive("danger", light: 0xB52D37, dark: 0xFF8C95)
+    static let border = ink.opacity(0.13)
+    static let hoverBorder = ink.opacity(0.28)
+    static let colors: [Color] = [mint,
+        adaptive("violet", light: 0x6551A8, dark: 0xB5ADFF),
+        adaptive("amber", light: 0x915519, dark: 0xFFC291),
+        adaptive("rose", light: 0xA94470, dark: 0xFAA8CC)]
 }
+
 struct BrandMark: View {
     var size: CGFloat = 34
     var body: some View {
@@ -22,7 +40,7 @@ struct BrandMark: View {
     }
 }
 struct Surface: ViewModifier {
-    func body(content: Content) -> some View { content.background(Theme.panel, in: RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.white.opacity(0.075))) }
+    func body(content: Content) -> some View { content.background(Theme.panel, in: RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(Theme.border)) }
 }
 extension View { func surface() -> some View { modifier(Surface()) } }
 /// Keep the entire label interactive, including transparent padding and spacers.
@@ -44,16 +62,16 @@ struct PasteButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.font(.system(size: 12, weight: .semibold)).padding(.horizontal, 16).padding(.vertical, 11)
-            .foregroundStyle(primary ? Theme.bg : Theme.ink)
-            .background(primary ? Theme.mint.opacity(configuration.isPressed ? 0.75 : 1) : Color.white.opacity(configuration.isPressed ? 0.12 : 0.065), in: RoundedRectangle(cornerRadius: 11))
-            .overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(primary ? Color.white.opacity(0.25) : Color.white.opacity(0.07)))
+            .foregroundStyle(primary ? Theme.onAccent : Theme.ink)
+            .background(primary ? Theme.mint.opacity(configuration.isPressed ? 0.75 : 1) : Theme.ink.opacity(configuration.isPressed ? 0.12 : 0.065), in: RoundedRectangle(cornerRadius: 11))
+            .overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(primary ? Theme.mint : Theme.border))
             .contentShape(.interaction, Rectangle())
             .opacity(isEnabled ? 1 : 0.4)
     }
 }
 struct KeyCap: View {
     let text: String
-    var body: some View { Text(text).font(.system(size: 10, weight: .medium, design: .monospaced)).foregroundStyle(Theme.muted).padding(.horizontal, 7).padding(.vertical, 5).background(.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 5)).overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.white.opacity(0.08))) }
+    var body: some View { Text(text).font(.system(size: 10, weight: .medium, design: .monospaced)).foregroundStyle(Theme.muted).padding(.horizontal, 7).padding(.vertical, 5).background(Theme.ink.opacity(0.045), in: RoundedRectangle(cornerRadius: 5)).overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.border)) }
 }
 enum ArtworkCache {
     static let hero: NSImage? = {

@@ -81,7 +81,7 @@ struct ImagePreview: View {
                         }
                     }
                     if loading { ProgressView("Chargement…") }
-                    if !error.isEmpty { Text(error).font(.system(size: 12)).foregroundStyle(.orange).padding() }
+                    if !error.isEmpty { Text(error).font(.system(size: 12)).foregroundStyle(Theme.warning).padding() }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             }.frame(height: 360).background(Theme.bg).clipped()
         }.task(id: "\(actualSize)-\(displayScale)") {

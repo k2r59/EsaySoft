@@ -58,7 +58,7 @@ struct BitwardenClipMenu: View {
         toastTask?.cancel(); toast?.close()
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 290, height: 58), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isReleasedWhenClosed = false; panel.level = .floating; panel.isOpaque = false; panel.backgroundColor = .clear; panel.ignoresMouseEvents = true
-        panel.contentView = NSHostingView(rootView: HStack(spacing: 10) { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.mint); Text(text).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.ink) }.frame(width: 290, height: 58).background(Theme.panel, in: RoundedRectangle(cornerRadius: 14)).preferredColorScheme(.dark))
+        panel.contentView = NSHostingView(rootView: HStack(spacing: 10) { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.mint); Text(text).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.ink) }.frame(width: 290, height: 58).background(Theme.panel, in: RoundedRectangle(cornerRadius: 14)))
         let frame = (NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main)?.visibleFrame ?? .zero
         panel.setFrameOrigin(CGPoint(x: frame.midX - 145, y: frame.maxY - 90)); panel.orderFrontRegardless(); toast = panel
         toastTask = Task { [weak self] in do { try await Task.sleep(for: .seconds(3)) } catch { return }; self?.toast?.close(); self?.toast = nil }
@@ -98,7 +98,7 @@ struct BitwardenQuickView: View {
             }
             Text("Lien public · 7 jours").font(.system(size: 12)).foregroundStyle(Theme.muted)
             if let error = model.error {
-                Text(error).font(.system(size: 12)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                Text(error).font(.system(size: 12)).foregroundStyle(Theme.warning).fixedSize(horizontal: false, vertical: true)
             } else {
                 if model.busy {
                     if let progress = model.progress { ProgressView(value: progress) }
@@ -116,7 +116,7 @@ struct BitwardenQuickView: View {
                     else { Button("Réessayer") { model.create() }.buttonStyle(PasteButtonStyle(primary: true)).disabled(model.content == nil) }
                 }
             }
-        }.padding(22).frame(width: 380, height: 240).background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
+        }.padding(22).frame(width: 380, height: 240).background(Theme.bg).foregroundStyle(Theme.ink)
     }
 }
 
@@ -152,7 +152,7 @@ struct BitwardenWindowView: View {
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(2)
             }
             if let error = model.error {
-                Label(error, systemImage: "exclamationmark.circle").font(.system(size: 12)).foregroundStyle(.orange)
+                Label(error, systemImage: "exclamationmark.circle").font(.system(size: 12)).foregroundStyle(Theme.warning)
                     .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
             }
             if model.busy {
@@ -163,7 +163,7 @@ struct BitwardenWindowView: View {
             }
             Divider().opacity(0.3)
             footer
-        }.padding(26).frame(width: 540, height: 620).background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
+        }.padding(26).frame(width: 540, height: 620).background(Theme.bg).foregroundStyle(Theme.ink)
             .onAppear { email = model.account; focus = .email }
             .onChange(of: model.unlocked) { _, unlocked in password = ""; code = ""; if !unlocked { focus = .password } }
             .onChange(of: model.enabled) { _, _ in password = ""; code = "" }

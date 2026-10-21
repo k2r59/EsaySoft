@@ -1,10 +1,10 @@
 # EasyPaste
 
-Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT. Interface en français, couleurs graphite, menthe et lavande. SwiftUI pour l’interface, AppKit pour le presse-papiers et les fenêtres.
+Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT. Interface en français, apparence claire par défaut, thèmes sombre et automatique. SwiftUI pour l’interface, AppKit pour le presse-papiers et les fenêtres.
 
 ## Installation
 
-1. Ouvrir `dist/EasyPaste-0.3.1-universal.dmg`.
+1. Ouvrir `dist/EasyPaste-0.3.2-universal.dmg`.
 2. Glisser EasyPaste dans Applications, puis l’ouvrir.
 3. Cliquer sur **Activer l’historique**. Les prochaines copies seront enregistrées.
 4. Depuis une autre application, ouvrir la barre rapide avec **Maj + Commande + V**.
@@ -24,6 +24,11 @@ Les réglages sont regroupés en quatre onglets : Général, Confidentialité,
 Intégrations et Mises à jour. Dans **Général → Sons**, deux interrupteurs
 permettent de régler séparément le tic de copie et le son de capture d’image
 ou de texte OCR. Ils sont silencieux pendant un enregistrement vidéo.
+
+Dans **Général → Apparence**, choisir **Clair**, **Sombre** ou **Automatique**.
+Le mode clair est utilisé par défaut, y compris après une mise à jour depuis une
+version sans ce réglage. Automatique suit macOS sans redémarrage. Le choix est
+mémorisé sur ce Mac. Les couleurs des images et les documents copiés sont conservés.
 
 La procédure de publication est documentée dans [docs/UPDATES.md](docs/UPDATES.md).
 

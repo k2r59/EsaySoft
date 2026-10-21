@@ -19,7 +19,7 @@ struct LibraryClipCard: View {
             else { gridContent }
         }
         .padding(12).background(Theme.panel, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? Theme.mint : .white.opacity(hovered ? 0.23 : 0.1), lineWidth: selected ? 2 : 1))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? Theme.mint : (hovered ? Theme.hoverBorder : Theme.border), lineWidth: selected ? 2 : 1))
         .contentShape(RoundedRectangle(cornerRadius: 14))
         .onTapGesture(count: 2) { if clip.trashedAt != nil { history.restore(clip) } else { history.paste?([clip], false) } }
         .onTapGesture { history.select(clip, modifiers: NSEvent.modifierFlags); NSApp.keyWindow?.makeFirstResponder(nil) }
@@ -83,7 +83,7 @@ struct LibraryClipCard: View {
             if clip.kind == .video {
                 Button { history.previewing = clip } label: { Image(systemName: "play.fill").font(.system(size: 22)).foregroundStyle(.white).frame(width: 49, height: 49).background(.black.opacity(0.65), in: Circle()) }
                     .buttonStyle(FullAreaButtonStyle()).help("Lire la vidéo").accessibilityLabel("Lire la vidéo")
-                VStack { Spacer(); HStack { Spacer(); Text(clip.durationLabel).font(.system(size: 11, weight: .medium, design: .monospaced)).padding(5).background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: 5)) } }.padding(7).allowsHitTesting(false)
+                VStack { Spacer(); HStack { Spacer(); Text(clip.durationLabel).foregroundStyle(.white).font(.system(size: 11, weight: .medium, design: .monospaced)).padding(5).background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: 5)) } }.padding(7).allowsHitTesting(false)
             }
         }.clipShape(RoundedRectangle(cornerRadius: 9))
     }

@@ -73,7 +73,7 @@ struct CaptureMenu: View {
                 _ = CGRequestScreenCaptureAccess()
                 NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
             }.buttonStyle(PasteButtonStyle()); Button("Réessayer") { self.dismissPanel(); self.history.captureBusy = false; self.run(action) }.buttonStyle(PasteButtonStyle(primary: true)) }
-        }.padding(28).frame(width: 490).background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark), title: "Autorisation EasyPaste")
+        }.padding(28).frame(width: 490).background(Theme.bg).foregroundStyle(Theme.ink), title: "Autorisation EasyPaste")
     }
     private func present<V: View>(_ view: V, title: String) {
         dismissPanel()

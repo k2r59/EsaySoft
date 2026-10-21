@@ -22,7 +22,7 @@ struct AnnotationView: View {
             }.frame(maxHeight: .infinity)
             Rectangle().fill(Theme.border).frame(height: 1)
             footer
-        }.background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
+        }.background(Theme.bg).foregroundStyle(Theme.ink)
             .environment(\.locale, Locale(identifier: "fr_FR"))
             .task(id: model.zoom != nil) {
                 guard model.zoom != nil, model.image.width < Int(model.size.width) else { model.nativeImage = nil; model.loadingNative = false; return }
@@ -82,7 +82,7 @@ struct AnnotationView: View {
                 }
             }
             if !model.error.isEmpty {
-                Text(model.error).font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 15).padding(.vertical, 10)
+                Text(model.error).font(.system(size: 11)).foregroundStyle(Theme.warning).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 15).padding(.vertical, 10)
             }
         }
     }

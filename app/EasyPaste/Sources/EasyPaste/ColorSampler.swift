@@ -87,7 +87,7 @@ struct ColorSampleView: View {
                     .help("Les couleurs de l’écran sont converties en sRGB pour le web.")
             }
             RoundedRectangle(cornerRadius: 16).fill(sample.color).frame(height: 145)
-                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.white.opacity(0.16)))
+                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.border))
                 .accessibilityLabel("Aperçu de la couleur \(sample.hex)")
             VStack(spacing: 8) {
                 valueRow("HEX", sample.hex)
@@ -104,7 +104,7 @@ struct ColorSampleView: View {
                 Button(action: again) { Label("Prélever à nouveau", systemImage: "eyedropper") }
                     .buttonStyle(PasteButtonStyle(primary: true))
             }
-        }.padding(24).frame(width: 430).background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
+        }.padding(24).frame(width: 430).background(Theme.bg).foregroundStyle(Theme.ink)
     }
     private func valueRow(_ label: String, _ text: String) -> some View {
         Button {

@@ -41,6 +41,10 @@ struct AnnotationCanvas: NSViewRepresentable {
     init(model: AnnotationModel) { self.model = model; super.init(frame: .zero); wantsLayer = true; setAccessibilityLabel("Image à annoter") }
     required init?(coder: NSCoder) { fatalError() }
     override var acceptsFirstResponder: Bool { true }
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+    }
     var imageRect: CGRect {
         let scale = window?.backingScaleFactor ?? 1
         let size = model.zoom.map { CGSize(width: model.size.width/scale*$0, height: model.size.height/scale*$0) } ?? ImageRaster.fittedSize(pixels: model.size, available: CGSize(width: max(1, bounds.width-40), height: max(1, bounds.height-40)), displayScale: scale)

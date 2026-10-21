@@ -66,7 +66,7 @@ struct StructuredEditorView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.border))
             HStack(alignment: .top) {
                 if let issue = model.issue {
-                    Button { model.revealIssueRequest += 1 } label: { Label(issue.localizedDescription, systemImage: "exclamationmark.triangle").foregroundStyle(.orange) }
+                    Button { model.revealIssueRequest += 1 } label: { Label(issue.localizedDescription, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.warning) }
                         .buttonStyle(FullAreaButtonStyle()).help("Afficher la ligne concernée").disabled(issue.line == nil)
                 }
                 else if model.busy { Text("Vérification…") }
@@ -92,13 +92,13 @@ struct StructuredEditorView: View {
                             saveAction("Remplacer l’original…", icon: "arrow.triangle.2.circlepath") { confirmReplacement() }
                             Divider()
                             saveAction("Exporter le fichier…", icon: "square.and.arrow.up") { model.export() }
-                        }.padding(8).frame(width: 240).background(Theme.panel).preferredColorScheme(.dark)
+                        }.padding(8).frame(width: 240).background(Theme.panel)
                     }
                 Button("Copier le \(model.format.rawValue)") { model.copy(history: history) }
                     .buttonStyle(PasteButtonStyle(primary: model.format != .svg)).disabled(!model.canUseOutput)
             }
         }.padding(22).frame(minWidth: 690, minHeight: 540)
-            .background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
+            .background(Theme.bg).foregroundStyle(Theme.ink)
             .task { model.refresh() }.onDisappear { model.cancel() }
             .onChange(of: model.options) { _, _ in model.refresh() }
             .onChange(of: model.query) { _, _ in model.search() }

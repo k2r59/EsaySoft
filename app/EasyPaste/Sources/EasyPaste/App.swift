@@ -43,6 +43,7 @@ import CryptoKit
         super.init()
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppAppearance.stored().apply()
         target = NSWorkspace.shared.frontmostApplication
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1190, height: 850), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         window.title = "EasyPaste"; window.titlebarAppearsTransparent = true; window.titleVisibility = .hidden; window.delegate = self
