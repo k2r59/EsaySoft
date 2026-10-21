@@ -14,6 +14,18 @@ Compatible avec macOS 15 ou ultérieur, sur Mac Intel et Apple Silicon.
 
 EasyTile détecte l’autorisation sans redémarrage. Fermer sa fenêtre conserve son icône dans la barre des menus. Pour arrêter l’application, utilise **Quitter EasyTile** dans ce menu.
 
+## Apparence et démarrage
+
+Dans **Préférences** (ou Commande + Virgule), choisis **Clair**, **Sombre** ou **Automatique**. Le clair est proposé par défaut ; Automatique suit macOS. Le choix s’applique aux dispositions, à l’éditeur et aux palettes.
+
+**Ouvrir EasyTile au démarrage** utilise le service natif de macOS. L’état affiché reflète celui du système. Si macOS attend une validation, le lien vers **Général → Ouverture et extensions** apparaît. À la connexion, EasyTile reste dans la barre des menus sans ouvrir sa fenêtre. L’option est désactivée par défaut.
+
+## Mises à jour
+
+Le menu de la barre des menus et les Préférences proposent **Rechercher une mise à jour…**. La vérification quotidienne est activée par défaut. L’installation automatique à la fermeture peut être activée séparément ; sinon, l’app propose de télécharger et d’installer la nouvelle version.
+
+Les mises à jour proviennent des releases GitHub d’EasySoft, avec un flux et des installateurs signés. Les dispositions et réglages sont conservés. Depuis 1.1.x, installe une fois le DMG 1.2.0 pour activer ce mécanisme. Voir [le guide de publication](docs/UPDATES.md).
+
 ## Placer une fenêtre
 
 Dans **Dispositions**, choisis la fenêtre cible, l’écran et une disposition. Clique sur une zone de l’aperçu pour déplacer et redimensionner cette fenêtre. Les zones numérotées de la palette correspondent aux touches 1 à 9. Le déplacement concerne une fenêtre à la fois.
@@ -59,7 +71,7 @@ Cette version ne propose pas de restauration automatique d’un ensemble d’app
 Xcode et les outils Swift sont requis.
 
 ```sh
-swift test
+swift test -j 2 -c release
 ./scripts/build.sh
 open dist/EasyTile.app
 ```

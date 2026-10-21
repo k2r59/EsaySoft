@@ -6,23 +6,27 @@ if [[ -n "${NOTARY_PROFILE:-}" && -z "${CODE_SIGN_IDENTITY:-}" ]]; then
  exit 1
 fi
 ./scripts/build.sh
+version=$(python3 -c 'import json; print(json.load(open("scripts/release.json"))["version"])')
+app=${APP_BUNDLE_PATH:-dist/EasyTile.app}
 staging=$(mktemp -d "${TMPDIR:-/tmp}/EasyTile-package.XXXXXX")
 trap 'rm -rf "$staging"' EXIT
-ditto dist/EasyTile.app "$staging/EasyTile.app"
+ditto "$app" "$staging/EasyTile.app"
 ln -s /Applications "$staging/Applications"
 cp LICENSE "$staging/Licence MIT.txt"
+cp THIRD-PARTY-NOTICES.md "$staging/Composants tiers.md"
 cat > "$staging/Installation.txt" <<'TEXT'
-EASYTILE
+EASYSHOOT
 
 1. Glisse EasyTile dans Applications.
 2. Ouvre EasyTile depuis Applications.
-3. Clique sur Autoriser EasyTile, puis active EasyTile dans Accessibilité.
-4. Reviens dans une application et ouvre la palette avec Ctrl + Option + Espace.
+3. Autorise EasyTile dans Accessibilité si nécessaire.
+4. Pour les prochaines versions : menu EasyTile → Rechercher des mises à jour…
 
 macOS 15 ou ultérieur. Mac Intel et Apple Silicon.
-Code source sous licence MIT.
+Dispositions et préférences sur le Mac. Code source MIT ; Sparkle sous ses licences propres.
+
 TEXT
-dmg=dist/EasyTile-1.1.0-universal.dmg
+dmg="dist/EasyTile-$version-universal.dmg"
 hdiutil create -volname EasyTile -srcfolder "$staging" -format UDZO -fs HFS+ -ov "$dmg"
 if [[ -n "${CODE_SIGN_IDENTITY:-}" ]]; then
  codesign --force --timestamp --sign "$CODE_SIGN_IDENTITY" "$dmg"
@@ -31,16 +35,18 @@ if [[ -n "${NOTARY_PROFILE:-}" ]]; then
  xcrun notarytool submit "$dmg" --keychain-profile "$NOTARY_PROFILE" --wait
  xcrun stapler staple "$dmg"
  xcrun stapler validate "$dmg"
- xcrun stapler staple dist/EasyTile.app
- spctl --assess --type execute --verbose=2 dist/EasyTile.app
+ xcrun stapler staple "$app"
+ spctl --assess --type execute --verbose=2 "$app"
  spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
 fi
-ditto -c -k --sequesterRsrc --keepParent dist/EasyTile.app dist/EasyTile-1.1.0-universal.zip
+ditto "$app" "$staging/EasyTile.app"
+ditto -c -k --sequesterRsrc --keepParent "$staging/EasyTile.app" "dist/EasyTile-$version-universal.zip"
 mkdir -p "$staging/EasyTile-source"
-cp Package.swift LICENSE README.md .gitignore "$staging/EasyTile-source/"
+cp Package.swift Package.resolved LICENSE README.md QA-*.md THIRD-PARTY-NOTICES.md .gitignore "$staging/EasyTile-source/"
 ditto Sources "$staging/EasyTile-source/Sources"
 ditto Tests "$staging/EasyTile-source/Tests"
 ditto scripts "$staging/EasyTile-source/scripts"
-ditto -c -k --keepParent "$staging/EasyTile-source" dist/EasyTile-1.1.0-source.zip
-shasum -a 256 "$dmg" dist/EasyTile-1.1.0-universal.zip dist/EasyTile-1.1.0-source.zip > dist/SHA256SUMS
+ditto docs "$staging/EasyTile-source/docs"
+ditto -c -k --keepParent "$staging/EasyTile-source" "dist/EasyTile-$version-source.zip"
+(cd dist && shasum -a 256 "EasyTile-$version-universal.dmg" "EasyTile-$version-universal.zip" "EasyTile-$version-source.zip") > dist/SHA256SUMS
 print "Installateur : $PWD/$dmg"

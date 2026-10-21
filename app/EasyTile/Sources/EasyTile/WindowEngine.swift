@@ -27,7 +27,8 @@ final class WindowEngine: ObservableObject {
     var screen: NSScreen? { screens.indices.contains(screenIndex) ? screens[screenIndex] : screens.first }
     var primaryTop: CGFloat { NSScreen.screens.first?.frame.maxY ?? 0 }
 
-    init() {
+    init(observeSystem: Bool = true) {
+        guard observeSystem else { return }
         previousApp = NSWorkspace.shared.frontmostApplication
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] n in
             guard let app = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication, app.processIdentifier != ProcessInfo.processInfo.processIdentifier, app.activationPolicy == .regular else { return }

@@ -16,14 +16,14 @@ seuls les éléments choisis sont transmis après activation et connexion.
 Les installateurs de la [distribution locale du 17 octobre 2026](https://github.com/k2r59/EsaySoft/releases/tag/local-2026-10-17) sont signés avec Developer ID et notarisés par Apple :
 
 - [EasyShoot 0.3.0 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easyshoot-v0.3.0/EasyShoot-0.3.0-universal.dmg)
-- [EasyTile 1.1.0 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/local-2026-10-17/EasyTile-1.1.0-universal.dmg)
+- [EasyTile 1.2.0 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easytile-v1.2.0/EasyTile-1.2.0-universal.dmg)
 - [EasyPaste 0.3.2 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.2/EasyPaste-0.3.2-universal.dmg)
 
 Ouvrir le DMG, glisser l’application dans **Applications**, puis l’ouvrir depuis ce dossier. Autoriser les fonctions souhaitées lorsque macOS le demande. Aucun compte développeur ni Xcode n’est nécessaire pour utiliser ces installateurs.
 
 EasyPaste 0.3.0 et versions suivantes proposent **Rechercher des mises à jour…**
 dans leur menu. Les utilisateurs d’une version 0.2.x installent une dernière fois
-le DMG pour activer ce mécanisme. L’historique est conservé.
+le DMG pour activer ce mécanisme. L’historique est conservé. EasyTile 1.2.0 et EasyShoot 0.3.0 proposent aussi les mises à jour intégrées ; leurs anciennes versions nécessitent une première installation par DMG.
 
 La release contient les empreintes `SHA256SUMS` et la licence MIT. Les archives « Source code » contiennent les projets à compiler, tandis que les fichiers `.dmg` contiennent les applications à installer.
 
@@ -34,7 +34,7 @@ Les trois applications nécessitent **macOS 15 ou ultérieur**. Les scripts prod
 ## Compiler une application
 
 Installer Xcode et ses outils de développement, avec Swift 6 et le SDK macOS.
-Swift Package Manager télécharge Sparkle 2.10.0 pour les mises à jour d’EasyPaste.
+Swift Package Manager télécharge Sparkle 2.10.0 pour les mises à jour des trois applications.
 EasyPaste embarque l’implémentation C d’Argon2 sous CC0 pour les comptes Bitwarden concernés ;
 voir ses [mentions des composants tiers](app/EasyPaste/THIRD-PARTY-NOTICES.md).
 
@@ -80,4 +80,4 @@ Le code et les ressources originales de ce dépôt sont publiés sous [licence M
 
 La [licence MIT](https://opensource.org/license/mit) permet l’utilisation, la modification et la redistribution, y compris commerciale, en conservant les mentions de copyright et le texte de la licence. Les scripts de distribution d’EasyPaste et d’EasyTile conservent l’attribution à EasyShoot dont ils sont adaptés. Les scripts incluent la licence de chaque application dans son paquet, son DMG et son archive de sources.
 
-Les icônes des applications sont dessinées par les scripts `generate-icon.swift`. L’illustration d’EasyPaste a été créée avec imagegen ; sa provenance et son prompt figurent dans [ASSET-PROMPT.txt](app/EasyPaste/ASSET-PROMPT.txt). Aucun paquet Swift externe n’est embarqué. Les composants système Apple appelés par les applications et les marques citées dans les guides ne sont pas placés sous la licence MIT du projet.
+Les icônes des applications sont dessinées par les scripts `generate-icon.swift`. L’illustration d’EasyPaste a été créée avec imagegen ; sa provenance et son prompt figurent dans [ASSET-PROMPT.txt](app/EasyPaste/ASSET-PROMPT.txt). Sparkle et ses composants conservent leurs licences BSD et zlib ; leurs mentions sont incluses avec chaque application. Les composants système Apple appelés par les applications et les marques citées dans les guides ne sont pas placés sous la licence MIT du projet.
