@@ -88,13 +88,14 @@ struct ClipCard: View {
         .overlay(RoundedRectangle(cornerRadius: 17).strokeBorder(selected ? Theme.mint.opacity(0.9) : (hovered ? Theme.hoverBorder : Theme.border), lineWidth: selected ? 1.5 : 1))
         .shadow(color: .black.opacity(0.13), radius: 8, y: 4)
         .contentShape(RoundedRectangle(cornerRadius: 15))
-        .modifier(CardInteraction(history: history, clip: clip))
+        .modifier(CardInteraction(history: history, clip: clip, pasteOnClick: true))
         .onHover { hovered = $0 }
         .contextMenu { ClipActions(history: history, clip: clip) }
         .onDrag { DragProvider.make(clip, history: history) }
         .accessibilityElement(children: .contain).accessibilityLabel("\(clip.title), \(clip.kind.label), \(clip.source)")
         .accessibilityAddTraits(selected ? .isSelected : [])
-        .accessibilityAction { history.select(clip); NSApp.keyWindow?.makeFirstResponder(nil) }
+        .accessibilityHint("Coller dans l’application précédente")
+        .accessibilityAction { CardInteraction(history: history, clip: clip, pasteOnClick: true).select(clickCount: 1, modifiers: []) }
     }
 }
 struct ClipContent: View {
@@ -201,10 +202,11 @@ struct ShelfView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         LazyHStack(spacing: 13) { ForEach(Array(history.visible.enumerated()), id: \.element.id) { index, clip in ClipCard(history: history, clip: clip, compact: history.compact, quickIndex: index).frame(width: history.compact ? 215 : 236).id(clip.id) } }.padding(3)
                     }.onChange(of: history.selected) { _, value in if let value { proxy.scrollTo(value) } }
+                    .onAppear { if let value = history.selected { proxy.scrollTo(value) } }
                 }
             }
             HStack(spacing: 14) {
-                Label("Coller", systemImage: "return"); Text("⇧Entrée · texte brut"); Text("⌘1–9 · collage rapide")
+                Text("Clic ou Entrée · coller"); Text("⇧Entrée · texte brut"); Text("⌘1–9 · collage rapide")
                 Spacer()
                 if !history.recentlyTrashed.isEmpty { Button("Annuler la suppression") { history.undoTrash() }.buttonStyle(FullAreaButtonStyle()).foregroundStyle(Theme.mint) }
                 if !history.selection.isEmpty { Button { history.trashItems(history.selection) } label: { Label("Supprimer\(history.selection.count > 1 ? " (\(history.selection.count))" : "")", systemImage: "trash") }.buttonStyle(FullAreaButtonStyle()).help("Supprimer la sélection") }

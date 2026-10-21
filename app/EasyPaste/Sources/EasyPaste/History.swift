@@ -103,6 +103,8 @@ struct ClipQuery {
     private var searchTask: Task<Void, Never>?
     @Published private(set) var ocrTasks: Set<UUID> = []
     private var importInFlight = false
+    // Keep a new copy pending when the current search/collection hides it.
+    private var pendingClipboardSelection: UUID?
     private var stopping = false
     private var writes = 0
     private var replacingImages = Set<UUID>()
@@ -167,11 +169,27 @@ struct ClipQuery {
             guard !Task.isCancelled, let self else { return }
             originalIDs = Set(snapshot.filter { $0.trashedAt == nil }.compactMap(\.parentID))
             visible = result.0; sources = result.1; total = result.2; totalBytes = result.3
-            if selected == nil || !result.0.contains(where: { $0.id == self.selected }) { selected = result.0.first?.id }
+            if let pending = pendingClipboardSelection, result.0.contains(where: { $0.id == pending }) {
+                selected = pending; selectedIDs = [pending]; pendingClipboardSelection = nil
+            } else if selected == nil || !result.0.contains(where: { $0.id == self.selected }) { selected = result.0.first?.id }
             selectedIDs.formIntersection(Set(result.0.map(\.id)))
         }
     }
+    func prepareShelf() {
+        // Read a copy made immediately before the shortcut, without waiting for
+        // the polling timer. Processing stays asynchronous.
+        poll()
+        surface = "shelf"
+        if collection != "all" { collection = "all" }
+        if !query.isEmpty { query = "" }
+        if filter != nil { filter = nil }
+        if !sourceFilter.isEmpty { sourceFilter = "" }
+        if todayOnly { todayOnly = false }
+        if let pending = pendingClipboardSelection { selected = pending; selectedIDs = [pending] }
+        refresh()
+    }
     func select(_ clip: Clip, modifiers: NSEvent.ModifierFlags = []) {
+        pendingClipboardSelection = nil
         if modifiers.contains(.shift), let start = visible.firstIndex(where: { $0.id == self.selected }), let end = visible.firstIndex(where: { $0.id == clip.id }) {
             selectedIDs.formUnion(visible[min(start,end)...max(start,end)].map(\.id))
         } else if modifiers.contains(.command) {
@@ -230,6 +248,8 @@ struct ClipQuery {
             value.boards = clips[i].boards; value.title = clips[i].title; value.ocr = clips[i].ocr; value.parentID = clips[i].parentID
             clips[i] = value.metadata()
         } else { clips.insert(value.metadata(), at: 0) }
+        pendingClipboardSelection = value.id
+        selected = value.id; selectedIDs = [value.id]
         persist(value)
         if stackRecording, !stack.contains(value.id) { stack.append(value.id) }
         prune(); indexOCR(value)
