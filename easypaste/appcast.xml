@@ -6,6 +6,26 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyPaste</title>
         <item>
+            <title>0.3.2</title>
+            <pubDate>Wed, 21 Oct 2026 12:09:31 +0200</pubDate>
+            <sparkle:version>19</sparkle:version>
+            <sparkle:shortVersionString>0.3.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[EasyPaste s’ouvre désormais en mode clair.
+
+- Trois apparences dans Réglages → Général : Clair, Sombre et Automatique.
+- Automatique suit le réglage de macOS ; le changement s’applique sans relancer l’app.
+- Le choix est conservé sur ce Mac.
+- Couleurs adaptées dans l’historique, la barre rapide, les réglages et les éditeurs.
+- Contrastes renforcés pour les textes, la recherche, les boutons et les messages d’erreur.
+
+Le contenu de l’historique et les couleurs des captures restent inchangés.
+
+macOS 15 ou ultérieur · Mac Intel et Apple Silicon · Licence MIT.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.2/EasyPaste-0.3.2-universal.dmg" length="9519477" type="application/octet-stream" sparkle:edSignature="hsGHRsMMxeJU89n0ESvO+zh7kmj23/W8mVp19QaPgZjT2lq7DSFkLzLP+upjKCqAXWVopQPh0KknY3Txq1oSBw=="/>
+        </item>
+        <item>
             <title>0.3.1</title>
             <pubDate>Tue, 20 Oct 2026 12:26:32 +0200</pubDate>
             <sparkle:version>18</sparkle:version>
@@ -48,6 +68,6 @@ macOS 15 ou ultérieur · Mac Intel et Apple Silicon · Licence MIT.
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: ++RIKZAhTGCbX8Uns40PNhIS9iHdo0AkDkKTbKVUzEQ3rbo5YCcuTqANeKdcdMf54gpSM6zxdsdcE1v3JBq3DA==
-length: 3176
+edSignature: OHbS8DJc/yrxnc7odxl3vng6lw/R/Z33ye26u6IYwu5pVHfyLydM+t/CV22lL6SAmND9JPyHHQtUpqsl0f2mDg==
+length: 4465
 -->
