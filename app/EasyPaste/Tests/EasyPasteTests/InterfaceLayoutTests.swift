@@ -33,9 +33,14 @@ import CryptoKit
         }
     }
     private func check<V: View>(_ root: V, size: CGSize, name: String) throws {
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            try check(root, size: size, name: name, appearance: appearance)
+        }
+    }
+    private func check<V: View>(_ root: V, size: CGSize, name: String, appearance: NSAppearance.Name) throws {
         let host = NSHostingView(rootView: root)
         let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false; window.contentView = host
+        window.isReleasedWhenClosed = false; window.appearance = NSAppearance(named: appearance); window.contentView = host
         defer { window.close() }
         host.frame = CGRect(origin: .zero, size: size); host.layoutSubtreeIfNeeded()
         XCTAssertLessThanOrEqual(host.fittingSize.width, size.width, "The interface must fit the supported minimum width.")
@@ -43,7 +48,7 @@ import CryptoKit
             let url = URL(fileURLWithPath: folder); try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
             let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
             host.cacheDisplay(in: host.bounds, to: bitmap)
-            try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: url.appendingPathComponent(name+".png"))
+            try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: url.appendingPathComponent(name+"-"+appearance.rawValue+".png"))
         }
     }
 }

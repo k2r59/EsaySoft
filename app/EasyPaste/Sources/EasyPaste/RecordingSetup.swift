@@ -32,7 +32,7 @@ struct RecordingSetupView: View {
             }
             Label("Arrêter : barre flottante ou ⌃⌥⌘S", systemImage: "stop.circle").font(.system(size: 11)).foregroundStyle(Theme.muted)
             HStack { Button("Annuler", action: cancel).buttonStyle(PasteButtonStyle()).keyboardShortcut(.cancelAction); Spacer(); Button(options.area ? "Choisir la zone" : "Démarrer dans 3 s") { start(options) }.buttonStyle(PasteButtonStyle(primary: true)).keyboardShortcut(.defaultAction) }
-        }.padding(28).frame(width: 500).background(Theme.bg).foregroundStyle(Theme.ink).preferredColorScheme(.dark)
+        }.padding(28).frame(width: 500).background(Theme.bg).foregroundStyle(Theme.ink)
         .task { cameras = RecordingDevice.cameras; microphones = RecordingDevice.microphones }
     }
     private func devicePicker(_ title: String, selection: Binding<String>, devices: [RecordingDevice]) -> some View {

@@ -1,6 +1,6 @@
 {
-  "version": "0.3.1",
-  "build": "18",
+  "version": "0.3.2",
+  "build": "19",
   "feed": "https://k2r59.github.io/EsaySoft/easypaste/appcast.xml",
   "publicKey": "AFP/6iGyiSLs9oydP3ZaHxoYZMrUMkd9bYoiOnEn2TM=",
   "keychainAccount": "app.easypaste.mac"

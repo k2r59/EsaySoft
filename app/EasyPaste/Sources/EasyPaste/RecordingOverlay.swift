@@ -108,8 +108,7 @@ private struct RecordingHUDView: View {
                 .foregroundStyle(.white).background(model.stopping ? Color.gray : Color(red: 0.80, green: 0.20, blue: 0.24), in: RoundedRectangle(cornerRadius: 10)).contentShape(Rectangle())
             }.buttonStyle(FullAreaButtonStyle()).disabled(model.stopping).help(model.countdown == nil ? "Arrêter et conserver la vidéo · ⌃⌥⌘S" : "Annuler l’enregistrement avant son démarrage")
         }.padding(.horizontal, 16).frame(height: 68).background(Theme.panel).foregroundStyle(Theme.ink)
-        .clipShape(RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.white.opacity(0.14)))
-        .preferredColorScheme(.dark)
+        .clipShape(RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.border))
     }
 }
 private final class RecordingControlPanel: NSPanel {

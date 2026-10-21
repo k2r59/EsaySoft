@@ -51,6 +51,9 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     switch category {
                     case .general:
+                section("Apparence", icon: "circle.lefthalf.filled") {
+                    AppearanceSettings()
+                }
                 section("Général", icon: "slider.horizontal.3") {
                     PreferenceToggle("Enregistrer les copies", isOn: $history.enabled).disabled(history.fault || history.loading)
                     PreferenceToggle("Lancer EasyPaste au démarrage", isOn: Binding(get: { launch }, set: { value in

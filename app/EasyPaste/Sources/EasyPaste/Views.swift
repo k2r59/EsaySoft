@@ -9,10 +9,10 @@ struct SearchBar: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass").foregroundStyle(Theme.muted)
-            TextField("Rechercher dans l’historique…", text: $history.query).textFieldStyle(.plain).focused($focused).font(.system(size: 13)).accessibilityLabel("Rechercher dans l’historique")
+            TextField("Rechercher dans l’historique…", text: $history.query, prompt: Text("Rechercher dans l’historique…").foregroundColor(Theme.muted)).textFieldStyle(.plain).focused($focused).font(.system(size: 13)).accessibilityLabel("Rechercher dans l’historique")
             if !history.query.isEmpty { Button { history.query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.muted).frame(width: 24, height: 24) }.buttonStyle(FullAreaButtonStyle()) }
             KeyCap(text: "⌘F")
-        }.padding(.horizontal, 14).padding(.vertical, 10).background(Theme.raised.opacity(0.75), in: RoundedRectangle(cornerRadius: 11)).overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(.white.opacity(0.05)))
+        }.padding(.horizontal, 14).padding(.vertical, 10).background(Theme.raised.opacity(0.75), in: RoundedRectangle(cornerRadius: 11)).overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(Theme.border))
         .onAppear { if focusOnAppear { focused = true } }
         .onReceive(NotificationCenter.default.publisher(for: .init("EasyPaste.focusSearch"))) { _ in focused = true }
     }
@@ -85,7 +85,7 @@ struct ClipCard: View {
         }
         .frame(height: compact ? 145 : 230)
         .background(LinearGradient(colors: [accent.opacity(hovered ? 0.14 : 0.085), Theme.panel], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 17))
-        .overlay(RoundedRectangle(cornerRadius: 17).strokeBorder(selected ? Theme.mint.opacity(0.9) : .white.opacity(hovered ? 0.19 : 0.09), lineWidth: selected ? 1.5 : 1))
+        .overlay(RoundedRectangle(cornerRadius: 17).strokeBorder(selected ? Theme.mint.opacity(0.9) : (hovered ? Theme.hoverBorder : Theme.border), lineWidth: selected ? 1.5 : 1))
         .shadow(color: .black.opacity(0.13), radius: 8, y: 4)
         .contentShape(RoundedRectangle(cornerRadius: 15))
         .onTapGesture(count: 2) { if clip.trashedAt != nil { history.restore(clip) } else { history.paste?([clip], false) } }
@@ -213,7 +213,7 @@ struct ShelfView: View {
             }.font(.system(size: 10)).foregroundStyle(Theme.muted)
         }.overlay(alignment: .bottomLeading) {
             if let toast = history.toast { Text(toast).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.mint).lineLimit(2).padding(.horizontal, 13).padding(.vertical, 9).background(Theme.panel, in: RoundedRectangle(cornerRadius: 10)).overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.mint.opacity(0.25))).padding(.bottom, 29).allowsHitTesting(false) }
-        }.padding(20).background(LinearGradient(colors: [Theme.raised, Theme.bg], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 23)).overlay(RoundedRectangle(cornerRadius: 23).strokeBorder(.white.opacity(0.14))).foregroundStyle(Theme.ink).preferredColorScheme(.dark).environment(\.locale, Locale(identifier: "fr_FR")).modifier(HistorySheets(history: history, host: "shelf"))
+        }.padding(20).background(LinearGradient(colors: [Theme.raised, Theme.bg], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 23)).overlay(RoundedRectangle(cornerRadius: 23).strokeBorder(Theme.border)).foregroundStyle(Theme.ink).environment(\.locale, Locale(identifier: "fr_FR")).modifier(HistorySheets(history: history, host: "shelf"))
     }
 }
 @MainActor enum DragProvider {
