@@ -54,3 +54,12 @@ n’était présent dans les rapports de diagnostic utilisateur.
   sur les données fictives (comparaison SHA-256, sans déchiffrement).
 - La préparation du DMG a utilisé le disque interne et le binaire universel
   déjà testé, pour éviter de recompiler sur le SSD externe pendant l’incident.
+- Publication : `easypaste-v0.3.3`. Le flux GitHub Pages public est identique au
+  flux signé local ; sa signature Ed25519 a été vérifiée après déploiement.
+- Test réel de mise à jour depuis la version installée 0.3.2 : le menu propose
+  0.3.3, le bouton Installer télécharge et installe la version, puis l’application
+  se relance automatiquement (nouveau processus observé avant toute relance manuelle).
+- Après cette mise à jour : 0.3.3 / build 20, aucun marqueur de démonstration,
+  binaire et Info.plist identiques aux artefacts publiés, signature Developer ID
+  conservée et Gatekeeper accepté. Les 241 fichiers chiffrés préexistants sont
+  encore identiques ; la collecte normale peut ajouter de nouveaux éléments.
