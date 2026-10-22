@@ -1,5 +1,17 @@
 import Foundation
 
+/// Bound visual work to one display interval. Never queue old pointer samples;
+/// the caller reads the current pointer when a frame is allowed. Mouse-up forces
+/// a final sample so dropping between two frames still uses the correct zone.
+struct DragFrameGate {
+    private var lastFrame: TimeInterval?
+    mutating func allows(_ time: TimeInterval, interval: TimeInterval, force: Bool = false) -> Bool {
+        guard force || lastFrame == nil || time-lastFrame! >= interval else { return false }
+        lastFrame = time
+        return true
+    }
+}
+
 /// Read the other application's window only to distinguish a move from a
 /// content drag or resize. Once confirmed, hover feedback is entirely local.
 struct DragTracking {
