@@ -19,6 +19,9 @@ final class WindowEngine: ObservableObject {
     @Published var isError = false
     @Published var undoCount = 0
     @Published var isPlacing = false
+    // Activation may arrive during a mouse drag. Enumerating every app's AX
+    // windows here would stall the palette. Explicit UI actions refresh later.
+    var trackingDrag = false
     private var undoStack: [(ManagedWindow, CGRect)] = []
     private var previousApp: NSRunningApplication?
     private var observers: [NSObjectProtocol] = []
@@ -52,6 +55,7 @@ final class WindowEngine: ObservableObject {
         if !trusted, let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") { NSWorkspace.shared.open(url) }
     }
     func refresh(preferFrontmost: Bool = false) {
+        guard !trackingDrag else { return }
         trusted = AXIsProcessTrusted()
         guard trusted else { windows = []; selectedID = nil; return }
         let old = selectedID
