@@ -15,7 +15,7 @@ ln -s /Applications "$staging/Applications"
 cp LICENSE "$staging/Licence MIT.txt"
 cp THIRD-PARTY-NOTICES.md "$staging/Composants tiers.md"
 cat > "$staging/Installation.txt" <<'TEXT'
-EASYSHOOT
+EASYTILE
 
 1. Glisse EasyTile dans Applications.
 2. Ouvre EasyTile depuis Applications.

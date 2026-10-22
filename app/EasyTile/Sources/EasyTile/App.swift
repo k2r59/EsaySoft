@@ -34,18 +34,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var localMouseMonitor: Any?
     private var preview: NSPanel?
     private var dragCandidate: (TileZone, Int)?
-    private var dragStarted = false
-    private var initialMouse: CGPoint?
-    private var initialWindowOrigin: CGPoint?
-    private var dragWindowID: String?
+    private var dragTracking: DragTracking?
+    private var dragHover = DragHover()
     private var dragWindow: ManagedWindow?
-    private var initialWindowSize: CGSize?
     private var dragMenu: NSPanel?
     private let dragState = DragPaletteState()
     private var dragScreenIndex: Int?
     private var dragTimer: Timer?
     private var dragCancelled = false
     private var dragKeyMonitor: Any?
+    private var screenObserver: NSObjectProtocol?
     private var resignObserver: NSObjectProtocol?
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppAppearance.stored().apply()
@@ -70,7 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         resignObserver = NotificationCenter.default.addObserver(forName:NSApplication.didResignActiveNotification,object:nil,queue:.main) { [weak self] _ in Task { @MainActor in self?.closePalette(restoreFocus: false) } }
         updates.busy = { [weak self] in
             guard let self else { return false }
-            return AppUpdates.isBusy(editor: self.store.showEditor, dragging: self.initialMouse != nil,
+            return AppUpdates.isBusy(editor: self.store.showEditor, dragging: self.dragTracking != nil,
                                      placement: self.engine.isPlacing, palette: self.palette?.isVisible == true)
         }
         updates.start()
@@ -163,6 +161,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if !engine.trusted { showMain() }
     }
     private func setupMouse() {
+        screenObserver = NotificationCenter.default.addObserver(forName:NSApplication.didChangeScreenParametersNotification,object:nil,queue:.main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.clearDrag(); self?.dragCancelled = true }
+        }
         mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching:[.leftMouseDown,.leftMouseDragged,.leftMouseUp]) { [weak self] e in
             MainActor.assumeIsolated { self?.mouse(e) }
         }
@@ -174,59 +175,73 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private func clearDrag() {
         dragTimer?.invalidate(); dragTimer = nil
         preview?.orderOut(nil); dragMenu?.orderOut(nil)
-        dragCandidate = nil; dragStarted = false; initialMouse = nil; initialWindowOrigin = nil
-        initialWindowSize = nil; dragWindowID = nil; dragWindow = nil; dragScreenIndex = nil; dragState.choice = nil
+        dragCandidate = nil; dragTracking = nil; dragHover = DragHover()
+        dragWindow = nil; dragScreenIndex = nil; dragState.choice = nil
+        engine.trackingDrag = false
     }
     private func mouse(_ e:NSEvent) {
-        guard store.dragEnabled, AXIsProcessTrusted() else { clearDrag(); return }
+        // WindowEngine already monitors authorization. Do not query TCC for
+        // every pointer event while another app is running its tracking loop.
+        guard store.dragEnabled, engine.trusted else { clearDrag(); return }
         if e.type == .leftMouseDown {
             clearDrag(); dragCancelled = false
             let p = NSEvent.mouseLocation
             let ax = CGPoint(x:p.x,y:engine.primaryTop-p.y)
             guard let w = engine.window(at:ax), let f = engine.frame(w.element) else { return }
-            initialMouse = p; initialWindowOrigin = f.origin; initialWindowSize = f.size
-            dragWindowID = w.id; dragWindow = w
+            dragTracking = DragTracking(initialPointer:p, initialFrame:f); dragWindow = w
+            engine.trackingDrag = true
             return
         }
         if e.type == .leftMouseUp {
-            if dragStarted, !dragCancelled, let w = dragWindow {
-                updateDrag()
-                if let (zone,index) = dragCandidate, engine.windows.contains(where: { $0.id == w.id }) {
-                    engine.selectedID = w.id; engine.screenIndex = index; engine.apply(zone,gap:store.gap)
-                }
-            }
-            clearDrag(); return
+            finishDrag(); return
         }
-        guard !dragCancelled, initialMouse != nil, e.type == .leftMouseDragged else { return }
+        guard !dragCancelled, dragTracking != nil, e.type == .leftMouseDragged else { return }
         if dragTimer == nil {
-            dragTimer = Timer.scheduledTimer(withTimeInterval:0.04,repeats:true) { [weak self] _ in
+            // Events drive feedback immediately. This fallback handles a quiet
+            // pointer and a release that the global monitor did not receive.
+            let timer = Timer(timeInterval:0.04,repeats:true) { [weak self] _ in
                 MainActor.assumeIsolated {
-                    guard NSEvent.pressedMouseButtons & 1 != 0 else { return }
+                    guard NSEvent.pressedMouseButtons & 1 != 0 else { self?.finishDrag(); return }
                     self?.updateDrag()
                 }
             }
+            RunLoop.main.add(timer,forMode:.common); dragTimer = timer
         }
         updateDrag()
     }
-    private func updateDrag() {
-        guard store.dragEnabled, !dragCancelled, AXIsProcessTrusted(), let start = initialMouse,
-              let initial = initialWindowOrigin, let initialSize = initialWindowSize, let w = dragWindow,
-              !w.app.isTerminated, let actual = engine.frame(w.element) else { clearDrag(); return }
-        let p = NSEvent.mouseLocation
-        if !dragStarted {
-            // A resize or a content drag must never open the placement menu.
-            guard abs(actual.width-initialSize.width) < 3, abs(actual.height-initialSize.height) < 3 else { clearDrag(); dragCancelled = true; return }
-            guard hypot(p.x-start.x,p.y-start.y) > 14, hypot(actual.minX-initial.x,actual.minY-initial.y) > 6 else { return }
-            dragStarted = true
+    private func finishDrag() {
+        if dragTracking?.phase == .moving, !dragCancelled, let w = dragWindow {
+            updateDrag()
+            if let (zone,index) = dragCandidate, engine.windows.contains(where: { $0.id == w.id }) {
+                engine.selectedID = w.id; engine.screenIndex = index; engine.apply(zone,gap:store.gap)
+            }
         }
+        // Both the mouse-up event and fallback timer can finish a drag. Clearing
+        // it here ensures the second notification cannot place the window again.
+        clearDrag()
+    }
+    private func updateDrag() {
+        guard store.dragEnabled, !dragCancelled, engine.trusted, var tracking = dragTracking,
+              let w = dragWindow, !w.app.isTerminated else { clearDrag(); return }
+        let p = NSEvent.mouseLocation
+        let phase = tracking.update(pointer:p) { engine.frame(w.element) }
+        dragTracking = tracking
+        switch phase {
+        case .pending: return
+        case .cancelled: clearDrag(); dragCancelled = true; return
+        case .moving: break
+        }
+        guard dragHover.sample(p) else { return }
         guard let i = engine.screens.firstIndex(where: { $0.frame.contains(p) }) else {
-            dragMenu?.orderOut(nil); preview?.orderOut(nil); dragCandidate = nil; return
+            dragMenu?.orderOut(nil); preview?.orderOut(nil); dragCandidate = nil
+            dragHover = DragHover(); dragState.choice = nil; return
         }
         if dragScreenIndex != i || dragMenu?.isVisible != true { showDragMenu(on:i) }
         guard let menu = dragMenu else { return }
         let local = CGPoint(x:p.x-menu.frame.minX,y:menu.frame.maxY-p.y)
         let choice = dragState.geometry.hit(local,layouts:dragState.layouts)
-        if dragState.choice != choice { dragState.choice = choice }
+        guard dragHover.select(choice) else { return }
+        dragState.choice = choice
         guard let choice else { dragCandidate = nil; preview?.orderOut(nil); return }
         let z = dragState.layouts[choice.layoutIndex].zones[choice.zoneIndex]
         dragCandidate = (z,i)
@@ -243,13 +258,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             dragState.layouts.insert(active,at:0)
         }
         dragState.geometry = DragPaletteGeometry(columns:columns,count:visibleCount)
-        dragState.choice = nil
+        dragState.choice = nil; dragHover = DragHover(); dragCandidate = nil; preview?.orderOut(nil)
         let size = dragState.geometry.size
         let panel = dragMenu ?? NSPanel(contentRect:.zero,styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = true
         panel.level = NSWindow.Level(rawValue:NSWindow.Level.floating.rawValue+2)
         panel.ignoresMouseEvents = true; panel.collectionBehavior = [.canJoinAllSpaces,.fullScreenAuxiliary]
-        panel.contentView = NSHostingView(rootView:DragPaletteView(state:dragState))
+        if dragMenu == nil { panel.contentView = NSHostingView(rootView:DragPaletteView(state:dragState)) }
         panel.setFrame(CGRect(x:screen.visibleFrame.midX-size.width/2,y:screen.visibleFrame.maxY-size.height-14,width:size.width,height:size.height),display:true)
         dragMenu = panel; dragScreenIndex = index; panel.orderFrontRegardless()
     }
@@ -263,7 +278,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             panel.collectionBehavior = [.canJoinAllSpaces,.fullScreenAuxiliary]
             panel.contentView = NSHostingView(rootView:RoundedRectangle(cornerRadius:14).fill(Theme.mint.opacity(0.13)).overlay(RoundedRectangle(cornerRadius:14).strokeBorder(Theme.mint.opacity(0.85),lineWidth:3)).padding(2)); preview = panel
         }
-        preview?.setFrame(cocoaFrame,display:true); preview?.orderFrontRegardless()
+        if preview?.frame != cocoaFrame { preview?.setFrame(cocoaFrame,display:true,animate:false) }
+        if preview?.isVisible != true { preview?.orderFrontRegardless() }
     }
 
 }

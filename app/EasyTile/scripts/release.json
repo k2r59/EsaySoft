@@ -1,6 +1,6 @@
 {
-  "version": "1.2.0",
-  "build": "3",
+  "version": "1.2.1",
+  "build": "4",
   "feed": "https://k2r59.github.io/EsaySoft/easytile/appcast.xml",
   "publicKey": "xfdE2Z0meybc7LFWuTucnI+rugDddGZS+xjuIgpApIo=",
   "keychainAccount": "app.easytile.mac"

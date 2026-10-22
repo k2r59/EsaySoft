@@ -16,7 +16,7 @@ seuls les éléments choisis sont transmis après activation et connexion.
 Les installateurs de la [distribution locale du 17 octobre 2026](https://github.com/k2r59/EsaySoft/releases/tag/local-2026-10-17) sont signés avec Developer ID et notarisés par Apple :
 
 - [EasyShoot 0.3.0 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easyshoot-v0.3.0/EasyShoot-0.3.0-universal.dmg)
-- [EasyTile 1.2.0 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easytile-v1.2.0/EasyTile-1.2.0-universal.dmg)
+- [EasyTile 1.2.1 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easytile-v1.2.1/EasyTile-1.2.1-universal.dmg)
 - [EasyPaste 0.3.5 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.5/EasyPaste-0.3.5-universal.dmg)
 
 Ouvrir le DMG, glisser l’application dans **Applications**, puis l’ouvrir depuis ce dossier. Autoriser les fonctions souhaitées lorsque macOS le demande. Aucun compte développeur ni Xcode n’est nécessaire pour utiliser ces installateurs.
