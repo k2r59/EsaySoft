@@ -6,6 +6,23 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyTile</title>
         <item>
+            <title>1.2.2</title>
+            <pubDate>Thu, 22 Oct 2026 08:49:21 +0200</pubDate>
+            <sparkle:version>5</sparkle:version>
+            <sparkle:shortVersionString>1.2.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyTile 1.2.2
+
+- Le menu de placement met à jour uniquement la zone survolée, pour alléger les passages rapides sur plusieurs modèles.
+- Le grand aperçu réutilise une fenêtre de taille fixe : il ne redimensionne plus sa fenêtre à chaque cadre traversé.
+- Les mouvements rapides sont regroupés, sans file d’attente de positions anciennes. Au relâchement, le placement utilise toujours la position actuelle de la souris.
+- Les espaces entre cadres effacent l’aperçu sans fermer puis rouvrir sa fenêtre.
+
+macOS 15 ou ultérieur. Mac Intel et Apple Silicon. Dispositions et préférences conservées.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easytile-v1.2.2/EasyTile-1.2.2-universal.dmg" length="2848614" type="application/octet-stream" sparkle:edSignature="4GFQr7flbZIvdgMOULQitObh1YLIIqQgfiD8p7JaWZYRQ+d9Pui89jftwslBeFR8KJ60xksAoLLX8+2j0g4yBQ=="/>
+        </item>
+        <item>
             <title>1.2.1</title>
             <pubDate>Thu, 22 Oct 2026 08:31:41 +0200</pubDate>
             <sparkle:version>4</sparkle:version>
@@ -46,6 +63,6 @@ macOS 15 ou ultérieur. Code source MIT ; Sparkle conserve ses licences BSD et z
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: TP1eif6w/1+N/f8820bLLWi+tkI1KQB0Db/l46bnvhzUHlLNk47/Vy0NjJyH5Z3s/w4eV0F0ndbAz4R71q/5Dg==
-length: 3401
+edSignature: VrlGlNaJlhC/EZVyWh2kN5gwMR6xKTtGzz8tBTUjyLlLstyCMi8i/5e8OWrZZgApm9FNLzduhhd+GKSsDK2LBA==
+length: 4714
 -->
