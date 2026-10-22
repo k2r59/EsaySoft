@@ -1,8 +1,28 @@
-<?xml version="1.0" standalone="yes"?><!-- sparkle-sign-warning:
+<?xml version="1.0" standalone="yes"?>
+<!-- sparkle-sign-warning:
 IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
---><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+-->
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <title>EasyTile</title>
+        <item>
+            <title>1.2.1</title>
+            <pubDate>Thu, 22 Oct 2026 08:31:41 +0200</pubDate>
+            <sparkle:version>4</sparkle:version>
+            <sparkle:shortVersionString>1.2.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyTile 1.2.1
+
+- Le passage d’un cadre à l’autre pendant le déplacement d’une fenêtre réagit plus vite : l’aperçu ne dépend plus des réponses répétées de l’application déplacée.
+- L’aperçu et le menu sont réutilisés ; aucun redessin supplémentaire tant que le cadre sélectionné ne change pas.
+- L’actualisation de la liste des fenêtres est suspendue pendant le geste.
+- La détection d’un vrai déplacement est conservée : une sélection de texte ou un redimensionnement ne doit pas ouvrir le menu de placement.
+- Le menu est fermé proprement si un écran est déconnecté ou si le bouton de souris a été relâché sans notification.
+
+macOS 15 ou ultérieur. Mac Intel et Apple Silicon. Dispositions et préférences conservées.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easytile-v1.2.1/EasyTile-1.2.1-universal.dmg" length="2850809" type="application/octet-stream" sparkle:edSignature="lcoyY7FowjlFgO7WJCIUp+PpuaB+w6cLzrLxj03QmfwwdXbeufxbiL6eVBwXwTbm6t6GWZbFMGinTblOmLh5Dw=="/>
+        </item>
         <item>
             <title>1.2.0</title>
             <pubDate>Wed, 21 Oct 2026 14:23:33 +0200</pubDate>
@@ -21,10 +41,11 @@ Depuis EasyTile 1.1.x, installe une fois ce DMG dans Applications. Les prochaine
 
 macOS 15 ou ultérieur. Code source MIT ; Sparkle conserve ses licences BSD et zlib.
 ]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easytile-v1.2.0/EasyTile-1.2.0-universal.dmg" length="3905691" type="application/octet-stream" sparkle:edSignature="aRmMQAO9l0e12wmyVDRA9l8xATAt0SOYCtKwPaR19BMaqL3kyR6WSPAdwptlYR5FePw7g+INJKFZWMfD51PWBA=="></enclosure>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easytile-v1.2.0/EasyTile-1.2.0-universal.dmg" length="3905691" type="application/octet-stream" sparkle:edSignature="aRmMQAO9l0e12wmyVDRA9l8xATAt0SOYCtKwPaR19BMaqL3kyR6WSPAdwptlYR5FePw7g+INJKFZWMfD51PWBA=="/>
         </item>
     </channel>
-</rss><!-- sparkle-signatures:
-edSignature: puxAWQDmb86tdpgSJRJYqVrsvN3Y1B5tfj2cTSVnxAT9HtU36mGx6ykJvhXZtGeC9ZPDD1igkFNViU01gh3DBw==
-length: 1942
+</rss>
+<!-- sparkle-signatures:
+edSignature: TP1eif6w/1+N/f8820bLLWi+tkI1KQB0Db/l46bnvhzUHlLNk47/Vy0NjJyH5Z3s/w4eV0F0ndbAz4R71q/5Dg==
+length: 3401
 -->
