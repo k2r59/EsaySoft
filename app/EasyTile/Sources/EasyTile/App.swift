@@ -32,7 +32,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var localKeyMonitor: Any?
     private var mouseMonitor: Any?
     private var localMouseMonitor: Any?
-    private var preview: NSPanel?
+    private let dragPreview = DragPreviewController()
+    private let dragPaletteView = NativeDragPaletteView()
+    private var dragFrameGate = DragFrameGate()
     private var dragCandidate: (TileZone, Int)?
     private var dragTracking: DragTracking?
     private var dragHover = DragHover()
@@ -174,7 +176,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
     private func clearDrag() {
         dragTimer?.invalidate(); dragTimer = nil
-        preview?.orderOut(nil); dragMenu?.orderOut(nil)
+        dragPreview.close(); dragMenu?.orderOut(nil)
+        dragFrameGate = DragFrameGate(); dragPaletteView.select(nil)
         dragCandidate = nil; dragTracking = nil; dragHover = DragHover()
         dragWindow = nil; dragScreenIndex = nil; dragState.choice = nil
         engine.trackingDrag = false
@@ -197,9 +200,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         guard !dragCancelled, dragTracking != nil, e.type == .leftMouseDragged else { return }
         if dragTimer == nil {
-            // Events drive feedback immediately. This fallback handles a quiet
-            // pointer and a release that the global monitor did not receive.
-            let timer = Timer(timeInterval:0.04,repeats:true) { [weak self] _ in
+            // Always consume the latest pointer, at most once per display interval.
+            // No event backlog survives a fast sweep across the layout models.
+            let timer = Timer(timeInterval:1.0/60,repeats:true) { [weak self] _ in
                 MainActor.assumeIsolated {
                     guard NSEvent.pressedMouseButtons & 1 != 0 else { self?.finishDrag(); return }
                     self?.updateDrag()
@@ -211,7 +214,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
     private func finishDrag() {
         if dragTracking?.phase == .moving, !dragCancelled, let w = dragWindow {
-            updateDrag()
+            updateDrag(force:true)
             if let (zone,index) = dragCandidate, engine.windows.contains(where: { $0.id == w.id }) {
                 engine.selectedID = w.id; engine.screenIndex = index; engine.apply(zone,gap:store.gap)
             }
@@ -220,9 +223,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // it here ensures the second notification cannot place the window again.
         clearDrag()
     }
-    private func updateDrag() {
+    private func updateDrag(force:Bool = false) {
         guard store.dragEnabled, !dragCancelled, engine.trusted, var tracking = dragTracking,
               let w = dragWindow, !w.app.isTerminated else { clearDrag(); return }
+        let interval = tracking.phase == .pending ? 0.04 : 1.0/60
+        guard dragFrameGate.allows(ProcessInfo.processInfo.systemUptime,interval:interval,force:force) else { return }
         let p = NSEvent.mouseLocation
         let phase = tracking.update(pointer:p) { engine.frame(w.element) }
         dragTracking = tracking
@@ -233,16 +238,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         guard dragHover.sample(p) else { return }
         guard let i = engine.screens.firstIndex(where: { $0.frame.contains(p) }) else {
-            dragMenu?.orderOut(nil); preview?.orderOut(nil); dragCandidate = nil
-            dragHover = DragHover(); dragState.choice = nil; return
+            dragMenu?.orderOut(nil); dragPreview.close(); dragCandidate = nil
+            dragHover = DragHover(); dragState.choice = nil; dragPaletteView.select(nil); return
         }
         if dragScreenIndex != i || dragMenu?.isVisible != true { showDragMenu(on:i) }
         guard let menu = dragMenu else { return }
         let local = CGPoint(x:p.x-menu.frame.minX,y:menu.frame.maxY-p.y)
         let choice = dragState.geometry.hit(local,layouts:dragState.layouts)
         guard dragHover.select(choice) else { return }
-        dragState.choice = choice
-        guard let choice else { dragCandidate = nil; preview?.orderOut(nil); return }
+        dragState.choice = choice; dragPaletteView.select(choice)
+        guard let choice else { dragCandidate = nil; dragPreview.hideTarget(); return }
         let z = dragState.layouts[choice.layoutIndex].zones[choice.zoneIndex]
         dragCandidate = (z,i)
         showPreview(z,on:i)
@@ -258,28 +263,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             dragState.layouts.insert(active,at:0)
         }
         dragState.geometry = DragPaletteGeometry(columns:columns,count:visibleCount)
-        dragState.choice = nil; dragHover = DragHover(); dragCandidate = nil; preview?.orderOut(nil)
+        dragState.choice = nil; dragHover = DragHover(); dragCandidate = nil; dragPreview.hideTarget()
+        dragPaletteView.configure(layouts:dragState.layouts,geometry:dragState.geometry)
         let size = dragState.geometry.size
         let panel = dragMenu ?? NSPanel(contentRect:.zero,styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = true
         panel.level = NSWindow.Level(rawValue:NSWindow.Level.floating.rawValue+2)
         panel.ignoresMouseEvents = true; panel.collectionBehavior = [.canJoinAllSpaces,.fullScreenAuxiliary]
-        if dragMenu == nil { panel.contentView = NSHostingView(rootView:DragPaletteView(state:dragState)) }
-        panel.setFrame(CGRect(x:screen.visibleFrame.midX-size.width/2,y:screen.visibleFrame.maxY-size.height-14,width:size.width,height:size.height),display:true)
+        if dragMenu == nil { panel.contentView = dragPaletteView; panel.isReleasedWhenClosed = false }
+        let frame = CGRect(x:screen.visibleFrame.midX-size.width/2,y:screen.visibleFrame.maxY-size.height-14,width:size.width,height:size.height)
+        if panel.frame != frame { panel.setFrame(frame,display:true,animate:false) }
         dragMenu = panel; dragScreenIndex = index; panel.orderFrontRegardless()
     }
     private func showPreview(_ z:TileZone,on index:Int) {
         let s = engine.screens[index]
         let axFrame = TileGeometry.frame(zone:z,visible:TileGeometry.accessibilityRect(s.visibleFrame,primaryTop:engine.primaryTop),gap:store.gap)
         let cocoaFrame = CGRect(x:axFrame.minX,y:engine.primaryTop-axFrame.maxY,width:axFrame.width,height:axFrame.height)
-        if preview == nil {
-            let panel = NSPanel(contentRect:.zero,styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
-            panel.isOpaque = false; panel.backgroundColor = .clear; panel.level = .floating; panel.ignoresMouseEvents = true; panel.hasShadow = false
-            panel.collectionBehavior = [.canJoinAllSpaces,.fullScreenAuxiliary]
-            panel.contentView = NSHostingView(rootView:RoundedRectangle(cornerRadius:14).fill(Theme.mint.opacity(0.13)).overlay(RoundedRectangle(cornerRadius:14).strokeBorder(Theme.mint.opacity(0.85),lineWidth:3)).padding(2)); preview = panel
-        }
-        if preview?.frame != cocoaFrame { preview?.setFrame(cocoaFrame,display:true,animate:false) }
-        if preview?.isVisible != true { preview?.orderFrontRegardless() }
+        dragPreview.show(target:cocoaFrame,screen:s.visibleFrame)
     }
 
 }

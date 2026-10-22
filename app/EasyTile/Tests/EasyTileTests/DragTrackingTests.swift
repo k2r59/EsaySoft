@@ -4,6 +4,23 @@ import XCTest
 final class DragTrackingTests: XCTestCase {
     private let initial = CGRect(x:100,y:100,width:800,height:600)
 
+    func testEventBurstHasBoundedWorkAndMouseUpAlwaysUsesLatestSample() {
+        var gate = DragFrameGate()
+        var rendered: [Int] = []
+        for event in 0..<1000 {
+            if gate.allows(Double(event)/1000,interval:1.0/60) { rendered.append(event) }
+        }
+        XCTAssertEqual(rendered.first,0)
+        XCTAssertLessThanOrEqual(rendered.count,60)
+        XCTAssertGreaterThanOrEqual(rendered.count,58)
+        // A release between display intervals must use its own location,
+        // not the last rendered target. There is no queued replay afterwards.
+        XCTAssertTrue(gate.allows(0.9991,interval:1.0/60,force:true))
+        XCTAssertFalse(gate.allows(0.9992,interval:1.0/60))
+        gate = DragFrameGate()
+        XCTAssertTrue(gate.allows(0.9993,interval:1.0/60))
+    }
+
     func testSmallPointerMotionDoesNotContactAnotherApplication() {
         var drag = DragTracking(initialPointer:.zero,initialFrame:initial)
         XCTAssertEqual(drag.update(pointer:CGPoint(x:8,y:8)) { XCTFail("Unnecessary AX read"); return nil },.pending)
