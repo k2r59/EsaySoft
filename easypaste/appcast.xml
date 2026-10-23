@@ -6,6 +6,27 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyPaste</title>
         <item>
+            <title>0.3.6</title>
+            <pubDate>Fri, 23 Oct 2026 10:53:05 +0200</pubDate>
+            <sparkle:version>23</sparkle:version>
+            <sparkle:shortVersionString>0.3.6</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.6
+
+- Nouveau logo Ruban et barre rapide en verre translucide, avec un aperçu intégré qui se déploie vers le haut. La barre reste fixe pendant l’animation.
+- Dans **Réglages → Apparence**, choisissez le mode clair, sombre ou automatique, la transparence et cinq teintes : bleu glacé, menthe, lavande, rosé ou graphite. La couleur s’applique aussi à la fenêtre et à sa navigation ; les zones de lecture restent opaques.
+- Un clic sélectionne une carte, un double-clic la colle. Les commandes Aperçu, Favoris et Corbeille sont accessibles en bas des cartes. La suppression demande confirmation, avec la possibilité de désactiver cette demande.
+- Les actions Annoter, Copier et Coller sont plus compactes. Le bouton Capturer conserve une forme circulaire.
+- L’éditeur d’annotation propose des fonds, des dégradés et des réglages de marge, d’ombre et d’arrondi.
+- Une copie provenant d’un navigateur peut conserver sa page d’origine, accessible depuis l’icône de lien. Le collage conserve l’application de destination choisie à l’ouverture de la barre.
+
+Le collage direct nécessite l’autorisation Accessibilité de macOS. Le stockage de l’historique reste local.
+
+macOS 15 ou ultérieur, Intel et Apple Silicon. Le matériau Liquid Glass natif est disponible à partir de macOS 26 ; les versions précédentes utilisent un matériau compatible.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.6/EasyPaste-0.3.6-universal.dmg" length="12032856" type="application/octet-stream" sparkle:edSignature="scDgbNfcpWung8rS4wD27bUnQ2IeU4Lqk8A8wnpfYW4183ZbV5DCEp0XnchWOkJDDpUvr4AZC7aOkYf6+6CEDA=="/>
+        </item>
+        <item>
             <title>0.3.5</title>
             <pubDate>Wed, 21 Oct 2026 19:07:31 +0200</pubDate>
             <sparkle:version>22</sparkle:version>
@@ -41,25 +62,9 @@ macOS 15 ou ultérieur, Intel et Apple Silicon.
 ]]></description>
             <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.4/EasyPaste-0.3.4-universal.dmg" length="9472918" type="application/octet-stream" sparkle:edSignature="yaZmq+SGFTy8GWLdNF9wra6xPWjE3r4VCfbAE6y0SsvpsK8bnY6EJvR/Gdd90E0qfDT5ftLW56MudGfskkeIDg=="/>
         </item>
-        <item>
-            <title>0.3.3</title>
-            <pubDate>Wed, 21 Oct 2026 15:47:52 +0200</pubDate>
-            <sparkle:version>20</sparkle:version>
-            <sparkle:shortVersionString>0.3.3</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[La sélection des cartes réagit dès le premier clic, sans attendre un éventuel double-clic.
-
-- Correction dans la barre rapide et dans les vues grille et liste de l’historique.
-- Double-clic, sélection multiple avec Cmd/Maj et boutons intégrés conservés.
-- État de sélection de la barre rapide exposé aux outils d’accessibilité.
-
-macOS 15 ou ultérieur · Mac Intel et Apple Silicon · Licence MIT.
-]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.3/EasyPaste-0.3.3-universal.dmg" length="9474549" type="application/octet-stream" sparkle:edSignature="T2H7HL7zZocPObTh+MdzD80XIytOaTZywR45zcn3HVHcUwXVrkhknQ0bqrsiDA3sK78XYTF3sFkdKNOVonqYCw=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: 2flpBzHep/cFrly7XexEVqbn7fIDvHWRVlVk4AzPL5pyDq3fLi0BiKdyvpAsMqVaOTmHx+s6RNfDA5CiCQPZBA==
-length: 4288
+edSignature: CGfoerwrMVqTWiPWldGc8p4LJooS5RuOqPfpXtPySmNwDQju5DFEvpCgzdIBEaRbTQ/btBA5W5JMCDkw1PiVDQ==
+length: 5280
 -->
