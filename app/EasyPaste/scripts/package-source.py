@@ -17,10 +17,10 @@ with tempfile.TemporaryDirectory(prefix="EasyPaste-source-") as directory:
     source = Path(directory) / "EasyPaste-source"
     source.mkdir()
     for name in files:
-        shutil.copyfile(ROOT / name, source / name)
+        shutil.copy(ROOT / name, source / name)
     for name in ("Sources", "Tests", "scripts", "docs", "BrowserExtension"):
         if (ROOT / name).is_dir():
-            shutil.copytree(ROOT / name, source / name, ignore=ignore, copy_function=shutil.copyfile)
+            shutil.copytree(ROOT / name, source / name, ignore=ignore, copy_function=shutil.copy)
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
         for path in sorted(source.rglob("*")):
             if path.is_file():
