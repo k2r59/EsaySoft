@@ -4,11 +4,12 @@ import ApplicationServices
 import ServiceManagement
 
 enum SettingsCategory: String, CaseIterable, Identifiable {
-    case general = "Général", privacy = "Confidentialité", integrations = "Intégrations", updates = "Mises à jour"
+    case general = "Général", appearance = "Apparence", privacy = "Confidentialité", integrations = "Intégrations", updates = "Mises à jour"
     var id: Self { self }
     var icon: String {
         switch self {
         case .general: return "slider.horizontal.3"
+        case .appearance: return "paintpalette"
         case .privacy: return "lock.shield"
         case .integrations: return "puzzlepiece.extension"
         case .updates: return "arrow.triangle.2.circlepath"
@@ -46,14 +47,17 @@ struct SettingsView: View {
                     }.buttonStyle(FullAreaButtonStyle())
                         .accessibilityValue(category == item ? "Sélectionné" : "")
                 }
-            }.padding(5).surface()
+            }.padding(5).chromeSurface(radius: 16)
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     switch category {
-                    case .general:
+                    case .appearance:
                 section("Apparence", icon: "circle.lefthalf.filled") {
                     AppearanceSettings()
+                    Divider().opacity(0.3)
+                    GlassAppearanceSettings()
                 }
+                    case .general:
                 section("Général", icon: "slider.horizontal.3") {
                     PreferenceToggle("Enregistrer les copies", isOn: $history.enabled).disabled(history.fault || history.loading)
                     PreferenceToggle("Lancer EasyPaste au démarrage", isOn: Binding(get: { launch }, set: { value in
@@ -64,6 +68,7 @@ struct SettingsView: View {
                         } catch { message = "Ouverture à la connexion : \(error.localizedDescription)"; launch = SMAppService.mainApp.status == .enabled }
                     }))
                     PreferenceToggle("Barre rapide compacte", isOn: $history.compact)
+                    PreferenceToggle("Confirmer avant de supprimer", isOn: $history.confirmTrash)
                     PreferenceRow("Conserver l’historique") { Picker("Durée de conservation", selection: $history.retention) { Text("1 jour").tag(1); Text("7 jours").tag(7); Text("30 jours").tag(30); Text("1 an").tag(365); Text("Toujours").tag(0) }.labelsHidden().controlSize(.regular).frame(width: 155) }
                     Divider().opacity(0.3)
                     Text("Les favoris et les collections sont conservés sans limite de durée.").font(.system(size: 11)).foregroundStyle(Theme.muted)

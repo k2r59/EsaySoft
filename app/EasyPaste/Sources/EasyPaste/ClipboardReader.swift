@@ -31,6 +31,8 @@ enum ClipboardReader {
         if !files.isEmpty { text = files.map(\.path).joined(separator: "\n") }
         let kind = Clip.kind(for: text, hasImage: svg == nil && flat.contains { [NSPasteboard.PasteboardType.png.rawValue, NSPasteboard.PasteboardType.tiff.rawValue].contains($0.type) }, hasFiles: !files.isEmpty)
         let title = files.isEmpty ? (text.isEmpty ? "Image copiée" : String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(90))) : files.map(\.lastPathComponent).joined(separator: ", ")
-        return Clip(title: title, text: text, source: source, sourceID: sourceID, kind: kind, fingerprint: "", payload: ClipPayload(representations: representations))
+        var clip = Clip(title: title, text: text, source: source, sourceID: sourceID, kind: kind, fingerprint: "", payload: ClipPayload(representations: representations))
+        clip.sourceURL = BrowserOrigin.metadata(items)
+        return clip
     }
 }

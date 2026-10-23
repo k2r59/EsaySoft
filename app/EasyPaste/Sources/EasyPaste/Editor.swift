@@ -14,9 +14,9 @@ struct HistorySheets: ViewModifier {
     }
     func body(content: Content) -> some View {
         content
-            .sheet(item: item(\.editing)) { clip in EditorView(history: history, clip: clip) }
-            .sheet(isPresented: flag(\.newSnippet)) { EditorView(history: history, clip: nil) }
-            .sheet(isPresented: flag(\.showNewBoard)) { NewBoardView(history: history) }
+            .sheet(item: item(\.editing)) { clip in EditorView(history: history, clip: clip).presentationBackground(.clear) }
+            .sheet(isPresented: flag(\.newSnippet)) { EditorView(history: history, clip: nil).presentationBackground(.clear) }
+            .sheet(isPresented: flag(\.showNewBoard)) { NewBoardView(history: history).presentationBackground(.clear) }
     }
 }
 @MainActor final class RichTextModel: ObservableObject {
@@ -106,7 +106,7 @@ struct EditorView: View {
                 format("underline", "Souligner") { model.toggle(.underlineStyle) }
                 format("strikethrough", "Barrer") { model.toggle(.strikethroughStyle) }
                 Spacer()
-            }
+            }.padding(6).chromeSurface(radius: 13)
             if model.ready { RichTextEditor(model: model).frame(height: 310).clipShape(RoundedRectangle(cornerRadius: 12)) }
             else { ProgressView("Ouverture du texte…").frame(height: 310).frame(maxWidth: .infinity) }
             HStack { Text(error).font(.system(size: 11)).foregroundStyle(Theme.warning); Spacer(); Button("Enregistrer") {
@@ -117,7 +117,7 @@ struct EditorView: View {
                 if let clip { history.edit(clip.id, title: name, text: text, rtf: model.rtf) } else { history.makeSnippet(name, text: text, rtf: model.rtf) }
                 dismiss()
             }.buttonStyle(PasteButtonStyle(primary: true)).disabled(!model.ready).keyboardShortcut("s", modifiers: .command) }
-        }.padding(26).frame(width: 640).background(Theme.bg).foregroundStyle(Theme.ink)
+        }.padding(26).frame(width: 640).chromeSurface(radius: 22).foregroundStyle(Theme.ink)
         .task { title = clip?.title ?? ""; do { if let clip { model.load(try await history.fullClip(clip)) } else { model.load(nil) } } catch { self.error = error.localizedDescription } }
     }
     private func format(_ icon: String, _ label: String, action: @escaping () -> Void) -> some View { Button(action: action) { Image(systemName: icon).frame(width: 25, height: 25) }.buttonStyle(PasteButtonStyle()).help(label).accessibilityLabel(label) }
@@ -132,7 +132,7 @@ struct NewBoardView: View {
             Text("Ses éléments sont conservés sans limite de durée.").font(.system(size: 12)).foregroundStyle(Theme.muted)
             TextField("Nom de la collection", text: $name).textFieldStyle(.roundedBorder).onSubmit { save() }.accessibilityLabel("Nom de la collection")
             HStack { Button("Annuler") { dismiss() }.buttonStyle(PasteButtonStyle()); Spacer(); Button("Créer la collection") { save() }.buttonStyle(PasteButtonStyle(primary: true)).disabled(name.trimmingCharacters(in: .whitespaces).isEmpty) }
-        }.padding(28).frame(width: 400).background(Theme.bg).foregroundStyle(Theme.ink)
+        }.padding(28).frame(width: 400).chromeSurface(radius: 22).foregroundStyle(Theme.ink)
     }
     private func save() { guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }; history.addBoard(name); dismiss() }
 }
@@ -221,10 +221,11 @@ struct NativeVideoPreview: NSViewRepresentable {
 
 struct VideoPreview: View {
     @StateObject private var playback: VideoPlayback
-    init(player: AVPlayer) { _playback = StateObject(wrappedValue: VideoPlayback(player: player)) }
+    var imageHeight: CGFloat = 330
+    init(player: AVPlayer, imageHeight: CGFloat = 330) { self.imageHeight = imageHeight; _playback = StateObject(wrappedValue: VideoPlayback(player: player)) }
     var body: some View {
         VStack(spacing: 12) {
-            NativeVideoPreview(player: playback.player).frame(height: 330)
+            NativeVideoPreview(player: playback.player).frame(height: imageHeight)
             HStack(spacing: 14) {
                 Button { playback.toggle() } label: {
                     Label(playback.playing ? "Pause" : "Lire", systemImage: playback.playing ? "pause.fill" : "play.fill").frame(width: 70)
@@ -265,7 +266,7 @@ struct PreviewView: View {
                 HStack { Text("\(full.source) · \(full.date.formatted(.dateTime.locale(Locale(identifier: "fr_FR")).day().month().hour().minute()))").font(.system(size: 10)).foregroundStyle(Theme.muted); Spacer(); if full.kind == .link || full.kind == .file { Button("Ouvrir") { openClip(full) }.buttonStyle(PasteButtonStyle()) }; if full.kind == .video { Button("Enregistrer…") { history.exportVideo(full) }.buttonStyle(PasteButtonStyle()) }; if !full.ocr.isEmpty { Button("Copier le texte") { Task { _ = await history.copy([full], plain: true) } }.buttonStyle(PasteButtonStyle()) }; Button("Copier") { Task { _ = await history.copy([full]) } }.buttonStyle(PasteButtonStyle(primary: true)) }
             } else if error.isEmpty { ProgressView("Chargement…").frame(maxWidth: .infinity).frame(height: 250) }
             else { Text(error).foregroundStyle(Theme.warning) }
-        }.padding(25).frame(width: 650).background(Theme.bg).foregroundStyle(Theme.ink)
+        }.padding(25).frame(width: 650).chromeSurface(radius: 22).foregroundStyle(Theme.ink)
         .task {
             do {
                 let value = try await history.fullClip(clip)
@@ -307,14 +308,14 @@ struct PreviewView: View {
         let visible = screen.visibleFrame, height = min(structured ? 680 : 620, visible.height - 80), width: CGFloat = structured ? min(840, visible.width - 60) : 650
         let panel = NSPanel(contentRect: CGRect(x: visible.midX - width / 2, y: visible.midY - height / 2, width: width, height: height), styleMask: structured ? [.titled, .closable, .resizable] : [.titled, .closable], backing: .buffered, defer: false)
         panel.title = "Aperçu EasyPaste"; panel.isReleasedWhenClosed = false; panel.level = .floating
-        panel.hidesOnDeactivate = false; panel.delegate = self; panel.backgroundColor = NSColor(Theme.bg)
+        panel.hidesOnDeactivate = false; panel.delegate = self; panel.isOpaque = false; panel.backgroundColor = .clear; panel.titlebarAppearsTransparent = true
         if structured {
             let model = StructuredEditorModel(clip: clip); structuredModel = model
             panel.minSize = NSSize(width: 690, height: 570)
             panel.contentView = NSHostingView(rootView: StructuredEditorView(model: model, history: history, close: { [weak self] in _ = self?.requestClose() }))
         } else {
             let content = ScrollView { PreviewView(history: history, clip: clip, close: { [weak self] in self?.history.previewing = nil }) }
-                .frame(width: 650, height: height).background(Theme.bg)
+                .frame(width: 650, height: height)
             panel.contentView = NSHostingView(rootView: content)
         }
         window = panel; clipID = clip.id; panel.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)

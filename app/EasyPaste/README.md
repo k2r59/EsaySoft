@@ -4,7 +4,7 @@ Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT.
 
 ## Installation
 
-1. Ouvrir `dist/EasyPaste-0.3.5-universal.dmg`.
+1. Ouvrir `dist/EasyPaste-0.3.6-universal.dmg`.
 2. Glisser EasyPaste dans Applications, puis l’ouvrir.
 3. Cliquer sur **Activer l’historique**. Les prochaines copies seront enregistrées.
 4. Depuis une autre application, ouvrir la barre rapide avec **Maj + Commande + V**.
@@ -20,15 +20,19 @@ signée et notarisée depuis GitHub, puis propose **Installer et relancer**.
 Les vérifications automatiques sont facultatives. L’historique est conservé.
 Les utilisateurs d’une version 0.2.x doivent installer une dernière fois le DMG.
 
-Les réglages sont regroupés en quatre onglets : Général, Confidentialité,
+Les réglages sont regroupés en cinq onglets : Général, Apparence, Confidentialité,
 Intégrations et Mises à jour. Dans **Général → Sons**, deux interrupteurs
 permettent de régler séparément le tic de copie et le son de capture d’image
 ou de texte OCR. Ils sont silencieux pendant un enregistrement vidéo.
 
-Dans **Général → Apparence**, choisir **Clair**, **Sombre** ou **Automatique**.
+Dans **Réglages → Apparence**, choisir **Clair**, **Sombre** ou **Automatique**.
 Le mode clair est utilisé par défaut, y compris après une mise à jour depuis une
 version sans ce réglage. Automatique suit macOS sans redémarrage. Le choix est
 mémorisé sur ce Mac. Les couleurs des images et les documents copiés sont conservés.
+
+L’onglet Apparence propose aussi cinq teintes de verre et une transparence de 0 à 80 %. Ces choix s’appliquent à la fenêtre, à sa navigation et à la barre rapide ; les zones de lecture restent opaques. L’aperçu de la barre se déploie vers le haut dans la même fenêtre. Les commandes Aperçu, Favoris et Corbeille sont accessibles sur chaque carte. Le logo Ruban et son [prompt de création](Sources/EasyPaste/Resources/easypaste-ribbon.provenance.json) figurent dans les sources.
+
+Les changements de cette version sont décrits dans [les notes de version 0.3.6](docs/RELEASE-0.3.6.md).
 
 La procédure de publication est documentée dans [docs/UPDATES.md](docs/UPDATES.md).
 
@@ -59,7 +63,7 @@ La procédure de publication est documentée dans [docs/UPDATES.md](docs/UPDATES
 4. Utiliser **Modifier** pour éditer le texte ou, dans le tableau CSV, double-cliquer sur une cellule. Choisir **Terminer** pour appliquer la mise en forme. **Commande + F** ouvre la recherche.
 5. Choisir **Copier le JSON**, **Copier le SQL**, **Copier le CSV** ou **Copier le XML** pour copier la présentation affichée. Le menu **Enregistrer** propose une copie dans l’historique, le remplacement de l’original après confirmation ou l’export d’un fichier.
 
-La présentation seule ne modifie pas l’historique. Dans la barre rapide, un clic sur une carte colle son contenu enregistré dans l’application précédente. Dans la bibliothèque, le clic sélectionne et le double-clic colle. La copie créée apparaît à côté de l’original. Le remplacement conserve le titre, la date, les favoris et les collections ; le contenu devient du texte brut.
+La présentation seule ne modifie pas l’historique. Dans la barre rapide et la bibliothèque, un clic sélectionne la carte et un double-clic colle son contenu dans l’application précédente. La copie créée apparaît à côté de l’original. Le remplacement conserve le titre, la date, les favoris et les collections ; le contenu devient du texte brut.
 
 Le formatage JSON préserve les grands nombres, les échappements, l’ordre et les clés répétées. CSV conserve les valeurs comme `00123`, les cellules entre guillemets et les retours à la ligne internes. Les séparateurs proposés sont la virgule, le point-virgule, la tabulation et la barre verticale. La recherche dans le tableau ne retire aucune ligne de la copie ni de l’export.
 
@@ -291,7 +295,7 @@ Voir les [mentions des composants tiers](THIRD-PARTY-NOTICES.md).
 
 ### Barre rapide et sélection
 
-Un clic ou Entrée colle la carte sélectionnée dans l’application précédente ; Maj+Entrée colle en texte brut. Cmd-clic et Maj-clic servent à sélectionner plusieurs cartes, puis Entrée les colle. Les menus, les boutons d’annotation et le glisser-déposer restent accessibles.
+Un double-clic ou Entrée colle la carte sélectionnée dans l’application précédente ; Maj+Entrée colle en texte brut. Cmd-clic et Maj-clic servent à sélectionner plusieurs cartes, puis Entrée les colle. Les menus, les boutons d’annotation et le glisser-déposer restent accessibles.
 
 La barre conserve la dernière sélection tant qu’aucun nouveau contenu n’est copié. Une nouvelle copie, y compris celle d’un ancien élément déjà présent, sélectionne sa carte. Rouvrir la barre efface les filtres de recherche. Le collage direct nécessite l’autorisation Accessibilité pour EasyPaste ; si elle manque, l’application propose d’ouvrir le réglage.
 

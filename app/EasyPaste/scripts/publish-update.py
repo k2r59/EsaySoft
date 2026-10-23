@@ -96,7 +96,7 @@ def main():
     assert info["CFBundleVersion"] == build and info["CFBundleShortVersionString"] == version
     assert info["SUFeedURL"] == config["feed"] and info["SUPublicEDKey"] == config["publicKey"]
     assert info["SURequireSignedFeed"] and info["SUVerifyUpdateBeforeExtraction"]
-    assert not info.get("EasyPasteDemo") and not info.get("EasyPasteUpdateQA")
+    assert not info.get("EasyPasteDemo") and not info.get("EasyPasteUpdateQA") and not info.get("AnnotationPreview")
     run("codesign", "--verify", "--deep", "--strict", str(app))
     run("spctl", "--assess", "--type", "execute", str(app))
     run("xcrun", "stapler", "validate", str(dmg))

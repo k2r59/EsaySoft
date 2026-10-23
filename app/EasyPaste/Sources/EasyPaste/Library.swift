@@ -16,19 +16,18 @@ struct MainView: View {
     }
     var body: some View {
         HStack(spacing: 0) {
-            sidebar.frame(width: 212)
-            Rectangle().fill(Theme.border).frame(width: 1)
+            sidebar.padding(.horizontal, 10).padding(.vertical, 12).frame(width: 212)
             if history.page == "settings" { SettingsView(history: history) }
             else { library }
         }
-        .background(Theme.bg).foregroundStyle(Theme.ink)
+        .background { AppBackdrop() }.foregroundStyle(Theme.ink)
         .environment(\.locale, Locale(identifier: "fr_FR"))
         .modifier(HistorySheets(history: history))
     }
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 22) {
             HStack(spacing: 10) { BrandMark(size: 35); Text("EasyPaste").font(.system(size: 21, weight: .semibold)) }
-                .padding(.top, 43).padding(.bottom, 8)
+                .padding(.top, 31).padding(.bottom, 8)
             VStack(spacing: 5) {
                 nav("Historique", "clock", "all")
                 nav("Favoris", "star", "pinned")
@@ -80,7 +79,7 @@ struct MainView: View {
                 }
                 Label("Stockage local", systemImage: "internaldrive").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
-        }.padding(.horizontal, 16).padding(.bottom, 22).background(Theme.panel).font(.system(size: 13))
+        }.padding(.horizontal, 12).padding(.bottom, 18).chromeSurface(radius: 20).font(.system(size: 13))
     }
     private func nav(_ label: String, _ icon: String, _ id: String, count: Int = 0) -> some View {
         let selected = history.collection == id && history.page == "library"
@@ -101,7 +100,7 @@ struct MainView: View {
                 SearchBar(history: history)
                 Button { history.openShelf?() } label: { HStack(spacing: 9) { Image(systemName: "rectangle.bottomthird.inset.filled"); Text("Barre rapide"); KeyCap(text: "⇧⌘V") } }
                     .buttonStyle(PasteButtonStyle()).fixedSize()
-            }.padding(.top, 38)
+            }.padding(8).chromeSurface(radius: 17).padding(.top, 30)
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .center, spacing: 18) { heading; Spacer(minLength: 8); LibraryCaptureActions(history: history) }
                 VStack(alignment: .leading, spacing: 14) { heading; LibraryCaptureActions(history: history) }
@@ -152,7 +151,7 @@ struct MainView: View {
                         if clip.kind == .image { Button { history.annotate?(clip) } label: { Label("Annoter", systemImage: "pencil.tip.crop.circle") }.buttonStyle(PasteButtonStyle()).disabled(history.annotating || history.captureBusy) }
                         else if clip.structuredFormat != nil { Button { history.openFormatter(clip) } label: { Label("Formater…", systemImage: "curlybraces") }.buttonStyle(PasteButtonStyle()) }
                         else if clip.editable { Button { history.editing = clip } label: { Label("Modifier", systemImage: "pencil") }.buttonStyle(PasteButtonStyle()) }
-                        else if clip.kind == .video { Button { history.previewing = clip } label: { Label("Lire", systemImage: "play") }.buttonStyle(PasteButtonStyle()) }
+                        else if clip.kind == .video { Button { history.openPreview(clip) } label: { Label("Lire", systemImage: "play") }.buttonStyle(PasteButtonStyle()) }
                     }
                     Menu {
                         Button("Favoris") { for clip in selection where !clip.pinned { history.mutate(clip.id) { $0.pinned = true } } }
@@ -160,10 +159,10 @@ struct MainView: View {
                         Divider(); Button("Nouvelle collection…") { history.showNewBoard = true }
                     } label: { Label("Ajouter à…", systemImage: "folder").padding(.horizontal, 10).frame(height: 38).contentShape(Rectangle()) }
                     .menuStyle(.borderlessButton).fixedSize().background(Theme.raised, in: RoundedRectangle(cornerRadius: 10)).disabled(selection.isEmpty)
-                    Button { history.trashItems(selection) } label: { Image(systemName: "trash").frame(width: 16) }.buttonStyle(PasteButtonStyle()).help("Supprimer la sélection").accessibilityLabel("Supprimer la sélection").disabled(selection.isEmpty)
+                    Button { history.requestTrash(selection) } label: { Image(systemName: "trash").frame(width: 16) }.buttonStyle(PasteButtonStyle()).help("Supprimer la sélection").accessibilityLabel("Supprimer la sélection").disabled(selection.isEmpty)
                     Button { Task { _ = await history.copy(selection) } } label: { Label("Copier", systemImage: "doc.on.doc") }.buttonStyle(PasteButtonStyle()).disabled(selection.isEmpty)
                 }
-            }.padding(12).frame(minHeight: 62).background(Theme.panel, in: RoundedRectangle(cornerRadius: 13)).overlay(RoundedRectangle(cornerRadius: 13).strokeBorder(Theme.border))
+            }.padding(12).frame(minHeight: 62).chromeSurface(radius: 16)
         }
     }
     private var stackControls: some View {

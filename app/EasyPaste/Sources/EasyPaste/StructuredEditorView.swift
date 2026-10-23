@@ -98,7 +98,7 @@ struct StructuredEditorView: View {
                     .buttonStyle(PasteButtonStyle(primary: model.format != .svg)).disabled(!model.canUseOutput)
             }
         }.padding(22).frame(minWidth: 690, minHeight: 540)
-            .background(Theme.bg).foregroundStyle(Theme.ink)
+            .chromeSurface(radius: 22).foregroundStyle(Theme.ink)
             .task { model.refresh() }.onDisappear { model.cancel() }
             .onChange(of: model.options) { _, _ in model.refresh() }
             .onChange(of: model.query) { _, _ in model.search() }

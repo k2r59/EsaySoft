@@ -33,16 +33,64 @@ enum Theme {
 struct BrandMark: View {
     var size: CGFloat = 34
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: size * 0.19).fill(Theme.colors[1]).frame(width: size * 0.65, height: size * 0.72).rotationEffect(.degrees(-9)).offset(x: -size * 0.11, y: -size * 0.06)
-            RoundedRectangle(cornerRadius: size * 0.19).fill(LinearGradient(colors: [Color(red: 0.76, green: 1, blue: 0.88), Theme.mint], startPoint: .topLeading, endPoint: .bottomTrailing)).frame(width: size * 0.65, height: size * 0.72).rotationEffect(.degrees(7)).offset(x: size * 0.12, y: size * 0.10)
-        }.frame(width: size, height: size).accessibilityHidden(true)
+        Group {
+            if let image = ArtworkCache.brand {
+                Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
+            } else {
+                Image(systemName: "doc.on.doc.fill").font(.system(size: size * 0.55)).foregroundStyle(Theme.mint)
+            }
+        }.frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.23, style: .continuous))
+            .accessibilityHidden(true)
     }
 }
+
 struct Surface: ViewModifier {
     func body(content: Content) -> some View { content.background(Theme.panel, in: RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(Theme.border)) }
 }
 extension View { func surface() -> some View { modifier(Surface()) } }
+
+/// Opaque canvas with a restrained tint under the fixed glass controls.
+/// No image decoding, live shader, animation or background timer is involved.
+struct AppBackdrop: View {
+    @AppStorage(GlassTint.defaultsKey) private var storedTint = GlassTint.blue.rawValue
+    @AppStorage(GlassAppearance.key) private var transparency = GlassAppearance.defaultTransparency
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
+    var body: some View {
+        Theme.bg.overlay(alignment: .topLeading) {
+            if contrast != .increased {
+                LinearGradient(colors: GlassTint.resolve(storedTint).colors,
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                    .opacity(GlassAppearance.windowTintOpacity(transparency, dark: scheme == .dark))
+            }
+        }.allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+extension View {
+    func chromeSurface(radius: CGFloat = 16) -> some View {
+        modifier(AppChromeSurface(radius: radius))
+    }
+}
+
+/// EasyPaste's palette stays outside the editor material shared with EasyShoot.
+private struct AppChromeSurface: ViewModifier {
+    let radius: CGFloat
+    @AppStorage(GlassTint.defaultsKey) private var storedTint = GlassTint.blue.rawValue
+    @AppStorage(GlassAppearance.key) private var transparency = GlassAppearance.defaultTransparency
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    func body(content: Content) -> some View {
+        if reduceTransparency || contrast == .increased {
+            content.chromeGlass(base: Theme.panel, radius: radius)
+        } else {
+            content.background {
+                ShelfGlassWash(transparency: transparency, tint: GlassTint.resolve(storedTint))
+                    .opacity(0.18).clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            }.chromeGlass(base: Theme.panel, radius: radius)
+        }
+    }
+}
 /// Keep the entire label interactive, including transparent padding and spacers.
 /// Apply this inside the button style so native button actions, keyboard activation
 /// and disabled states all use the same bounds without an extra tap gesture.
@@ -74,6 +122,18 @@ struct KeyCap: View {
     var body: some View { Text(text).font(.system(size: 10, weight: .medium, design: .monospaced)).foregroundStyle(Theme.muted).padding(.horizontal, 7).padding(.vertical, 5).background(Theme.ink.opacity(0.045), in: RoundedRectangle(cornerRadius: 5)).overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.border)) }
 }
 enum ArtworkCache {
+    // Decode once at a bounded size for all header marks, rather than loading
+    // the full app-icon artwork during every SwiftUI render.
+    static let brand: NSImage? = {
+        var url = Bundle.main.url(forResource: "easypaste-ribbon", withExtension: "png")
+        #if DEBUG
+        if url == nil { url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Resources/easypaste-ribbon.png") }
+        #endif
+        guard let url, let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+            let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceThumbnailMaxPixelSize: 256, kCGImageSourceCreateThumbnailWithTransform: true] as CFDictionary) else { return nil }
+        return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+    }()
+
     static let hero: NSImage? = {
         var url = Bundle.main.url(forResource: "clipboard-studio", withExtension: "png")
         #if DEBUG

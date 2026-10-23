@@ -58,7 +58,7 @@ struct BitwardenClipMenu: View {
         toastTask?.cancel(); toast?.close()
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 290, height: 58), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isReleasedWhenClosed = false; panel.level = .floating; panel.isOpaque = false; panel.backgroundColor = .clear; panel.ignoresMouseEvents = true
-        panel.contentView = NSHostingView(rootView: HStack(spacing: 10) { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.mint); Text(text).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.ink) }.frame(width: 290, height: 58).background(Theme.panel, in: RoundedRectangle(cornerRadius: 14)))
+        panel.contentView = NSHostingView(rootView: HStack(spacing: 10) { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.mint); Text(text).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.ink) }.frame(width: 290, height: 58).chromeSurface(radius: 14))
         let frame = (NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main)?.visibleFrame ?? .zero
         panel.setFrameOrigin(CGPoint(x: frame.midX - 145, y: frame.maxY - 90)); panel.orderFrontRegardless(); toast = panel
         toastTask = Task { [weak self] in do { try await Task.sleep(for: .seconds(3)) } catch { return }; self?.toast?.close(); self?.toast = nil }
@@ -71,7 +71,7 @@ struct BitwardenClipMenu: View {
         do {
             let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size), styleMask: compact ? [.titled, .closable, .nonactivatingPanel] : [.titled, .closable], backing: .buffered, defer: false)
             panel.title = "Bitwarden · EasyPaste"; panel.isReleasedWhenClosed = false; panel.hidesOnDeactivate = false
-            panel.backgroundColor = NSColor(Theme.bg); panel.delegate = self
+            panel.isOpaque = false; panel.backgroundColor = .clear; panel.titlebarAppearsTransparent = true; panel.delegate = self
             if compact { panel.contentView = NSHostingView(rootView: BitwardenQuickView(model: model)); panel.level = .floating }
             else { panel.contentView = NSHostingView(rootView: BitwardenWindowView(model: model)) }
             self.panel = panel; panel.center()
@@ -116,7 +116,7 @@ struct BitwardenQuickView: View {
                     else { Button("Réessayer") { model.create() }.buttonStyle(PasteButtonStyle(primary: true)).disabled(model.content == nil) }
                 }
             }
-        }.padding(22).frame(width: 380, height: 240).background(Theme.bg).foregroundStyle(Theme.ink)
+        }.padding(22).frame(width: 380, height: 240).chromeSurface(radius: 22).foregroundStyle(Theme.ink)
     }
 }
 
@@ -163,7 +163,7 @@ struct BitwardenWindowView: View {
             }
             Divider().opacity(0.3)
             footer
-        }.padding(26).frame(width: 540, height: 620).background(Theme.bg).foregroundStyle(Theme.ink)
+        }.padding(26).frame(width: 540, height: 620).chromeSurface(radius: 22).foregroundStyle(Theme.ink)
             .onAppear { email = model.account; focus = .email }
             .onChange(of: model.unlocked) { _, unlocked in password = ""; code = ""; if !unlocked { focus = .password } }
             .onChange(of: model.enabled) { _, _ in password = ""; code = "" }

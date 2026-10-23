@@ -6,13 +6,14 @@ struct SearchBar: View {
     @ObservedObject var history: History
     @FocusState private var focused: Bool
     var focusOnAppear = false
+    var glass = false
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass").foregroundStyle(Theme.muted)
-            TextField("Rechercher dans l’historique…", text: $history.query, prompt: Text("Rechercher dans l’historique…").foregroundColor(Theme.muted)).textFieldStyle(.plain).focused($focused).font(.system(size: 13)).accessibilityLabel("Rechercher dans l’historique")
+            TextField("Rechercher dans l’historique…", text: $history.query, prompt: Text(glass ? "Rechercher…" : "Rechercher dans l’historique…").foregroundColor(Theme.muted)).textFieldStyle(.plain).focused($focused).font(.system(size: glass ? 15 : 13)).accessibilityLabel("Rechercher dans l’historique")
             if !history.query.isEmpty { Button { history.query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.muted).frame(width: 24, height: 24) }.buttonStyle(FullAreaButtonStyle()) }
-            KeyCap(text: "⌘F")
-        }.padding(.horizontal, 14).padding(.vertical, 10).background(Theme.raised.opacity(0.75), in: RoundedRectangle(cornerRadius: 11)).overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(Theme.border))
+            if !glass { KeyCap(text: "⌘F") }
+        }.padding(.horizontal, 16).padding(.vertical, 12).background(glass ? GlassAppearance.labelPlate.opacity(0.8) : Theme.raised.opacity(0.75), in: RoundedRectangle(cornerRadius: glass ? 20 : 11)).overlay(RoundedRectangle(cornerRadius: glass ? 20 : 11).strokeBorder(glass ? .white.opacity(0.6) : Theme.border))
         .onAppear { if focusOnAppear { focused = true } }
         .onReceive(NotificationCenter.default.publisher(for: .init("EasyPaste.focusSearch"))) { _ in focused = true }
     }
@@ -64,38 +65,34 @@ struct ClipCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 7) {
-                Image(systemName: clip.kind.symbol).foregroundStyle(accent).font(.system(size: 11, weight: .medium)).frame(width: 25, height: 25).background(accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
-                Text(clip.source).font(.system(size: 11, weight: .medium)).lineLimit(1).foregroundStyle(Theme.muted)
+                Image(systemName: clip.kind == .text ? "doc.text" : clip.kind.symbol).foregroundStyle(accent).font(.system(size: 14, weight: .medium)).frame(width: 25, height: 25).background(accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+                Text(clip.shelfTypeLabel).font(.system(size: 12, weight: .medium)).lineLimit(1).foregroundStyle(Theme.ink).help("Copié depuis \(clip.source)")
                 Spacer(minLength: 3)
-                if clip.kind == .image, clip.trashedAt == nil {
-                    Button { history.annotate?(clip) } label: { Image(systemName: "pencil.tip.crop.circle").font(.system(size: 15)).foregroundStyle(Theme.mint).frame(width: 24, height: 24) }.buttonStyle(FullAreaButtonStyle()).opacity(hovered || selected ? 1 : 0).help("Annoter · ⌘E").accessibilityLabel("Annoter l’image").disabled(history.annotating || history.captureBusy)
-                }
-                if clip.pinned { Image(systemName: "star.fill").foregroundStyle(Theme.mint).font(.system(size: 9)) }
-                Menu { ClipActions(history: history, clip: clip) } label: { Image(systemName: "ellipsis").foregroundStyle(Theme.muted).frame(width: 24, height: 24).contentShape(.interaction, Rectangle()) }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help("Actions de l’élément")
+                if !compact { Text(ClipDate.label(clip.date)).font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1) }
             }.padding(.horizontal, 15).padding(.top, 13).padding(.bottom, 13)
             ClipContent(clip: clip, compact: compact).overlay {
-                if clip.kind == .video { Button { history.previewing = clip } label: { Image(systemName: "play.fill").font(.system(size: 18)).foregroundStyle(.white).padding(16).background(.black.opacity(0.6), in: Circle()) }.buttonStyle(FullAreaButtonStyle()).help("Lire la vidéo") }
+                if clip.kind == .video { Button { history.openPreview(clip) } label: { Image(systemName: "play.fill").font(.system(size: 18)).foregroundStyle(.white).padding(16).background(.black.opacity(0.6), in: Circle()) }.buttonStyle(FullAreaButtonStyle()).help("Lire la vidéo") }
             }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).padding(.horizontal, 15).clipped()
-            HStack {
-                Text(clip.kind == .video ? "VIDÉO · " + clip.durationLabel : clip.parentID != nil ? "MODIFIÉE" : history.originalIDs.contains(clip.id) ? "ORIGINAL" : clip.kind == .image ? (history.ocrTasks.contains(clip.id) ? "LECTURE DU TEXTE…" : clip.ocr.isEmpty ? "IMAGE" : "IMAGE · TEXTE DÉTECTÉ") : clip.kind == .file ? "FICHIER" : clip.kind == .link ? "LIEN" : clip.kind == .color ? "COULEUR" : "\(clip.text.count) CARACTÈRES").font(.system(size: 8, weight: .medium)).tracking(0.5)
-                Spacer()
-                if let i = quickIndex, i < 9 { Text("⌘\(i+1)").font(.system(size: 9, design: .monospaced)) }
-                else { Text(ClipDate.label(clip.date)).font(.system(size: 9)).lineLimit(1) }
-            }.foregroundStyle(Theme.muted).padding(14)
+            ClipCardFooter(history: history, clip: clip, quickIndex: quickIndex)
+                .padding(.horizontal, 10).padding(.vertical, 7)
         }
-        .frame(height: compact ? 145 : 230)
-        .background(LinearGradient(colors: [accent.opacity(hovered ? 0.14 : 0.085), Theme.panel], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 17))
-        .overlay(RoundedRectangle(cornerRadius: 17).strokeBorder(selected ? Theme.mint.opacity(0.9) : (hovered ? Theme.hoverBorder : Theme.border), lineWidth: selected ? 1.5 : 1))
+        .frame(height: compact ? 145 : 215)
+        .background {
+            RoundedRectangle(cornerRadius: 17).fill(Theme.panel)
+                .overlay(RoundedRectangle(cornerRadius: 17).fill(LinearGradient(colors: [accent.opacity(hovered ? 0.10 : 0.065), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)))
+        }
+        .overlay(RoundedRectangle(cornerRadius: 17).strokeBorder(selected ? GlassAppearance.selection : (hovered ? Theme.hoverBorder : Theme.border), lineWidth: selected ? 2 : 1))
         .shadow(color: .black.opacity(0.13), radius: 8, y: 4)
         .contentShape(RoundedRectangle(cornerRadius: 15))
-        .modifier(CardInteraction(history: history, clip: clip, pasteOnClick: true))
+        .modifier(CardInteraction(history: history, clip: clip))
         .onHover { hovered = $0 }
         .contextMenu { ClipActions(history: history, clip: clip) }
         .onDrag { DragProvider.make(clip, history: history) }
         .accessibilityElement(children: .contain).accessibilityLabel("\(clip.title), \(clip.kind.label), \(clip.source)")
         .accessibilityAddTraits(selected ? .isSelected : [])
-        .accessibilityHint("Coller dans l’application précédente")
-        .accessibilityAction { CardInteraction(history: history, clip: clip, pasteOnClick: true).select(clickCount: 1, modifiers: []) }
+        .accessibilityHint("Double-clique pour coller. Espace pour l’aperçu.")
+        .accessibilityAction { CardInteraction(history: history, clip: clip).select(clickCount: 1, modifiers: []) }
+        .accessibilityAction(named: Text("Coller")) { CardInteraction(history: history, clip: clip).activate(modifiers: []) }
     }
 }
 struct ClipContent: View {
@@ -114,13 +111,16 @@ struct ClipContent: View {
                 }
 
             } else if clip.kind == .link {
-                VStack(alignment: .leading, spacing: 12) { Image(systemName: "arrow.up.right").font(.system(size: compact ? 17 : 25, weight: .light)).foregroundStyle(Theme.mint); Text(URL(string: clip.text)?.host ?? clip.title).font(.system(size: 17, weight: .semibold)).lineLimit(2); if !compact { Text(String(clip.text.prefix(160))).font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(3) } }
+                VStack(alignment: .leading, spacing: 9) {
+                    Text(URL(string: clip.text)?.host ?? clip.title).font(.system(size: 16, weight: .semibold)).lineLimit(2)
+                    if !compact { Text(String(clip.text.prefix(160))).font(.system(size: 15)).foregroundStyle(Theme.adaptive("link", light: 0x0068C6, dark: 0x87C4FF)).lineLimit(3) }
+                }
             } else if clip.kind == .file {
                 VStack(alignment: .leading, spacing: 10) { Image(systemName: "doc.text").font(.system(size: compact ? 22 : 35, weight: .light)).foregroundStyle(Theme.colors[2]); Text(clip.title).font(.system(size: 14, weight: .medium)).lineLimit(3); if !compact { Text(String(clip.text.prefix(180))).font(.system(size: 10)).foregroundStyle(Theme.muted).lineLimit(2) } }
             } else if let format = clip.structuredFormat {
                 StructuredCardPreview(clip: clip, format: format, compact: compact)
             } else {
-                VStack(alignment: .leading, spacing: 9) { Text(clip.title).font(.system(size: compact ? 13 : 16, weight: .semibold)).tracking(-0.25).lineLimit(compact ? 2 : 2); if !compact { Text(String(clip.text.prefix(700))).font(.system(size: 12.5)).lineSpacing(4).foregroundStyle(Theme.ink.opacity(0.72)).lineLimit(5) } }.frame(maxWidth: .infinity, alignment: .leading)
+                Text(String((clip.text.isEmpty ? clip.title : clip.text).prefix(700))).font(.system(size: compact ? 13 : 15)).lineSpacing(4).lineLimit(compact ? 3 : 5).frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
@@ -139,10 +139,14 @@ struct ClipActions: View {
         if clip.trashedAt != nil { Button("Restaurer") { history.restore(clip) }; Button("Supprimer définitivement…", role: .destructive) { confirmPermanentDeletion(history, items: [clip]) } }
         else {
             Button("Coller") { history.paste?([clip], false) }
+            if [.text, .link, .color].contains(clip.kind) {
+                Button("Coller sans mise en forme") { history.paste?([clip], true) }
+                    .help("Colle le texte et les valeurs affichées, sans HTML ni mise en forme · ⇧↩")
+            }
             Button("Copier") { Task { _ = await history.copy([clip]) } }
             Button(clip.kind == .image ? "Copier le texte détecté" : "Copier en texte brut") { Task { _ = await history.copy([clip], plain: true) } }.disabled((clip.kind == .image && clip.ocr.isEmpty) || clip.kind == .video)
             Divider()
-            Button("Aperçu") { history.previewing = clip }
+            if clip.hasPreview { Button("Aperçu") { history.openPreview(clip) } }
             if clip.kind == .image { Button("Annoter l’image…") { history.annotate?(clip) }.disabled(history.annotating || history.captureBusy) }
             if clip.kind == .video { Button("Enregistrer la vidéo…") { history.exportVideo(clip) } }
             if clip.editable { Button("Modifier…") { history.editing = clip } }
@@ -153,7 +157,7 @@ struct ClipActions: View {
             Button("Ajouter à la pile") { history.queue(clip) }
             BitwardenClipMenu(model: history.bitwarden, clip: clip)
             Divider()
-            Button("Mettre à la corbeille", role: .destructive) { history.trash(clip) }
+            Button("Mettre à la corbeille", role: .destructive) { history.requestTrash([clip]) }
         }
     }
 }
@@ -179,20 +183,25 @@ struct EmptyState: View {
 
 struct ShelfView: View {
     @ObservedObject var history: History
+    var nativeGlassHosted = false
     var body: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 17) {
-                Button { history.showLibrary?() } label: { BrandMark(size: 28) }.buttonStyle(FullAreaButtonStyle()).help("Ouvrir la bibliothèque")
-                SearchBar(history: history, focusOnAppear: true).frame(maxWidth: 440)
-                ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 2) {
-                    pill("Historique", selected: history.collection == "all") { history.collection = "all" }
-                    pill("Favoris", selected: history.collection == "pinned") { history.collection = "pinned" }
-                    ForEach(history.boards) { board in pill(board.name, selected: history.collection == board.id.uuidString) { history.collection = board.id.uuidString } }
-                    pill("Pile (\(history.stack.count))", selected: history.collection == "stack") { history.collection = "stack" }
+        VStack(spacing: 12) {
+            HStack(spacing: 20) {
+                Button { history.showLibrary?() } label: { HStack(spacing: 11) { ShelfBrandMark(); Text("EasyPaste").font(.system(size: 17, weight: .semibold)) }.frame(minWidth: 155, alignment: .leading) }.buttonStyle(FullAreaButtonStyle()).help("Ouvrir la bibliothèque")
+                SearchBar(history: history, focusOnAppear: true, glass: true).frame(minWidth: 180, maxWidth: 275)
+                Spacer(minLength: 10).frame(maxWidth: 45)
+                ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 12) {
+                    shelfTab("Historique", icon: "clock", selected: history.collection == "all") { history.collection = "all" }
+                    shelfTab("Favoris", icon: "star", selected: history.collection == "pinned") { history.collection = "pinned" }
+                    Menu {
+                        ForEach(history.boards) { board in Button(board.name) { history.collection = board.id.uuidString } }
+                        if !history.boards.isEmpty { Divider() }
+                        Button("Nouvelle collection…") { history.showNewBoard = true }
+                    } label: { Label(history.boards.first { $0.id.uuidString == history.collection }?.name ?? "Collections", systemImage: "folder").font(.system(size: 14, weight: .medium)).padding(.horizontal, 12).padding(.vertical, 8).contentShape(Rectangle()) }.menuStyle(.borderlessButton).fixedSize()
+                    if !history.stack.isEmpty { shelfTab("Pile (\(history.stack.count))", icon: "square.stack", selected: history.collection == "stack") { history.collection = "stack" } }
                 } }
-                CaptureMenu(history: history)
-                Button { history.compact.toggle() } label: { Image(systemName: history.compact ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left") }.buttonStyle(FullAreaButtonStyle(minimumSize: 24)).help(history.compact ? "Agrandir les cartes" : "Mode compact")
-                Button { history.closeShelf?() } label: { Image(systemName: "xmark").font(.system(size: 11)) }.buttonStyle(FullAreaButtonStyle(minimumSize: 24)).help("Fermer · Échap")
+                CaptureMenu(history: history, iconOnly: true)
+                Button { history.page = "settings"; history.showLibrary?() } label: { Image(systemName: "gearshape").font(.system(size: 18)).frame(width: 42, height: 42).background(GlassAppearance.labelPlate.opacity(0.48), in: Circle()) }.buttonStyle(FullAreaButtonStyle()).help("Réglages").accessibilityLabel("Réglages")
             }
             if history.loading { ProgressView("Ouverture…").frame(maxWidth: .infinity, maxHeight: .infinity) }
             else if history.visible.isEmpty {
@@ -200,22 +209,23 @@ struct ShelfView: View {
             } else {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal, showsIndicators: false) {
-                        LazyHStack(spacing: 13) { ForEach(Array(history.visible.enumerated()), id: \.element.id) { index, clip in ClipCard(history: history, clip: clip, compact: history.compact, quickIndex: index).frame(width: history.compact ? 215 : 236).id(clip.id) } }.padding(3)
+                        LazyHStack(spacing: 13) { ForEach(Array(history.visible.enumerated()), id: \.element.id) { index, clip in ClipCard(history: history, clip: clip, compact: history.compact, quickIndex: index).frame(width: history.compact ? 215 : 252).id(clip.id) } }.padding(3)
                     }.onChange(of: history.selected) { _, value in if let value { proxy.scrollTo(value) } }
                     .onAppear { if let value = history.selected { proxy.scrollTo(value) } }
                 }
             }
-            HStack(spacing: 14) {
-                Text("Clic ou Entrée · coller"); Text("⇧Entrée · texte brut"); Text("⌘1–9 · collage rapide")
+            if !history.recentlyTrashed.isEmpty || history.selection.count > 1 || !history.enabled { HStack(spacing: 14) {
                 Spacer()
                 if !history.recentlyTrashed.isEmpty { Button("Annuler la suppression") { history.undoTrash() }.buttonStyle(FullAreaButtonStyle()).foregroundStyle(Theme.mint) }
-                if !history.selection.isEmpty { Button { history.trashItems(history.selection) } label: { Label("Supprimer\(history.selection.count > 1 ? " (\(history.selection.count))" : "")", systemImage: "trash") }.buttonStyle(FullAreaButtonStyle()).help("Supprimer la sélection") }
-                Text("\(history.visible.count) élément\(history.visible.count == 1 ? "" : "s")")
-                Text(history.enabled ? "Collecte active" : "En pause").foregroundStyle(history.enabled ? Theme.mint : Theme.muted)
-            }.font(.system(size: 10)).foregroundStyle(Theme.muted)
+                if history.selection.count > 1 { Button { history.requestTrash(history.selection) } label: { Label("Supprimer (\(history.selection.count))", systemImage: "trash").foregroundStyle(Theme.danger) }.buttonStyle(FullAreaButtonStyle()).help("Supprimer la sélection") }
+                if !history.enabled { Text("Collecte en pause") }
+            }.font(.system(size: 10)).foregroundStyle(Theme.muted) }
         }.overlay(alignment: .bottomLeading) {
             if let toast = history.toast { Text(toast).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.mint).lineLimit(2).padding(.horizontal, 13).padding(.vertical, 9).background(Theme.panel, in: RoundedRectangle(cornerRadius: 10)).overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.mint.opacity(0.25))).padding(.bottom, 29).allowsHitTesting(false) }
-        }.padding(20).background(LinearGradient(colors: [Theme.raised, Theme.bg], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 23)).overlay(RoundedRectangle(cornerRadius: 23).strokeBorder(Theme.border)).foregroundStyle(Theme.ink).environment(\.locale, Locale(identifier: "fr_FR")).modifier(HistorySheets(history: history, host: "shelf"))
+        }.padding(.horizontal, 22).padding(.vertical, 16).background { ShelfGlass(nativeHosted: nativeGlassHosted) }.foregroundStyle(Theme.ink).environment(\.locale, Locale(identifier: "fr_FR")).modifier(HistorySheets(history: history, host: "shelf"))
+    }
+    private func shelfTab(_ title: String, icon: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Label(title, systemImage: icon).font(.system(size: 14, weight: .medium)).padding(.horizontal, 13).padding(.vertical, 9).foregroundStyle(selected ? Theme.mint : Theme.ink).background(selected ? GlassAppearance.selectedTab.opacity(0.94) : .clear, in: Capsule()) }.buttonStyle(FullAreaButtonStyle())
     }
 }
 @MainActor enum DragProvider {
@@ -290,6 +300,18 @@ enum ClipDate {
         if seconds < 3600 { return "il y a \(seconds / 60) min" }
         if seconds < 86400 { return "il y a \(seconds / 3600) h" }
         return "il y a \(seconds / 86400) j"
+    }
+}
+extension Clip {
+    var shelfTypeLabel: String {
+        switch kind {
+        case .text: structuredFormat == nil ? "Texte" : "Code"
+        case .image: source == "EasyPaste" ? "Capture d’écran" : "Image"
+        case .link: "Lien"
+        case .file: "Fichier"
+        case .video: "Vidéo"
+        case .color: "Couleur"
+        }
     }
 }
 extension ClipKind {

@@ -6,6 +6,7 @@ import CryptoKit
 
 @main struct EasyPasteMain {
     static func main() {
+        if AnnotationPreviewLauncher.runIfNeeded() { return }
         if CommandLine.arguments.contains("--render-svg") { SVGRenderer.runHelper(); return }
         if CommandLine.arguments.contains("--mcp") { MCPServer.run(); return }
         let app = NSApplication.shared
@@ -18,8 +19,10 @@ import CryptoKit
     let history: History
     private var window: NSWindow!
     private var shelf: ShelfPanel?
+    private let shelfSizer = ShelfWindowSizer()
     private var status: NSStatusItem!
     private var target: NSRunningApplication?
+    private lazy var destinations = PasteDestinationTracker()
     private var hotkeys: [EventHotKeyRef] = []
     private var handler: EventHandlerRef?
     private var keys: Any?
@@ -44,7 +47,7 @@ import CryptoKit
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppAppearance.stored().apply()
-        target = NSWorkspace.shared.frontmostApplication
+        target = destinations.capture()
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1190, height: 850), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         window.title = "EasyPaste"; window.titlebarAppearsTransparent = true; window.titleVisibility = .hidden; window.delegate = self
         window.backgroundColor = NSColor(Theme.bg); window.minSize = NSSize(width: 1050, height: 740)
@@ -64,6 +67,7 @@ import CryptoKit
         history.previewChanged = { [weak self] clip in self?.previews.present(clip) }
         history.stopRecording = { [weak self] in self?.captures.stop() }
         captures.hideApp = { [weak self] in self?.window.orderOut(nil); self?.closeShelf(restore: false) }
+        captures.originApplication = { [weak self] in self?.target }
         captures.showResult = { [weak self] in self?.revealShelf() }
         captures.statusChanged = { [weak self] text in self?.recordingStatus(text) }
         annotations.onSaved = { [weak self] in
@@ -154,7 +158,9 @@ import CryptoKit
         for item in menu.items { item.target = self }; status.menu = menu
     }
     private func rememberTarget() {
-        if let app = NSWorkspace.shared.frontmostApplication, app.processIdentifier != ProcessInfo.processInfo.processIdentifier { target = app }
+        // Keep the same destination while opening an editor from our shelf.
+        if NSApp.isActive, shelf?.isVisible == true || window?.isVisible == true { return }
+        target = destinations.capture()
     }
     private func refreshBitwardenMenu() {
         let tag = 8240
@@ -255,20 +261,26 @@ import CryptoKit
             let panel = ShelfPanel(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
             panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = true; panel.level = .floating
             panel.isReleasedWhenClosed = false; panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]; panel.delegate = self
-            panel.contentView = NSHostingView(rootView: ShelfView(history: history)); shelf = panel
+            panel.contentView = ShelfHosting.make(history: history); shelf = panel
         }
         resizeShelf(); shelf?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
         NotificationCenter.default.post(name: .init("EasyPaste.focusSearch"), object: nil)
     }
     private func resizeShelf() {
-        guard let panel = shelf, let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main else { return }
-        let frame = screen.visibleFrame; let height: CGFloat = history.compact ? 290 : 375
+        guard let panel = shelf, let screen = (panel.isVisible ? panel.screen : nil) ?? NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main else { return }
+        let frame = screen.visibleFrame
+        if history.shelfScreenHeight != frame.height { history.shelfScreenHeight = frame.height }
+        let layout = ShelfLayout(screenHeight: frame.height, compact: history.compact, expanded: history.shelfPreview != nil, footer: history.shelfNeedsFooter)
+        let height = layout.height
         let width = min(frame.width - 28, 1680)
-        panel.setFrame(NSRect(x: frame.midX - width/2, y: frame.minY + 12, width: width, height: height), display: true)
+        let target = NSRect(x: frame.midX - width/2, y: frame.minY + 12, width: width, height: height)
+        shelfSizer.resize(panel, to: target, deferShrink: panel.isVisible && history.shelfPreview == nil && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
     }
     func closeShelf(restore: Bool = true) {
         guard shelf?.isVisible == true, shelf?.attachedSheet == nil else { return }
+        shelfSizer.cancel()
         shelf?.orderOut(nil)
+        history.shelfPreview = nil
         history.surface = "library"
         if restore { target?.activate(options: []) }
     }
@@ -281,7 +293,7 @@ import CryptoKit
             guard AXIsProcessTrusted() else {
                 let alert = NSAlert()
                 alert.messageText = "Activer le collage direct"
-                alert.informativeText = "Le contenu est copié. Autorise EasyPaste dans Accessibilité pour le coller d’un clic dans tes applications."
+                alert.informativeText = "Le contenu est copié. Autorise EasyPaste dans Accessibilité pour le coller directement dans tes applications."
                 alert.addButton(withTitle: "Ouvrir les réglages")
                 alert.addButton(withTitle: "Plus tard")
                 if alert.runModal() == .alertFirstButtonReturn {
@@ -289,9 +301,14 @@ import CryptoKit
                 }
                 return
             }
+            guard let destination, !destination.isTerminated,
+                  PasteDestinationPolicy.canActivate(own: ProcessInfo.processInfo.processIdentifier,
+                    destination: destination.processIdentifier, frontmost: NSWorkspace.shared.frontmostApplication?.processIdentifier) else {
+                history.report("Contenu copié. La destination a changé : utilise ⌘V dans l’application souhaitée.")
+                return
+            }
             if history.collection == "stack" { history.consumeStack(clips) }
             closeShelf(restore: false)
-            guard let destination, !destination.isTerminated, destination.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
             guard destination.activate(options: []) else { return }
             try? await Task.sleep(nanoseconds: 180_000_000)
             guard NSWorkspace.shared.frontmostApplication?.processIdentifier == destination.processIdentifier,
@@ -308,20 +325,23 @@ import CryptoKit
         guard NSApp.keyWindow?.attachedSheet == nil, history.editing == nil, history.previewing == nil, !history.newSnippet, !history.showNewBoard else { return event }
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let cmd = flags.contains(.command)
-        if event.keyCode == 53, shelf?.isVisible == true { closeShelf(); return nil }
+        if event.keyCode == 53, shelf?.isVisible == true {
+            if history.shelfPreview != nil { history.shelfPreview = nil } else { closeShelf() }
+            return nil
+        }
         if cmd, event.charactersIgnoringModifiers == "f" { NotificationCenter.default.post(name: .init("EasyPaste.focusSearch"), object: nil); return nil }
         if cmd, event.charactersIgnoringModifiers == "n" { if flags.contains(.shift) { history.showNewBoard = true } else { history.newSnippet = true }; return nil }
         if cmd, event.charactersIgnoringModifiers == "e", let clip = history.selectedClip, clip.trashedAt == nil {
             if clip.kind == .image { annotations.open(clip); return nil }
             if clip.editable { history.editing = clip; return nil }
         }
-        if cmd, event.charactersIgnoringModifiers == "y", let clip = history.selectedClip { history.previewing = clip; return nil }
+        if cmd, event.charactersIgnoringModifiers == "y", let clip = history.selectedClip { history.openPreview(clip); return nil }
         if cmd, event.charactersIgnoringModifiers == "o", let clip = history.selectedClip { openClip(clip); return nil }
         if cmd, event.charactersIgnoringModifiers == "t" { toggleMonitoring(); return nil }
         if !(NSApp.keyWindow?.firstResponder is NSTextView) {
             if cmd, event.charactersIgnoringModifiers == "c", !history.selection.isEmpty { Task { _ = await history.copy(history.selection) }; return nil }
-            if event.keyCode == 49, let clip = history.selectedClip { history.previewing = clip; return nil }
-            if event.keyCode == 51, history.collection != "trash", !history.selection.isEmpty { history.trashItems(history.selection); return nil }
+            if event.keyCode == 49, let clip = history.selectedClip { history.openPreview(clip); return nil }
+            if event.keyCode == 51, history.collection != "trash", !history.selection.isEmpty { history.requestTrash(history.selection); return nil }
             if cmd, event.charactersIgnoringModifiers == "z", !history.recentlyTrashed.isEmpty { history.undoTrash(); return nil }
         }
         guard shelf?.isKeyWindow == true else { return event }
@@ -329,7 +349,7 @@ import CryptoKit
         if cmd, let index = physical[event.keyCode], index < history.visible.count { paste([history.visible[index]], plain: flags.contains(.shift)); return nil }
         if event.keyCode == 123 || event.keyCode == 124 { history.moveSelection(event.keyCode == 123 ? -1 : 1); return nil }
         if event.keyCode == 36 { paste(history.selection, plain: flags.contains(.shift)); return nil }
-        if event.keyCode == 49, !(NSApp.keyWindow?.firstResponder is NSTextView), let c = history.selectedClip { history.previewing = c; return nil }
+        if event.keyCode == 49, !(NSApp.keyWindow?.firstResponder is NSTextView), let c = history.selectedClip { history.openPreview(c); return nil }
         return event
     }
     private func registerHotkeys() {

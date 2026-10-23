@@ -87,7 +87,7 @@ final class AnnotationEditingTests: XCTestCase {
             let image = try ImageRaster.decode(output).0
             XCTAssertEqual(image.width, 360); XCTAssertEqual(image.height, 240); outputs.insert(output)
         }
-        XCTAssertEqual(outputs.count, 3)
+        XCTAssertEqual(outputs.count, AnnotationArrowhead.allCases.count)
     }
     @MainActor func testZoomDoesNotChangeExportAndUndoHistoryIsBounded() throws {
         let model = try model(), mark = arrow()
@@ -114,7 +114,7 @@ final class AnnotationEditingTests: XCTestCase {
         for offset in 1...20 { view.mouseDragged(with: event(.leftMouseDragged, CGPoint(x: 60+offset, y: 60))) }
         XCTAssertEqual(publications, 0); XCTAssertEqual(model.snapshot.marks, [mark])
         view.mouseUp(with: event(.leftMouseUp, CGPoint(x: 80, y: 60)))
-        XCTAssertEqual(model.selectedMark?.start.x, 40); XCTAssertEqual(model.undoStates.count, 2)
+        XCTAssertEqual(try XCTUnwrap(model.selectedMark).start.x, 40, accuracy:0.000001); XCTAssertEqual(model.undoStates.count, 2)
         withExtendedLifetime(observation) {}
         let moved = try XCTUnwrap(model.selectedMark)
         view.mouseDown(with: event(.leftMouseDown, moved.end))

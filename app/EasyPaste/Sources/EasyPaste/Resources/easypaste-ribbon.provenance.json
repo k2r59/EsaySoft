@@ -1,0 +1,10 @@
+{
+  "asset": "easypaste-ribbon.png",
+  "date": "2026-10-23",
+  "tool": "image_gen.imagegen",
+  "mode": "built-in image edit from generated concept board",
+  "user_selection": "A — Ruban",
+  "prompt": "Create a final square source artwork for the approved LEFT icon A only. Faithfully preserve its cobalt/cyan/violet folded ribbon P, large triangular negative space, overlaps, exact silhouette and white/silver material from A. One centered large mark, no other marks. Render the ribbon P directly on a smooth pearl-white square background, edge to edge. The ribbon itself should occupy about 74 percent of the image width and height. The entire canvas must be fully opaque white/pearl, including the corners; do NOT remove the background or produce transparency. Do NOT put another rounded-square tile inside this square canvas; this is the square artwork that will be masked into the standard macOS app icon shape by the application packaging code. Very subtle restrained directional lighting behind the ribbon is okay. No exterior shadow, no debris, no outlines or fuzz, no floating flecks, no text, no A/B/C labels, no miniature. Keep only the approved A artwork, not B or C. Crisp professional app-icon source.",
+  "packaging": "Unmodified source artwork; standard rounded macOS mask and resampling for ICNS export. SwiftUI uses the same source with a native rounded mask.",
+  "runtime_decode_max_pixels": 256
+}

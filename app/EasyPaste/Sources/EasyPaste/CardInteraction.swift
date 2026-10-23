@@ -1,27 +1,21 @@
 import AppKit
 import SwiftUI
 
-/// The shelf pastes on one click. Library cards select immediately and paste on
-/// double-click. Child buttons, menus and dragging keep their own interactions.
+/// Select immediately; recognise double-click independently, without holding the
+/// first click for the system's double-click interval. Buttons keep their actions.
 struct CardInteraction: ViewModifier {
     let history: History
     let clip: Clip
-    var pasteOnClick = false
 
     func body(content: Content) -> some View {
-        if pasteOnClick {
-            content.gesture(singleClick)
-        } else {
-            content.gesture(singleClick.simultaneously(with: TapGesture(count: 2).onEnded {
-                if clip.trashedAt != nil { history.restore(clip) }
-                else { history.paste?([clip], false) }
-            }))
-        }
+        content.gesture(singleClick.simultaneously(with: TapGesture(count: 2).onEnded {
+            activate(modifiers: NSApp?.currentEvent?.modifierFlags ?? NSEvent.modifierFlags)
+        }))
     }
 
     private var singleClick: some Gesture {
         TapGesture(count: 1).onEnded {
-            let event = NSApp.currentEvent
+            let event = NSApp?.currentEvent
             select(clickCount: event?.clickCount ?? 1,
                    modifiers: event?.modifierFlags ?? NSEvent.modifierFlags)
         }
@@ -30,10 +24,13 @@ struct CardInteraction: ViewModifier {
     @MainActor func select(clickCount: Int, modifiers: NSEvent.ModifierFlags) {
         guard clickCount == 1 else { return }
         history.select(clip, modifiers: modifiers)
-        NSApp.keyWindow?.makeFirstResponder(nil)
-        if pasteOnClick, clip.trashedAt == nil,
-           modifiers.intersection([.command, .shift, .control]).isEmpty {
-            history.paste?([clip], false)
-        }
+        NSApp?.keyWindow?.makeFirstResponder(nil)
+    }
+
+    @MainActor func activate(modifiers: NSEvent.ModifierFlags) {
+        guard modifiers.intersection([.command, .shift, .control, .option]).isEmpty,
+              let current = history.clips.first(where: { $0.id == clip.id }) else { return }
+        if current.trashedAt != nil { history.restore(current) }
+        else { history.paste?([current], false) }
     }
 }

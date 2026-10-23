@@ -10,15 +10,82 @@ enum CaptureAction: Int, CaseIterable {
 }
 struct CaptureMenu: View {
     @ObservedObject var history: History
+    var iconOnly = false
     var body: some View {
-        Menu {
-            ForEach(CaptureAction.allCases, id: \.self) { action in
-                if action == .text || action == .video { Divider() }
-                Button { history.capture?(action) } label: { Label(action.title, systemImage: action.icon) }.disabled(history.captureBusy || history.recording || history.annotating)
+        if iconOnly {
+            ShelfCaptureButton(history: history).frame(width: 42, height: 42)
+        } else {
+            Menu {
+                ForEach(CaptureAction.allCases, id: \.self) { action in
+                    if action == .text || action == .video { Divider() }
+                    Button { history.capture?(action) } label: { Label(action.title, systemImage: action.icon) }.disabled(history.captureBusy || history.recording || history.annotating)
+                }
+                if history.recording { Divider(); Button("Arrêter l’enregistrement") { history.stopRecording?() } }
+            } label: {
+                Label(history.recording ? "Enregistrement" : history.captureBusy ? "Capture…" : "Capturer", systemImage: history.recording ? "record.circle.fill" : "viewfinder").font(.system(size: 12, weight: .semibold)).foregroundStyle(history.recording ? .red : Theme.mint).padding(.horizontal, 12).padding(.vertical, 9).background(Theme.mint.opacity(0.08), in: RoundedRectangle(cornerRadius: 10)).contentShape(.interaction, Rectangle())
             }
-            if history.recording { Divider(); Button("Arrêter l’enregistrement") { history.stopRecording?() } }
-        } label: { Label(history.recording ? "Enregistrement" : history.captureBusy ? "Capture…" : "Capturer", systemImage: history.recording ? "record.circle.fill" : "viewfinder").font(.system(size: 12, weight: .semibold)).foregroundStyle(history.recording ? .red : Theme.mint).padding(.horizontal, 12).padding(.vertical, 9).background(Theme.mint.opacity(0.08), in: RoundedRectangle(cornerRadius: 10)).contentShape(.interaction, Rectangle()) }
-        .menuStyle(.borderlessButton).fixedSize().help("Capture d’écran, texte et vidéo")
+            .menuStyle(.borderlessButton).fixedSize().help("Capture d’écran, texte et vidéo").accessibilityLabel("Capturer")
+        }
+    }
+}
+
+/// SwiftUI's borderless Menu reduces custom image labels on macOS. Keep the
+/// actual hit target and image size in AppKit, with an ordinary keyboard menu.
+private struct ShelfCaptureButton: NSViewRepresentable {
+    @ObservedObject var history: History
+    func makeNSView(context: Context) -> CaptureButton {
+        let button = CaptureButton(frame: NSRect(x: 0, y: 0, width: 42, height: 42))
+        button.isBordered = false; button.imagePosition = .imageOnly; button.imageScaling = .scaleNone
+        button.setButtonType(.momentaryChange); button.target = button; button.action = #selector(CaptureButton.openMenu)
+        button.toolTip = "Capture d’écran, texte et vidéo"; button.setAccessibilityLabel("Capturer")
+        return button
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: CaptureButton, context: Context) -> CGSize? {
+        CGSize(width: 42, height: 42)
+    }
+    func updateNSView(_ button: CaptureButton, context: Context) {
+        button.history = history
+        let image = NSImage(systemSymbolName: history.recording ? "record.circle.fill" : "camera.viewfinder", accessibilityDescription: nil)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 20, weight: .regular))
+        button.image = image; button.contentTintColor = history.recording ? .systemRed : NSColor(Theme.ink)
+        button.needsDisplay = true
+    }
+    final class CaptureButton: NSButton {
+        weak var history: History?
+        override var intrinsicContentSize: NSSize { NSSize(width: 42, height: 42) }
+        // A borderless NSButton still inherits bezel alignment insets. SwiftUI
+        // otherwise turns the requested 42-point circle into a 42 × 51 oval.
+        override var alignmentRectInsets: NSEdgeInsets { NSEdgeInsets() }
+        override func draw(_ dirtyRect: NSRect) {
+            NSColor(GlassAppearance.labelPlate).withAlphaComponent(isHighlighted ? 0.7 : 0.48).setFill()
+            let diameter = min(bounds.width, bounds.height)
+            let circle = NSRect(x: bounds.midX - diameter / 2, y: bounds.midY - diameter / 2, width: diameter, height: diameter)
+            NSBezierPath(ovalIn: circle).fill()
+            super.draw(dirtyRect)
+        }
+        @objc func openMenu() {
+            guard let history else { return }
+            let menu = NSMenu(); menu.autoenablesItems = false
+            for capture in CaptureAction.allCases {
+                if capture == .text || capture == .video { menu.addItem(.separator()) }
+                let item = NSMenuItem(title: capture.title, action: #selector(choose(_:)), keyEquivalent: "")
+                item.tag = capture.rawValue; item.target = self
+                item.image = NSImage(systemSymbolName: capture.icon, accessibilityDescription: nil)
+                item.isEnabled = !history.captureBusy && !history.recording && !history.annotating
+                menu.addItem(item)
+            }
+            if history.recording {
+                menu.addItem(.separator())
+                let stop = NSMenuItem(title: "Arrêter l’enregistrement", action: #selector(stopRecording), keyEquivalent: "")
+                stop.target = self; menu.addItem(stop)
+            }
+            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: bounds.minY - 4), in: self)
+        }
+        @objc private func choose(_ item: NSMenuItem) {
+            guard let capture = CaptureAction(rawValue: item.tag) else { return }
+            history?.capture?(capture)
+        }
+        @objc private func stopRecording() { history?.stopRecording?() }
     }
 }
 @MainActor final class CaptureController: NSObject, NSWindowDelegate {
@@ -34,6 +101,7 @@ struct CaptureMenu: View {
     private var currentAction: CaptureAction?
     private var operation: UUID?
     var hideApp: (() -> Void)?
+    var originApplication: (() -> NSRunningApplication?)?
     var showResult: (() -> Void)?
     var statusChanged: ((String?) -> Void)?
     init(history: History) {
@@ -73,11 +141,12 @@ struct CaptureMenu: View {
                 _ = CGRequestScreenCaptureAccess()
                 NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
             }.buttonStyle(PasteButtonStyle()); Button("Réessayer") { self.dismissPanel(); self.history.captureBusy = false; self.run(action) }.buttonStyle(PasteButtonStyle(primary: true)) }
-        }.padding(28).frame(width: 490).background(Theme.bg).foregroundStyle(Theme.ink), title: "Autorisation EasyPaste")
+        }.padding(28).frame(width: 490).chromeSurface(radius: 22).foregroundStyle(Theme.ink), title: "Autorisation EasyPaste")
     }
     private func present<V: View>(_ view: V, title: String) {
         dismissPanel()
         let panel = NSPanel(contentRect: .zero, styleMask: [.titled,.closable], backing: .buffered, defer: false)
+        panel.isOpaque = false; panel.backgroundColor = .clear; panel.titlebarAppearsTransparent = true
         panel.title = title; panel.isReleasedWhenClosed = false; panel.level = .floating; panel.delegate = self; panel.hidesOnDeactivate = false
         panel.contentView = NSHostingView(rootView: view); panel.center(); self.panel = panel
         panel.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
@@ -134,10 +203,18 @@ struct CaptureMenu: View {
         let continuation = selectionContinuation; selectionContinuation = nil; continuation?.resume(returning: rect)
     }
     private func captureImage(_ action: CaptureAction, id: UUID) async {
+        let originApp = originApplication?()
+        let originPID = originApp?.processIdentifier
+        let originBundle = originApp?.bundleIdentifier ?? ""
+        let origin = await Task.detached(priority: .userInitiated) {
+            originPID.flatMap { BrowserPageReader.read(pid: $0, bundleID: originBundle, requireFocused: false) }
+        }.value
         let screen = screenRect(); hideApp?()
         defer { if operation == id { history.captureBusy = false; task = nil; operation = nil } }
         do {
             let image: CGImage
+            let capturedRect: CGRect
+            var capturedOriginWindow = true
             if action == .window {
                 let content = try await CaptureImage.content()
                 let order = (CGWindowListCopyWindowInfo([.optionOnScreenOnly,.excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []).compactMap { $0[kCGWindowNumber as String] as? UInt32 }
@@ -147,21 +224,28 @@ struct CaptureMenu: View {
                 guard let rect = await select(windows: windows), let window = windows.first(where: { $0.frame == rect }) else { if operation == id { showResult?() }; return }
                 try Task.checkCancellation(); try await Task.sleep(for: .milliseconds(140))
                 image = try await CaptureImage.window(window)
+                capturedRect = window.frame
+                capturedOriginWindow = window.owningApplication?.processID == originPID
             } else {
                 let rect: CGRect
                 if action == .screen { rect = screen }
                 else { guard let selected = await select() else { if operation == id { showResult?() }; return }; rect = selected }
                 try Task.checkCancellation(); try await Task.sleep(for: .milliseconds(140))
                 image = try await CaptureImage.region(rect)
+                capturedRect = rect
             }
+            let confirmed = await Task.detached(priority: .utility) {
+                origin == nil ? nil : originPID.flatMap { BrowserPageReader.read(pid: $0, bundleID: originBundle, requireFocused: false) }
+            }.value
+            let sourceURL = capturedOriginWindow ? origin?.source(for: capturedRect, confirmed: confirmed) : nil
             let data = try await Task.detached(priority: .userInitiated) { try CaptureImage.png(image) }.value
             try Task.checkCancellation()
             let clip: Clip
             if action == .text {
                 let text = try await Task.detached(priority: .userInitiated) { try ImageText.recognize(data) }.value
                 try Task.checkCancellation(); guard operation == id else { return }
-                clip = try await history.saveOCR(text)
-            } else { clip = try await history.saveImage(data) }
+                clip = try await history.saveOCR(text, sourceURL: sourceURL)
+            } else { clip = try await history.saveImage(data, sourceURL: sourceURL) }
             history.sounds.play(.capture)
             let copied = await history.copy([clip], sound: nil); showResult?()
             history.report(copied ? (action == .text ? "Texte copié · ⌘V pour coller" : "Capture copiée · ⌘V pour coller") : "Capture enregistrée dans l’historique.")

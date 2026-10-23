@@ -72,27 +72,105 @@ import XCTest
         try await Task.sleep(for: .milliseconds(20))
         XCTAssertEqual(history.selected, clips[2].id)
     }
-    func testShelfClickPastesExactlyOnceWithoutWaitingForAnotherClick() {
+    func testDoubleClickPastesOnceAndFirstClickOnlySelects() {
         let clip = history.visible[2]
         var pasted: [[UUID]] = []
         history.paste = { clips, plain in pasted.append(clips.map(\.id)); XCTAssertFalse(plain) }
-        let action = CardInteraction(history: history, clip: clip, pasteOnClick: true)
+        let action = CardInteraction(history: history, clip: clip)
         action.select(clickCount: 1, modifiers: [])
-        XCTAssertEqual(pasted, [[clip.id]])
+        XCTAssertTrue(pasted.isEmpty)
         XCTAssertEqual(history.selected, clip.id)
         action.select(clickCount: 2, modifiers: [])
-        XCTAssertEqual(pasted.count, 1)
+        action.activate(modifiers: [])
+        XCTAssertEqual(pasted, [[clip.id]])
     }
 
     func testShelfModifiedClicksKeepMultiSelectionWithoutPasting() {
         history.paste = { _, _ in XCTFail("A selection modifier must not paste") }
         history.select(history.visible[0])
-        let action = CardInteraction(history: history, clip: history.visible[2], pasteOnClick: true)
+        let action = CardInteraction(history: history, clip: history.visible[2])
         action.select(clickCount: 1, modifiers: .shift)
         XCTAssertEqual(history.selectedIDs.count, 3)
         action.select(clickCount: 1, modifiers: .command)
         XCTAssertEqual(history.selectedIDs.count, 2)
         action.select(clickCount: 1, modifiers: .control)
+        for modifiers: NSEvent.ModifierFlags in [.command, .shift, .control, .option] {
+            action.activate(modifiers: modifiers)
+        }
+    }
+
+    func testCancelledTrashKeepsItemAndConfirmationEvenWithCheckbox() {
+        let clip = history.visible[0]
+        XCTAssertTrue(history.confirmTrash)
+        history.requestTrash([clip]) { count in
+            XCTAssertEqual(count, 1)
+            return TrashDecision(approved: false, skipFuture: true)
+        }
+        XCTAssertNil(history.clips.first { $0.id == clip.id }?.trashedAt)
+        XCTAssertTrue(history.confirmTrash)
+        XCTAssertTrue(history.recentlyTrashed.isEmpty)
+    }
+
+    func testTrashSuppressionPersistsAndCanBeEnabledAgain() {
+        let clips = history.visible
+        var prompts = 0
+        history.requestTrash([clips[0]]) { _ in
+            prompts += 1
+            return TrashDecision(approved: true, skipFuture: true)
+        }
+        XCTAssertFalse(history.confirmTrash)
+        XCTAssertEqual(defaults.object(forKey: "confirmTrash") as? Bool, false)
+        history.requestTrash([clips[1]]) { _ in XCTFail("Suppressed confirmation"); return TrashDecision(approved: false) }
+        XCTAssertNotNil(history.clips.first { $0.id == clips[1].id }?.trashedAt)
+        history.confirmTrash = true
+        history.requestTrash([clips[2]]) { _ in prompts += 1; return TrashDecision(approved: false) }
+        XCTAssertEqual(prompts, 2)
+        XCTAssertNil(history.clips.first { $0.id == clips[2].id }?.trashedAt)
+    }
+
+    func testBatchTrashDeduplicatesAndIgnoresStaleItemsThenUndoRestores() {
+        let clips = history.visible
+        history.trash(clips[0])
+        history.requestTrash([clips[0], clips[1], clips[1], makeClip("Absent")]) { count in
+            XCTAssertEqual(count, 1)
+            return TrashDecision(approved: true)
+        }
+        XCTAssertNotNil(history.clips.first { $0.id == clips[1].id }?.trashedAt)
+        XCTAssertNil(history.clips.first { $0.id == clips[2].id }?.trashedAt)
+        history.undoTrash()
+        XCTAssertNil(history.clips.first { $0.id == clips[1].id }?.trashedAt)
+        XCTAssertNotNil(history.clips.first { $0.id == clips[0].id }?.trashedAt)
+        history.requestTrash([clips[0]]) { _ in XCTFail("Nothing left to trash"); return TrashDecision(approved: true) }
+    }
+
+    func testDoubleClickRestoresCurrentTrashedStateInsteadOfPastingStaleCard() {
+        let clip = history.visible[0]
+        history.paste = { _, _ in XCTFail("A trashed item must not paste") }
+        history.trash(clip)
+        CardInteraction(history: history, clip: clip).activate(modifiers: [])
+        XCTAssertNil(history.clips.first { $0.id == clip.id }?.trashedAt)
+    }
+
+    func testFooterFavoriteDoesNotChangeSelectionOrPaste() {
+        let first = history.visible[0], other = history.visible[1]
+        history.select(first)
+        history.paste = { _, _ in XCTFail("Favorite must not paste") }
+        history.togglePin(other)
+        XCTAssertTrue(history.clips.first { $0.id == other.id }!.pinned)
+        XCTAssertEqual(history.selected, first.id)
+        history.togglePin(other)
+        XCTAssertFalse(history.clips.first { $0.id == other.id }!.pinned)
+    }
+
+    func testPreviewEligibilityDoesNotDependOnLoadedPayload() {
+        var clip = makeClip("")
+        for kind in ClipKind.allCases {
+            clip.kind = kind
+            XCTAssertEqual(clip.metadata().hasPreview, kind == .image || kind == .video)
+            clip.text = "Un aperçu"
+            XCTAssertTrue(clip.metadata().hasPreview)
+            clip.text = ""
+        }
     }
 
     func testReopeningShelfKeepsSelectionAndArrowNavigationPosition() async throws {

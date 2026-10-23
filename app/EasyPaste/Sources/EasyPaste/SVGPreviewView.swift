@@ -94,6 +94,7 @@ enum SVGFile {
 struct SVGFilePreview: View {
     let url: URL
     @ObservedObject var history: History
+    var height: CGFloat = 390
     @State private var document: SVGDocument?
     @State private var source = ""
     @State private var error = ""
@@ -105,7 +106,7 @@ struct SVGFilePreview: View {
             else if let document { SVGPreviewView(document: document, history: history) }
             else if !error.isEmpty { Text(error).font(.system(size: 12)).foregroundStyle(Theme.warning).padding(16) }
             else { ProgressView("Vérification du SVG…") }
-        }.frame(height: 390).task(id: url) {
+        }.frame(height: height).task(id: url) {
             source = ""; document = nil; error = ""
             do {
                 let raw = try await Task.detached { try SVGFile.read(url) }.value

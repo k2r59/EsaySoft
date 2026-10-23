@@ -42,7 +42,7 @@ struct ClipQuery {
     let sounds: SoundFeedback
     var updateBusy: Bool {
         AppUpdates.isBusy(recording: recording, capture: captureBusy, annotation: annotating,
-                          editor: editing != nil || newSnippet, preview: previewing != nil,
+                          editor: editing != nil || newSnippet, preview: previewing != nil || shelfPreview != nil,
                           sampling: samplingColor, sharing: bitwarden.busy)
     }
     let bitwarden: BitwardenModel
@@ -64,6 +64,7 @@ struct ClipQuery {
     @Published var exclusions: [String] { didSet { defaults.set(exclusions, forKey: "exclusions") } }
     @Published var mcpEnabled: Bool { didSet { defaults.set(mcpEnabled, forKey: "mcpEnabled") } }
     @Published var compact: Bool { didSet { defaults.set(compact, forKey: "compact"); resizeShelf?() } }
+    @Published var confirmTrash: Bool { didSet { defaults.set(confirmTrash, forKey: "confirmTrash") } }
     @Published var stack: [UUID] = [] { didSet { refresh() } }
     @Published var stackRecording = false
     @Published var recentlyTrashed: [UUID] = []
@@ -81,8 +82,21 @@ struct ClipQuery {
     private var toastTask: Task<Void, Never>?
     @Published var editing: Clip?
     @Published var previewing: Clip? { didSet { previewChanged?(previewing); structuredPreviewRequested = false } }
+    @Published var shelfPreview: Clip? { didSet { if (oldValue == nil) != (shelfPreview == nil) { resizeShelf?() } } }
+    @Published var shelfScreenHeight: CGFloat = 900
+    func openPreview(_ clip: Clip) {
+        guard clip.hasPreview else { return }
+        if surface == "shelf" {
+            selected = clip.id; selectedIDs = [clip.id]; shelfPreview = clip
+        } else { previewing = clip }
+    }
+    func followShelfSelection() {
+        guard shelfPreview != nil else { return }
+        guard let clip = selectedClip, clip.hasPreview else { shelfPreview = nil; return }
+        if shelfPreview?.id != clip.id { shelfPreview = clip }
+    }
     private(set) var structuredPreviewRequested = false
-    func openFormatter(_ clip: Clip) { structuredPreviewRequested = true; previewing = clip }
+    func openFormatter(_ clip: Clip) { shelfPreview = nil; structuredPreviewRequested = true; previewing = clip }
     var previewChanged: ((Clip?) -> Void)?
     @Published var newSnippet = false
     @Published var showNewBoard = false
@@ -122,6 +136,7 @@ struct ClipQuery {
         exclusions = defaults.stringArray(forKey: "exclusions") ?? []
         mcpEnabled = defaults.bool(forKey: "mcpEnabled")
         compact = defaults.bool(forKey: "compact")
+        confirmTrash = defaults.object(forKey: "confirmTrash") == nil || defaults.bool(forKey: "confirmTrash")
         changeCount = NSPasteboard.general.changeCount
         sounds.muted = { [weak self] in self?.recording ?? true }
         if let vault {
@@ -214,10 +229,17 @@ struct ClipQuery {
         do {
             guard let raw = try ClipboardReader.read(pb, source: app?.localizedName ?? "Application", sourceID: app?.bundleIdentifier ?? "unknown", exclusions: Set(exclusions)) else { return }
             importInFlight = true
+            let sourcePID = app?.processIdentifier
+            let clipboardRevision = pb.changeCount
             Task {
-                let clip = await Task.detached(priority: .utility) { () -> Clip in
-                    var c = raw; c.fingerprint = Clip.fingerprint(c.payload); c.prepareThumbnail(); return c
+                var clip = await Task.detached(priority: .utility) { () -> Clip in
+                    var c = raw
+                    if c.sourceURL == nil, let pid = sourcePID { c.sourceURL = BrowserPageReader.read(pid: pid, bundleID: c.sourceID)?.sourceURL }
+                    c.fingerprint = Clip.fingerprint(c.payload); c.prepareThumbnail(); return c
                 }.value
+                // Keep explicit clipboard provenance, but discard a native
+                // lookup if the user copied again or changed application.
+                if raw.sourceURL == nil, pb.changeCount != clipboardRevision || NSWorkspace.shared.frontmostApplication?.processIdentifier != sourcePID { clip.sourceURL = nil }
                 importInFlight = false
                 guard enabled, !stopping, !fault else { return }; add(clip)
                 sounds.play(.copy)
@@ -480,20 +502,23 @@ extension History {
         indexOCR(value); prune()
         return value.metadata()
     }
-    func saveImage(_ data: Data, parent: Clip? = nil) async throws -> Clip {
+    func saveImage(_ data: Data, parent: Clip? = nil, sourceURL: String? = nil) async throws -> Clip {
         guard data.count <= ClipboardReader.limit else { throw CaptureFailure.message("Cette image dépasse 20 Mo. Sélectionne une zone plus petite.") }
         let clip = await Task.detached(priority: .userInitiated) {
             let payload = ClipPayload(representations: [[.init(type: NSPasteboard.PasteboardType.png.rawValue, data: data)]])
             var clip = Clip(title: parent.map { $0.title + " · modifiée" } ?? "Capture d’écran", text: "", source: "EasyPaste", sourceID: "app.easypaste.mac", kind: .image, fingerprint: Clip.fingerprint(payload), payload: payload)
             clip.parentID = parent.map { $0.parentID ?? $0.id }; clip.boards = parent?.boards ?? []
+            clip.sourceURL = BrowserOrigin.url(sourceURL ?? parent?.sourceURL)?.absoluteString
             clip.prepareThumbnail(); return clip
         }.value
         return try await insertCapture(clip)
     }
-    func saveOCR(_ text: String) async throws -> Clip {
+    func saveOCR(_ text: String, sourceURL: String? = nil) async throws -> Clip {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw CaptureFailure.message("Aucun texte détecté. Essaie une zone plus nette ou plus grande.") }
         let payload = ClipPayload(representations: [[.init(type: NSPasteboard.PasteboardType.string.rawValue, data: Data(text.utf8))]])
-        return try await insertCapture(Clip(title: String(text.prefix(90)), text: text, source: "Capture de texte", sourceID: "app.easypaste.mac", kind: .text, fingerprint: Clip.fingerprint(payload), payload: payload))
+        var clip = Clip(title: String(text.prefix(90)), text: text, source: "Capture de texte", sourceID: "app.easypaste.mac", kind: .text, fingerprint: Clip.fingerprint(payload), payload: payload)
+        clip.sourceURL = BrowserOrigin.url(sourceURL)?.absoluteString
+        return try await insertCapture(clip)
     }
     /// Replace the encrypted image atomically while retaining the card identity,
     /// title, ordering, favorites and collections. Never retain the old OCR text.

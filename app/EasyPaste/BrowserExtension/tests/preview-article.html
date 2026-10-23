@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>EasyPaste · Aperçu article</title>
+  <link rel="stylesheet" href="../popup.css">
+<style>body{margin:24px auto;border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 20px 60px #0003}html{background:#d9e3e0}button:not(.text-button){pointer-events:none}</style></head>
+<body>
+  <header class="glass">
+    <img src="../icons/icon48.png" width="36" height="36" alt="">
+    <div><h1>EasyPaste <span>Web</span></h1><p id="domain">example.com</p></div>
+    <span class="local">Local</span>
+  </header>
+  <main>
+    <details id="page-card" class="card" open>
+      <summary class="section-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v14H5V3zM15 3v5h4M8 12h8M8 16h6"/></svg><h2 id="page-heading">Contenu de la page</h2></summary>
+      <p id="page-title" class="page-title">Une copie qui garde sa mise en forme</p>
+      <label class="field" for="scope">À copier</label>
+      <select id="scope">
+        <option value="page">Contenu principal</option>
+        <option value="selection" id="selection-option" disabled>Texte sélectionné</option>
+      </select>
+      <label class="check"><input id="attribution" type="checkbox" checked><span>Ajouter le lien de la source</span></label>
+      <button id="copy-page" class="primary"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></svg><span>Copier avec la mise en forme</span></button>
+      <p class="hint">Titres, listes, tableaux et liens. Sans scripts ni images distantes.</p>
+    </details>
+    <section id="youtube" class="card" aria-labelledby="youtube-heading" hidden>
+      <div class="section-label"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="4"/><path d="m10 9 5 3-5 3z"/></svg><h2 id="youtube-heading">Sous-titres YouTube</h2><span id="caption-count" class="badge"></span></div>
+      <p id="caption-info" class="hint">Recherche des pistes disponibles…</p>
+      <label class="field" for="track">Piste</label>
+      <select id="track" aria-describedby="caption-info"><option value="dom">Transcription affichée sur la page</option></select>
+      <label class="check"><input id="timestamps" type="checkbox"><span>Inclure les repères de temps</span></label>
+      <button id="copy-captions" class="primary"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M5 10h6m2 0h6M5 14h4m2 0h8"/></svg><span>Copier les sous-titres</span></button>
+      <button id="refresh" class="text-button">Actualiser les pistes</button>
+    </section>
+    <div id="feedback" role="status" aria-live="polite" aria-atomic="true"><span id="feedback-text">Aperçu visuel · données de démonstration.</span></div>
+  </main>
+  <footer>À la demande. Aucun historique de navigation collecté.</footer>
+  
+</body>
+</html>

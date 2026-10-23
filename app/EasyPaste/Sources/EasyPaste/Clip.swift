@@ -27,9 +27,13 @@ struct Clip:Codable,Identifiable {
     var thumbnail:Data? = nil
     var parentID: UUID? = nil
     var duration: Double? = nil
+    var sourceURL: String? = nil
+    var originURL: URL? { BrowserOrigin.url(sourceURL) }
     var durationLabel: String { let seconds = Int(max(0, duration ?? 0)); return String(format: "%d:%02d", seconds / 60, seconds % 60) }
     var imageData: Data? { payload.representations.flatMap { $0 }.first { [NSPasteboard.PasteboardType.png.rawValue, NSPasteboard.PasteboardType.tiff.rawValue].contains($0.type) }?.data }
     var editable: Bool { [.text, .link, .color].contains(kind) }
+    // Metadata-only check: opening the preview loads the full payload on demand.
+    var hasPreview: Bool { kind == .image || kind == .video || !text.isEmpty }
     var structuredFormat: StructuredFormat? { kind == .text ? StructuredHintCache.hint(text: text, fingerprint: fingerprint) : nil }
     var byteCount:Int {storedBytes ?? payload.representations.flatMap{$0}.reduce(0){$0+$1.data.count}}
     private static let imageCache:NSCache<NSString,NSImage> = {let c=NSCache<NSString,NSImage>();c.totalCostLimit=32*1024*1024;return c}()

@@ -59,7 +59,7 @@ struct SampledColor: Equatable, Sendable {
     private func show(_ sample: SampledColor, copied: Bool) {
         let panel = NSPanel(contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: false)
         panel.title = "Pipette EasyPaste"; panel.isReleasedWhenClosed = false; panel.level = .floating
-        panel.hidesOnDeactivate = false; panel.backgroundColor = NSColor(Theme.bg)
+        panel.hidesOnDeactivate = false; panel.isOpaque = false; panel.backgroundColor = .clear; panel.titlebarAppearsTransparent = true
         panel.contentView = NSHostingView(rootView: ColorSampleView(sample: sample, copied: copied, copy: { [weak self] text in
             self?.history.copyStructuredText(text) ?? false
         }, again: { [weak self] in self?.sample() }, close: { [weak self] in self?.panel?.close(); self?.panel = nil }))
@@ -104,7 +104,7 @@ struct ColorSampleView: View {
                 Button(action: again) { Label("Prélever à nouveau", systemImage: "eyedropper") }
                     .buttonStyle(PasteButtonStyle(primary: true))
             }
-        }.padding(24).frame(width: 430).background(Theme.bg).foregroundStyle(Theme.ink)
+        }.padding(24).frame(width: 430).chromeSurface(radius: 22).foregroundStyle(Theme.ink)
     }
     private func valueRow(_ label: String, _ text: String) -> some View {
         Button {
