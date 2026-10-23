@@ -42,19 +42,6 @@ if [[ -n "${NOTARY_PROFILE:-}" ]]; then
 fi
 ditto "$app" "$staging/EasyPaste.app"
 ditto -c -k --sequesterRsrc --keepParent "$staging/EasyPaste.app" "dist/EasyPaste-$version-universal.zip"
-mkdir -p "$staging/EasyPaste-source"
-cp Package.swift Package.resolved LICENSE README.md QA-*.md THIRD-PARTY-NOTICES.md ASSET-PROMPT.txt .gitignore "$staging/EasyPaste-source/"
-ditto Sources "$staging/EasyPaste-source/Sources"
-ditto Tests "$staging/EasyPaste-source/Tests"
-ditto scripts "$staging/EasyPaste-source/scripts"
-ditto docs "$staging/EasyPaste-source/docs"
-python3 - "$staging/EasyPaste-source" <<'PY'
-import pathlib, shutil, sys
-extension = pathlib.Path("BrowserExtension")
-if extension.is_dir():
-    shutil.copytree(extension, pathlib.Path(sys.argv[1]) / "BrowserExtension",
-                    ignore=shutil.ignore_patterns("node_modules", "dist", "*.zip", ".DS_Store"))
-PY
-ditto -c -k --keepParent "$staging/EasyPaste-source" "dist/EasyPaste-$version-source.zip"
+python3 scripts/package-source.py "dist/EasyPaste-$version-source.zip"
 (cd dist && shasum -a 256 "EasyPaste-$version-universal.dmg" "EasyPaste-$version-universal.zip" "EasyPaste-$version-source.zip") > dist/SHA256SUMS
 print "Installateur : $PWD/$dmg"
