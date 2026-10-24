@@ -43,6 +43,11 @@ button.text-button { min-height: 34px; background: transparent; color: var(--suc
 #feedback { min-height: 46px; padding: 4px 5px 8px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 #feedback[data-kind="success"] { color: var(--success); }
 #feedback[data-kind="error"] { color: var(--error); }
+.mac-actions { display: flex; gap: 8px; margin-top: 12px; }
+.mac-actions > button { flex: 1; min-width: 0; }
+#mac-status[data-kind="success"] { color: var(--success); }
+#mac-status[data-kind="error"] { color: var(--error); }
+#mac-last-check { font-size: 11px; }
 footer { padding: 0 20px 16px; color: var(--muted); font-size: 10px; text-align: center; }
 @media (prefers-color-scheme: dark) {
   :root { --bg: #101719; --panel: #1c2528; --ink: #f2f8f5; --muted: #b2c2bc; --line: #364744; --glass: #1e2c2bf5; --success: #a3f6d4; --error: #ffb5b3; --focus: #a3f6d4; }

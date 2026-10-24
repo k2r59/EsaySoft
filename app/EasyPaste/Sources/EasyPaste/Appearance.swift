@@ -37,6 +37,7 @@ enum AppAppearance: String, CaseIterable, Identifiable {
 }
 
 struct AppearanceSettings: View {
+    @ThemePalette private var palette
     @AppStorage(AppAppearance.defaultsKey) private var storedAppearance = AppAppearance.light.rawValue
     private var selection: AppAppearance { AppAppearance(rawValue: storedAppearance) ?? .light }
     var body: some View {
@@ -55,9 +56,9 @@ struct AppearanceSettings: View {
                         }
                         .font(.system(size: 12, weight: .medium))
                         .padding(.horizontal, 14).frame(maxWidth: .infinity, minHeight: 44)
-                        .foregroundStyle(selection == mode ? Theme.mint : Theme.ink)
-                        .background(selection == mode ? Theme.mint.opacity(0.1) : Theme.raised.opacity(0.45), in: RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(selection == mode ? Theme.mint : Theme.border))
+                        .foregroundStyle(selection == mode ? palette.accent : Theme.ink)
+                        .background(selection == mode ? palette.accent.opacity(0.1) : Theme.raised.opacity(0.45), in: RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(selection == mode ? palette.accent : Theme.border))
                         .contentShape(Rectangle())
                     }.buttonStyle(FullAreaButtonStyle())
                         .accessibilityLabel("Apparence : \(mode.title)")

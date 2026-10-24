@@ -67,4 +67,41 @@ final class BrowserOriginTests: XCTestCase {
         for _ in 0..<100 { XCTAssertNil(BrowserOrigin.extensionURL(data)) }
         XCTAssertLessThan(ProcessInfo.processInfo.systemUptime - start, 1, "Only a bounded HTML prefix should be scanned")
     }
+    func testLongSourceURLSurvivesAttributeEntityExpansionWithinBoundedHead() throws {
+        let prefix = "https://example.com/?q="
+        let source = prefix + String(repeating: "&", count: 8192 - prefix.utf8.count)
+        let escaped = source.replacingOccurrences(of: "&", with: "&amp;")
+        let html = "<html><head><meta name=\"easypaste-source-url\" content=\"\(escaped)\"></head><body>Texte</body></html>"
+        XCTAssertGreaterThan(html.utf8.count, 40_000)
+        XCTAssertEqual(BrowserOrigin.extensionURL(Data(html.utf8)), source)
+        XCTAssertNil(BrowserOrigin.url(source + "x"))
+        let ordinary = prefix + String(repeating: "a", count: 5000)
+        XCTAssertEqual(BrowserOrigin.extensionURL(Data("<meta name='easypaste-source-url' content='\(ordinary)'>".utf8)), ordinary)
+    }
+    func testMetadataIgnoresCommentsRawElementsTemplatesAndQuotedTagLiterals() {
+        let fake = #"<meta name="easypaste-source-url" content="https://wrong.example/">"#
+        let real = #"<meta name="easypaste-source-url" content="https://real.example/">"#
+        for wrapped in [
+            "<!-- \(fake) -->",
+            "<script>const example = '\(fake)';</script>",
+            "<SCRIPT type='module'>const example = '\(fake)';</ScRiPt >",
+            "<style>.example::before { content: '\(fake)'; }</style>",
+            "<title>\(fake)</title>",
+            "<noscript>\(fake)</noscript>",
+            "<template>Text<template>\(fake)</template>After</template>",
+            "<link data-example='quoted > \(fake)' href='https://example.com/style.css'>"
+        ] {
+            XCTAssertNil(BrowserOrigin.extensionURL(Data("<head>\(wrapped)</head>".utf8)), wrapped)
+            XCTAssertEqual(BrowserOrigin.extensionURL(Data("<head>\(wrapped)\(real)</head>".utf8)), "https://real.example/", wrapped)
+        }
+    }
+    func testMetadataScannerRejectsUnclosedOrBodyContentAndHandlesQuotedGreaterThan() {
+        let real = #"<meta name="easypaste-source-url" content="https://real.example/">"#
+        for prefix in ["<!-- ", "<script> ", "<style> ", "<template> ", "<body>", "<p>", "ordinary text ", "<head><link data-example='"] {
+            XCTAssertNil(BrowserOrigin.extensionURL(Data((prefix + real).utf8)), prefix)
+        }
+        let html = #"<head><meta data-label='a > b < c' content='https://real.example/?a=1&#X26;b=2' name='easypaste-source-url'></head>"#
+        XCTAssertEqual(BrowserOrigin.extensionURL(Data(html.utf8)), "https://real.example/?a=1&b=2")
+        XCTAssertEqual(BrowserOrigin.extensionURL(Data("<META NAME=easypaste-source-url CONTENT=https://real.example/>".utf8)), "https://real.example/")
+    }
 }

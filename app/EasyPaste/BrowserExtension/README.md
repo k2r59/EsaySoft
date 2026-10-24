@@ -1,6 +1,6 @@
 # EasyPaste · Web
 
-Extension Chrome locale, en français, sous licence MIT. Elle complète EasyPaste sans compte, serveur ni connexion native entre le navigateur et l’app. Elle fonctionne aussi seule : tout passe par le presse-papiers du système.
+Extension Chrome locale, en français, sous licence MIT. Elle complète EasyPaste sans compte ni serveur. Les copies passent par le presse-papiers du système et fonctionnent aussi sans l’app. Une connexion locale facultative permet de vérifier le lien avec EasyPaste, sans accéder à son historique.
 
 ## Installer pour essayer
 
@@ -10,6 +10,16 @@ Extension Chrome locale, en français, sous licence MIT. Elle complète EasyPast
 4. Dans le menu Extensions de Chrome, épingler **EasyPaste · Web**.
 
 Aucune publication sur le Chrome Web Store n’a été faite. Pour installer depuis un ZIP, le décompresser d’abord, puis sélectionner son dossier. Pour une mise à jour locale, remplacer les fichiers et utiliser **Actualiser** sur la fiche de l’extension. Aucun système de mise à jour automatique n’est configuré.
+
+## Relier l’app Mac (facultatif)
+
+1. Dans EasyPaste, ouvrir **Réglages → Intégrations → Extension navigateur** et préparer la connexion pour le navigateur utilisé.
+2. Dans le popup de l’extension, carte **Application Mac**, cliquer sur **Connecter** et accepter l’accès local demandé par le navigateur.
+3. La réponse affiche la version d’EasyPaste et l’heure de la vérification. **Vérifier** relance cet échange à la demande ; aucune connexion permanente n’est maintenue.
+
+**Déconnecter** retire uniquement l’autorisation facultative `nativeMessaging` de cette extension. Les fonctions de copie et les copies existantes restent disponibles. Une app absente, une connexion désactivée ou un navigateur non autorisé affiche une action à effectuer dans les réglages. Une vérification native attend au maximum cinq secondes. Son état reste en mémoire seulement tant que le popup est ouvert.
+
+La version 0.2.0 fixe l’identité publique de l’extension à `nmkechbpakkenabambdbpnaahhdlgpej`. Les anciennes versions locales avaient un identifiant dépendant du dossier choisi : vérifier l’identifiant dans la fiche de l’extension lors de la migration et retirer l’ancienne entrée si elle reste présente. La clé publique du manifeste n’est ni un secret ni une clé de compte.
 
 ## Copier une page
 
@@ -36,12 +46,17 @@ L’extension ne transcrit pas l’audio, ne fabrique pas de traduction et ne r�
 - **`activeTab`** : accès temporaire à l’onglet lorsque l’utilisateur ouvre l’extension.
 - **`scripting`** : extraction déclenchée dans cet onglet, sans script installé sur tous les sites.
 - **`clipboardWrite`** : copie explicite dans le presse-papiers. L’extension ne lit pas son contenu.
+- **`nativeMessaging`**, facultative : une vérification ponctuelle de l’app Mac, demandée uniquement au clic sur **Connecter** ou **Vérifier**. La refuser ne désactive aucune copie.
 
-Pas de permission globale sur les sites, de cookies via l’API Chrome, de lecture de l’historique, de stockage, de télémétrie, de worker permanent ou de service distant. Les demandes de sous-titres réutilisent uniquement l’URL HTTPS exacte exposée par le lecteur pour la vidéo courante, sur la même origine YouTube et le chemin `/api/timedtext`, avec les accès de la session ouverte. Les redirections et les domaines tiers sont refusés. Aucune clé API ni secret n’est demandé ou conservé.
+Pas de permission globale sur les sites, de cookies via l’API Chrome, de lecture de l’historique, de stockage, de télémétrie, de worker permanent ou de service distant. Les demandes de sous-titres réutilisent uniquement l’URL HTTPS exacte exposée par le lecteur pour la vidéo courante, sur la même origine YouTube et le chemin `/api/timedtext`, avec les accès de la session ouverte. Les redirections et les domaines tiers sont refusés. Aucune clé API ni secret n’est demandé ou conservé. Le seul message natif est `hello`, envoyé à `app.easypaste.web` avec le protocole, la version de l’extension et un nonce aléatoire. La réponse doit renvoyer ce nonce, une version compatible et un état reconnu. Aucun contenu copié, URL visitée, historique, fichier ou identifiant de compte n’est envoyé au connecteur. Aucun port persistant, service worker ou serveur local n’est créé.
 
 Le HTML est **reconstruit** avec une liste blanche de balises et de propriétés CSS. Les attributs d’événement, scripts, styles arbitraires, URL `javascript:`, ressources distantes, SVG, MathML, cadres et objets ne sont jamais recopiés. Aucun HTML de la page n’est injecté dans le popup. Le popup a une CSP locale sans connexion réseau et sans code distant.
 
 Les limites sont de 500 000 caractères, 2 Mo de HTML encodé en UTF-8, 8 000 nœuds, 2 000 éléments stylés et 60 niveaux d’imbrication. En cas de dépassement, l’utilisateur est invité à sélectionner un passage plus court : le presse-papiers n’est pas remplacé par un extrait tronqué. Le parcours laisse régulièrement la main au navigateur. Sous-titres : 2 Mo de réponse, 12 000 segments, 500 000 caractères, délai réseau de 10 secondes, lecture du panneau natif limitée à 12 secondes. Aucune surveillance des pages ni tâche automatique en arrière-plan ; une extraction déjà déclenchée peut terminer son parcours après la fermeture du popup.
+
+## Version 0.2.0
+
+Connexion facultative à l’app Mac et identité publique stable. Les échanges sont limités à une vérification explicite ; la copie et sa mise en forme fonctionnent indépendamment. La carte indique le résultat et la dernière vérification effectuée dans le popup ouvert. Compatibilité native attendue : protocole 1, bridgeVersion 1.
 
 ## Version 0.1.2
 

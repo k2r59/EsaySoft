@@ -9,6 +9,7 @@ enum CaptureAction: Int, CaseIterable {
     var icon: String { switch self { case .area: "viewfinder"; case .window: "macwindow"; case .screen: "display"; case .text: "text.viewfinder"; case .video: "record.circle" } }
 }
 struct CaptureMenu: View {
+    @ThemePalette private var palette
     @ObservedObject var history: History
     var iconOnly = false
     var body: some View {
@@ -22,7 +23,7 @@ struct CaptureMenu: View {
                 }
                 if history.recording { Divider(); Button("Arrêter l’enregistrement") { history.stopRecording?() } }
             } label: {
-                Label(history.recording ? "Enregistrement" : history.captureBusy ? "Capture…" : "Capturer", systemImage: history.recording ? "record.circle.fill" : "viewfinder").font(.system(size: 12, weight: .semibold)).foregroundStyle(history.recording ? .red : Theme.mint).padding(.horizontal, 12).padding(.vertical, 9).background(Theme.mint.opacity(0.08), in: RoundedRectangle(cornerRadius: 10)).contentShape(.interaction, Rectangle())
+                Label(history.recording ? "Enregistrement" : history.captureBusy ? "Capture…" : "Capturer", systemImage: history.recording ? "record.circle.fill" : "viewfinder").font(.system(size: 12, weight: .semibold)).foregroundStyle(history.recording ? .red : palette.accent).padding(.horizontal, 12).padding(.vertical, 9).background(palette.controlPlate, in: RoundedRectangle(cornerRadius: 10)).contentShape(.interaction, Rectangle())
             }
             .menuStyle(.borderlessButton).fixedSize().help("Capture d’écran, texte et vidéo").accessibilityLabel("Capturer")
         }
@@ -32,6 +33,7 @@ struct CaptureMenu: View {
 /// SwiftUI's borderless Menu reduces custom image labels on macOS. Keep the
 /// actual hit target and image size in AppKit, with an ordinary keyboard menu.
 private struct ShelfCaptureButton: NSViewRepresentable {
+    @ThemePalette private var palette
     @ObservedObject var history: History
     func makeNSView(context: Context) -> CaptureButton {
         let button = CaptureButton(frame: NSRect(x: 0, y: 0, width: 42, height: 42))
@@ -45,6 +47,7 @@ private struct ShelfCaptureButton: NSViewRepresentable {
     }
     func updateNSView(_ button: CaptureButton, context: Context) {
         button.history = history
+        button.plate = NSColor(palette.controlPlate)
         let image = NSImage(systemSymbolName: history.recording ? "record.circle.fill" : "camera.viewfinder", accessibilityDescription: nil)?
             .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 20, weight: .regular))
         button.image = image; button.contentTintColor = history.recording ? .systemRed : NSColor(Theme.ink)
@@ -52,12 +55,13 @@ private struct ShelfCaptureButton: NSViewRepresentable {
     }
     final class CaptureButton: NSButton {
         weak var history: History?
+        var plate = NSColor(GlassAppearance.labelPlate)
         override var intrinsicContentSize: NSSize { NSSize(width: 42, height: 42) }
         // A borderless NSButton still inherits bezel alignment insets. SwiftUI
         // otherwise turns the requested 42-point circle into a 42 × 51 oval.
         override var alignmentRectInsets: NSEdgeInsets { NSEdgeInsets() }
         override func draw(_ dirtyRect: NSRect) {
-            NSColor(GlassAppearance.labelPlate).withAlphaComponent(isHighlighted ? 0.7 : 0.48).setFill()
+            plate.withAlphaComponent(isHighlighted ? 0.8 : 0.95).setFill()
             let diameter = min(bounds.width, bounds.height)
             let circle = NSRect(x: bounds.midX - diameter / 2, y: bounds.midY - diameter / 2, width: diameter, height: diameter)
             NSBezierPath(ovalIn: circle).fill()

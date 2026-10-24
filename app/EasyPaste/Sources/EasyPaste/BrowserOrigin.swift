@@ -9,7 +9,7 @@ enum BrowserOrigin {
     static func url(_ value: String?) -> URL? {
         guard let value, value.utf8.count <= 8192, !value.isEmpty,
               !value.unicodeScalars.contains(where: { CharacterSet.whitespacesAndNewlines.contains($0) || CharacterSet.controlCharacters.contains($0) }),
-              let encoded = value.addingPercentEncoding(withAllowedCharacters: asciiURL),
+              let encoded = value.addingPercentEncoding(withAllowedCharacters: asciiURL), encoded.utf8.count <= 8192,
               let parts = URLComponents(string: encoded, encodingInvalidCharacters: false), ["http", "https"].contains(parts.scheme?.lowercased() ?? ""),
               let host = parts.host, !host.isEmpty, parts.user == nil, parts.password == nil else { return nil }
         return parts.url
@@ -28,32 +28,142 @@ enum BrowserOrigin {
     }
     private static func unique(_ values: [String]) -> String? { let set = Set(values); return set.count == 1 ? set.first : nil }
 
-    private static let tags = try! NSRegularExpression(pattern: "<meta\\s[^>]{0,4096}>", options: .caseInsensitive)
-    private static let attributes = try! NSRegularExpression(pattern: #"([a-zA-Z][a-zA-Z0-9_-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')"#)
-    private static let entities = try! NSRegularExpression(pattern: #"&(#x[0-9a-fA-F]{1,6}|#[0-9]{1,7}|amp|quot|apos|lt|gt);"#)
+    private static let entities = try! NSRegularExpression(pattern: #"&(#(?:x|X)[0-9a-fA-F]{1,6}|#[0-9]{1,7}|amp|quot|apos|lt|gt);"#)
     static func extensionURL(_ data: Data) -> String? {
-        // A bounded scan of the head; no TextKit/WebKit HTML importer.
-        var html = String(decoding: data.prefix(65_536), as: UTF8.self)
-        guard html.range(of: "easypaste-source-url", options: .caseInsensitive) != nil else { return nil }
-        if let end = html.range(of: "</head>", options: .caseInsensitive) { html = String(html[..<end.lowerBound]) }
-        else if let body = html.range(of: "<body", options: .caseInsensitive) { html = String(html[..<body.lowerBound]) }
-        html = html.replacingOccurrences(of: "<!--[\\s\\S]*?-->", with: "", options: .regularExpression)
-        let ns = html as NSString
-        var sources: [String] = []
-        for tag in tags.matches(in: html, range: NSRange(location: 0, length: ns.length)) {
-            let text = ns.substring(with: tag.range), source = text as NSString
-            var values: [String: String] = [:]; var duplicates = false
-            for attr in attributes.matches(in: text, range: NSRange(location: 0, length: source.length)) {
-                let name = source.substring(with: attr.range(at: 1)).lowercased()
-                let range = attr.range(at: 2).location != NSNotFound ? attr.range(at: 2) : attr.range(at: 3)
-                if values[name] != nil { duplicates = true }
-                values[name] = source.substring(with: range)
+        // Bound work independently of clipboard size. This fits an 8192-byte
+        // URL even when every '&' expands to '&amp;' in an HTML attribute.
+        let bytes = Array(data.prefix(65_536))
+        guard String(decoding: bytes, as: UTF8.self).range(of: "easypaste-source-url", options: .caseInsensitive) != nil else { return nil }
+        var scanner = HTMLHeadScanner(bytes: bytes)
+        return unique(scanner.sources())
+    }
+
+    /// A small, non-rendering tokenizer for head metadata. Quoted attributes,
+    /// comments and raw/inert elements cannot introduce fake <meta> tokens.
+    private struct HTMLHeadScanner {
+        let bytes: [UInt8]
+        var cursor = 0
+        private func space(_ byte: UInt8) -> Bool { [9, 10, 12, 13, 32].contains(byte) }
+        private func lower(_ byte: UInt8) -> UInt8 { (65...90).contains(byte) ? byte + 32 : byte }
+        private func letter(_ byte: UInt8) -> Bool { (97...122).contains(lower(byte)) }
+        private func matches(_ text: [UInt8], at index: Int, folded: Bool = false) -> Bool {
+            guard index >= 0, index + text.count <= bytes.count else { return false }
+            for offset in text.indices {
+                let byte = folded ? lower(bytes[index + offset]) : bytes[index + offset]
+                if byte != text[offset] { return false }
             }
-            guard !duplicates, values["name"]?.lowercased() == "easypaste-source-url", let content = values["content"],
-                  let result = url(decodeEntities(content)) else { continue }
-            sources.append(result.absoluteString)
+            return true
         }
-        return unique(sources)
+        private func endOfTag(from start: Int) -> Int? {
+            var quote: UInt8? = nil
+            var index = start
+            while index < bytes.count {
+                let byte = bytes[index]
+                if let open = quote { if byte == open { quote = nil } }
+                else if byte == 34 || byte == 39 { quote = byte }
+                else if byte == 62 { return index }
+                index += 1
+            }
+            return nil
+        }
+        private func endOfRawElement(_ name: String, from start: Int) -> Int? {
+            let closing = Array(("</" + name).utf8)
+            var index = start
+            while index < bytes.count {
+                if bytes[index] == 60, matches(closing, at: index, folded: true) {
+                    let next = index + closing.count
+                    if next < bytes.count, space(bytes[next]) || bytes[next] == 62 || bytes[next] == 47,
+                       let end = endOfTag(from: next) { return end + 1 }
+                }
+                index += 1
+            }
+            return nil
+        }
+        private func attributes(from start: Int, to end: Int) -> [String: String]? {
+            var index = start, values: [String: String] = [:]
+            while index < end {
+                while index < end, space(bytes[index]) { index += 1 }
+                if index == end || (bytes[index] == 47 && index + 1 == end) { break }
+                let nameStart = index
+                guard letter(bytes[index]) else { return nil }
+                while index < end, !space(bytes[index]), ![61, 47].contains(bytes[index]) {
+                    guard letter(bytes[index]) || (48...57).contains(bytes[index]) || [45, 95, 58].contains(bytes[index]) else { return nil }
+                    index += 1
+                }
+                let name = String(decoding: bytes[nameStart..<index].map(lower), as: UTF8.self)
+                guard values[name] == nil, values.count < 64 else { return nil }
+                while index < end, space(bytes[index]) { index += 1 }
+                var value = ""
+                if index < end, bytes[index] == 61 {
+                    index += 1
+                    while index < end, space(bytes[index]) { index += 1 }
+                    guard index < end else { return nil }
+                    if bytes[index] == 34 || bytes[index] == 39 {
+                        let quote = bytes[index]; index += 1
+                        let valueStart = index
+                        while index < end, bytes[index] != quote { index += 1 }
+                        guard index < end else { return nil }
+                        value = String(decoding: bytes[valueStart..<index], as: UTF8.self); index += 1
+                        guard index == end || space(bytes[index]) || bytes[index] == 47 else { return nil }
+                    } else {
+                        let valueStart = index
+                        while index < end, !space(bytes[index]) {
+                            guard ![34, 39, 60, 61, 96].contains(bytes[index]) else { return nil }
+                            index += 1
+                        }
+                        value = String(decoding: bytes[valueStart..<index], as: UTF8.self)
+                    }
+                }
+                values[name] = value
+            }
+            return values
+        }
+        mutating func sources() -> [String] {
+            var result: [String] = [], templateDepth = 0
+            let headTags: Set<String> = ["html", "head", "meta", "base", "link", "title", "script", "style", "noscript", "noframes", "template"]
+            let rawTags: Set<String> = ["script", "style", "title", "textarea", "noscript", "noframes"]
+            if matches([239, 187, 191], at: 0) { cursor = 3 }
+            while cursor < bytes.count {
+                if space(bytes[cursor]) { cursor += 1; continue }
+                if templateDepth > 0, bytes[cursor] != 60 { cursor += 1; continue }
+                // Ordinary body text also ends a head-less metadata fragment.
+                guard bytes[cursor] == 60 else { break }
+                if matches(Array("<!--".utf8), at: cursor) {
+                    cursor += 4
+                    while cursor < bytes.count, !matches(Array("-->".utf8), at: cursor) { cursor += 1 }
+                    guard cursor < bytes.count else { break }
+                    cursor += 3; continue
+                }
+                let opening = cursor; cursor += 1
+                guard cursor < bytes.count else { break }
+                if bytes[cursor] == 33 || bytes[cursor] == 63 {
+                    guard let end = endOfTag(from: cursor + 1) else { break }
+                    cursor = end + 1; continue
+                }
+                let closing = bytes[cursor] == 47
+                if closing { cursor += 1 }
+                guard cursor < bytes.count, letter(bytes[cursor]) else { break }
+                let nameStart = cursor
+                while cursor < bytes.count, letter(bytes[cursor]) || (48...57).contains(bytes[cursor]) || bytes[cursor] == 45 { cursor += 1 }
+                let name = String(decoding: bytes[nameStart..<cursor].map(lower), as: UTF8.self)
+                guard cursor < bytes.count, space(bytes[cursor]) || bytes[cursor] == 47 || bytes[cursor] == 62,
+                      let end = endOfTag(from: cursor) else { break }
+                let attributeStart = cursor; cursor = end + 1
+                if name == "template" { templateDepth += closing ? -min(templateDepth, 1) : 1; continue }
+                if templateDepth == 0, name == "body" || (closing && ["head", "html"].contains(name)) || !headTags.contains(name) { break }
+                if !closing, rawTags.contains(name) {
+                    guard let after = endOfRawElement(name, from: cursor) else { break }
+                    cursor = after; continue
+                }
+                if templateDepth > 0 { continue }
+                if !closing, name == "meta", let values = attributes(from: attributeStart, to: end),
+                   values["name"]?.lowercased() == "easypaste-source-url", let content = values["content"],
+                   let source = BrowserOrigin.url(BrowserOrigin.decodeEntities(content)) { result.append(source.absoluteString) }
+                // A defensive progress check keeps malformed input bounded too.
+                if cursor <= opening { break }
+            }
+            return result
+        }
     }
     private static func decodeEntities(_ value: String) -> String {
         let result = NSMutableString(string: value)
@@ -61,7 +171,7 @@ enum BrowserOrigin {
             let entity = (value as NSString).substring(with: match.range(at: 1))
             var decoded = ["amp": "&", "quot": "\"", "apos": "'", "lt": "<", "gt": ">"][entity]
             if entity.hasPrefix("#") {
-                let hex = entity.hasPrefix("#x")
+                let hex = entity.hasPrefix("#x") || entity.hasPrefix("#X")
                 if let number = UInt32(entity.dropFirst(hex ? 2 : 1), radix: hex ? 16 : 10), let scalar = UnicodeScalar(number) { decoded = String(scalar) }
             }
             if let decoded { result.replaceCharacters(in: match.range, with: decoded) }

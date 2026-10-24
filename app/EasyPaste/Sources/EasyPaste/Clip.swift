@@ -28,6 +28,7 @@ struct Clip:Codable,Identifiable {
     var parentID: UUID? = nil
     var duration: Double? = nil
     var sourceURL: String? = nil
+    var imageMetadata: ClipImageMetadata? = nil
     var originURL: URL? { BrowserOrigin.url(sourceURL) }
     var durationLabel: String { let seconds = Int(max(0, duration ?? 0)); return String(format: "%d:%02d", seconds / 60, seconds % 60) }
     var imageData: Data? { payload.representations.flatMap { $0 }.first { [NSPasteboard.PasteboardType.png.rawValue, NSPasteboard.PasteboardType.tiff.rawValue].contains($0.type) }?.data }
@@ -54,9 +55,31 @@ struct Clip:Codable,Identifiable {
         return NSImage(cgImage: cg, size: .zero)
     }
     mutating func prepareThumbnail() {
+        prepareImageMetadata()
         guard kind == .image,thumbnail == nil,let data=payload.representations.flatMap({$0}).first(where:{[NSPasteboard.PasteboardType.png.rawValue,NSPasteboard.PasteboardType.tiff.rawValue].contains($0.type)})?.data,
               let source=CGImageSourceCreateWithData(data as CFData,nil),let cg=CGImageSourceCreateThumbnailAtIndex(source,0,[kCGImageSourceCreateThumbnailFromImageAlways:true,kCGImageSourceThumbnailMaxPixelSize:640,kCGImageSourceCreateThumbnailWithTransform:true] as CFDictionary) else{return}
         thumbnail=NSBitmapImageRep(cgImage:cg).representation(using:.png,properties:[:])
+    }
+    /// Called on the import/storage worker. Never derive original dimensions
+    /// from the 640px thumbnail, or decode image pixels just to show a label.
+    mutating func prepareImageMetadata() {
+        guard kind == .image, imageMetadata == nil, let data = imageData else { return }
+        imageMetadata = ClipImageMetadata.read(data)
+    }
+    /// Presentation only: generated titles already repeat the start of text.
+    /// Preserve real snippet titles and every byte used for copy/search/export.
+    var cardTitle: String? {
+        let head = Self.normalizedPreview(String(title.prefix(130)))
+        guard !head.isEmpty else { return nil }
+        if kind == .text || kind == .link || kind == .color {
+            let body = Self.normalizedPreview(String(text.prefix(512)))
+            if !body.isEmpty && body.hasPrefix(head) { return nil }
+        }
+        if kind == .image && ["image copiée", "capture d’écran", "capture d'ecran"].contains(head) { return nil }
+        return title
+    }
+    private static func normalizedPreview(_ text: String) -> String {
+        text.split(whereSeparator: \.isWhitespace).joined(separator: " ").lowercased()
     }
     static func kind(for text:String,hasImage:Bool=false,hasFiles:Bool=false)->ClipKind {
         if hasFiles{return .file};if hasImage{return .image}
@@ -71,6 +94,22 @@ struct Clip:Codable,Identifiable {
         return hash.finalize().map{String(format:"%02x",$0)}.joined()
     }
     func matches(_ query:String)->Bool {query.split(whereSeparator:\.isWhitespace).allSatisfy {term in [title,text,source,ocr].contains{$0.localizedStandardContains(String(term))}}}
+}
+struct ClipImageMetadata: Codable, Equatable {
+    let width: Int
+    let height: Int
+    let bytes: Int
+    var dimensions: String { "\(width) × \(height) px" }
+    var fileSize: String { ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file) }
+    static func read(_ data: Data) -> Self? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int,
+              width > 0, height > 0, width <= ImageRaster.pixelLimit / height else { return nil }
+        let orientation = properties[kCGImagePropertyOrientation] as? Int ?? 1
+        return (5...8).contains(orientation) ? Self(width: height, height: width, bytes: data.count) : Self(width: width, height: height, bytes: data.count)
+    }
 }
 struct Pinboard:Codable,Identifiable {var id=UUID();var name:String;var color:Int;var shared=false}
 enum ClipboardPrivacy {

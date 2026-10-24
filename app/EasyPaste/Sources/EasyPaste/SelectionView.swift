@@ -88,7 +88,9 @@ final class SelectionView: NSView {
         guard selection != rect else { return }
         selection = rect
         border.path = CGPath(rect: rect, transform: nil)
-        let text = "\(Int(rect.width)) × \(Int(rect.height))"
+        let scale = window?.backingScaleFactor ?? 1
+        let aligned = (try? CaptureImage.pixelAligned(rect, scale: scale)) ?? rect
+        let text = "\(Int((aligned.width * scale).rounded())) × \(Int((aligned.height * scale).rounded())) px"
         if dimensionsLabel.stringValue != text {
             dimensionsLabel.stringValue = text
             dimensionsLabel.sizeToFit()

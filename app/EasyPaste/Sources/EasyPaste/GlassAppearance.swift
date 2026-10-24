@@ -3,7 +3,7 @@ import SwiftUI
 /// Vector artwork stays crisp at every display scale.
 struct ShelfBrandMark: View {
     var body: some View {
-        BrandMark(size: 32)
+        BrandMark(size: 40)
     }
 }
 
@@ -13,19 +13,25 @@ enum GlassAppearance {
     static func transparency(_ value: Double) -> Double { value.isFinite ? min(0.8, max(0, value)) : defaultTransparency }
     static func washOpacity(_ value: Double, dark: Bool = false) -> Double {
         let amount = transparency(value)
-        // Keep the whole slider useful while retaining the dark-theme contrast floor.
-        return dark ? 1 - 0.14 * amount / 0.8 : 1 - amount
+        // Only the frame becomes transparent. Reading cards and control plates
+        // keep their own contrast, independently of this slider and the desktop.
+        return 1 - amount
     }
     static func windowTintOpacity(_ value: Double, dark: Bool) -> Double {
-        let amount = transparency(value)
-        // The main window keeps an opaque canvas beneath this tint. Its lower
-        // strength protects secondary labels outside the white reading cards.
-        return dark ? 0.58 - 0.25 * amount : 0.23 - 0.10 * amount
+        washOpacity(value, dark: dark)
+    }
+    // A single continuous coating lets library labels sit directly on glass.
+    // The desktop remains visible, but cannot invert label contrast at 80 %.
+    static func windowReadabilityOpacity(_ value: Double) -> Double {
+        1 - 0.3 * transparency(value)
+    }
+    static func materialOpacity(_ value: Double) -> Double {
+        1 - 0.65 * transparency(value) / 0.8
     }
     // The desktop contributes to the frame, never to the reading surfaces.
-    static let ice = Theme.adaptive("glass.ice", light: 0x789CE0, dark: 0x234F76)
-    static let blue = Theme.adaptive("glass.blue", light: 0x589ADE, dark: 0x1B3863)
-    static let aqua = Theme.adaptive("glass.aqua", light: 0x91D0D6, dark: 0x235663)
+    static let ice = Theme.adaptive("glass.ice", light: 0x7FAFF2, dark: 0x234F76)
+    static let blue = Theme.adaptive("glass.blue", light: 0x50ABF0, dark: 0x1B3863)
+    static let aqua = Theme.adaptive("glass.aqua", light: 0x79D8DF, dark: 0x235663)
     static let labelPlate = Theme.adaptive("glass.labelPlate", light: 0xE3F1FC, dark: 0x1B2C40)
     static let action = Theme.adaptive("glass.action", light: 0x00866A, dark: 0x9CF7CC)
     static let selection = Color(red: 0, green: 0.73, blue: 0.57)
@@ -82,27 +88,52 @@ struct ShelfGlassRim: View {
     }
 }
 
+/// Compact preview actions keep a stable hit area and native button semantics.
 struct ShelfActionButtonStyle: ButtonStyle {
     var primary = false
+    @ThemePalette private var palette
+    @AppStorage(GlassAppearance.key) private var transparency = GlassAppearance.defaultTransparency
     @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.system(size: 15, weight: .medium))
-            .padding(.horizontal, 14).frame(maxWidth: .infinity, minHeight: 44)
+        configuration.label.font(.system(size: 17, weight: .medium))
+            .frame(width: 40, height: 40)
             .foregroundStyle(primary ? Theme.onAccent : Theme.ink)
-            .background(primary ? GlassAppearance.action : GlassAppearance.labelPlate.opacity(scheme == .dark ? 0.9 : 0.6), in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(primary && scheme == .light ? GlassAppearance.selection : .white.opacity(primary ? 0.28 : 0.65), lineWidth: primary && scheme == .light ? 1.25 : 1))
+            .background {
+                RoundedRectangle(cornerRadius: 12).fill(primary ? AnyShapeStyle(palette.actionGradient) : AnyShapeStyle(palette.controlPlate.opacity(reduceTransparency || contrast == .increased ? 1 : 0.95 - 0.12 * GlassAppearance.transparency(transparency))))
+                    .glassControlFinish(radius: 12, primary: primary)
+            }
+            .overlay {
+                if contrast == .increased { RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.ink.opacity(0.6), lineWidth: 1.5) }
+            }
             .contentShape(Rectangle()).opacity(isEnabled ? (configuration.isPressed ? 0.72 : 1) : 0.4)
     }
 }
 
-struct ShelfActionLabelStyle: LabelStyle {
-    var compact: Bool
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 7) {
-            configuration.icon
-            if !compact { configuration.title }
+/// A short, centred light reflection separates the preview from navigation.
+/// Both ends fade out; no enclosing band, full-width rail or extra material.
+struct ShelfGlassSeparator: View {
+    @ThemePalette private var palette
+    @AppStorage(GlassAppearance.key) private var transparency = GlassAppearance.defaultTransparency
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    private var light: Double { (scheme == .dark ? 0.38 : 0.95) * (1 - 0.25 * GlassAppearance.transparency(transparency)) }
+    var body: some View {
+        VStack(spacing: 0) {
+            Rectangle().fill(LinearGradient(stops: [
+                .init(color: .clear, location: 0),
+                .init(color: .white.opacity(light * 0.7), location: 0.18),
+                .init(color: .white.opacity(light), location: 0.5),
+                .init(color: .white.opacity(light * 0.7), location: 0.82),
+                .init(color: .clear, location: 1)
+            ], startPoint: .leading, endPoint: .trailing)).frame(height: 1)
+                .shadow(color: .white.opacity(light * 0.25), radius: 1)
+            Rectangle().fill(LinearGradient(colors: [.clear, palette.accent.opacity(0.16), .clear], startPoint: .leading, endPoint: .trailing)).frame(height: 0.5)
         }
+        .opacity(reduceTransparency || contrast == .increased ? 0 : 1)
+        .allowsHitTesting(false).accessibilityHidden(true)
     }
 }
 
@@ -128,7 +159,7 @@ struct GlassAppearanceSettings: View {
                             }.font(.system(size: 11, weight: .medium))
                         }.padding(8).frame(maxWidth: .infinity)
                             .background(Theme.panel, in: RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(GlassTint.resolve(storedTint) == tint ? Theme.mint : Theme.border, lineWidth: GlassTint.resolve(storedTint) == tint ? 2 : 1))
+                            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(GlassTint.resolve(storedTint) == tint ? tint.accent : Theme.border, lineWidth: GlassTint.resolve(storedTint) == tint ? 2 : 1))
                             .contentShape(Rectangle())
                     }.buttonStyle(FullAreaButtonStyle())
                         .accessibilityLabel("Teinte du verre : \(tint.title)")

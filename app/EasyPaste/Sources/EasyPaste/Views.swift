@@ -3,17 +3,42 @@ import AppKit
 import UniformTypeIdentifiers
 
 struct SearchBar: View {
+    @ThemePalette private var palette
     @ObservedObject var history: History
     @FocusState private var focused: Bool
+    @Environment(\.colorSchemeContrast) private var contrast
     var focusOnAppear = false
     var glass = false
+    var integrated = false
+    @AppStorage(GlassAppearance.key) private var transparency = GlassAppearance.defaultTransparency
+    private var secondary: Color { integrated ? Theme.chromeSecondary : Theme.muted }
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass").foregroundStyle(Theme.muted)
-            TextField("Rechercher dans l’historique…", text: $history.query, prompt: Text(glass ? "Rechercher…" : "Rechercher dans l’historique…").foregroundColor(Theme.muted)).textFieldStyle(.plain).focused($focused).font(.system(size: glass ? 15 : 13)).accessibilityLabel("Rechercher dans l’historique")
-            if !history.query.isEmpty { Button { history.query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.muted).frame(width: 24, height: 24) }.buttonStyle(FullAreaButtonStyle()) }
+            Image(systemName: "magnifyingglass").foregroundStyle(secondary)
+            TextField("Rechercher dans l’historique…", text: $history.query, prompt: Text(glass ? "Rechercher…" : "Rechercher dans l’historique…").foregroundColor(secondary)).textFieldStyle(.plain).focused($focused).font(.system(size: glass ? 15 : 13)).accessibilityLabel("Rechercher dans l’historique")
+            if !history.query.isEmpty { Button { history.query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(secondary).frame(width: 24, height: 24) }.buttonStyle(FullAreaButtonStyle()) }
             if !glass { KeyCap(text: "⌘F") }
-        }.padding(.horizontal, 16).padding(.vertical, 12).background(glass ? GlassAppearance.labelPlate.opacity(0.8) : Theme.raised.opacity(0.75), in: RoundedRectangle(cornerRadius: glass ? 20 : 11)).overlay(RoundedRectangle(cornerRadius: glass ? 20 : 11).strokeBorder(glass ? .white.opacity(0.6) : Theme.border))
+        }.padding(.horizontal, 16).padding(.vertical, 12)
+            .background {
+                if integrated {
+                    RoundedRectangle(cornerRadius: 14).fill(palette.controlPlate.opacity(0.48 - 0.3 * GlassAppearance.transparency(transparency)))
+                        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.35), lineWidth: 0.7))
+                } else {
+                    RoundedRectangle(cornerRadius: glass ? 20 : 14).fill(palette.controlPlate.opacity(0.96)).glassControlFinish(radius: glass ? 20 : 14)
+                }
+            }
+            .overlay {
+                if contrast == .increased {
+                    RoundedRectangle(cornerRadius: glass ? 20 : 14).strokeBorder(Theme.ink.opacity(0.6), lineWidth: 1.5)
+                } else if !integrated {
+                    RoundedRectangle(cornerRadius: glass ? 20 : 14).strokeBorder(focused ? palette.accent.opacity(0.65) : palette.accent.opacity(0.12), lineWidth: focused ? 1.5 : 0.75)
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if integrated && focused {
+                    Capsule().fill(palette.chromeAccent.opacity(0.35)).frame(height: 1).padding(.horizontal, 16).allowsHitTesting(false)
+                }
+            }
         .onAppear { if focusOnAppear { focused = true } }
         .onReceive(NotificationCenter.default.publisher(for: .init("EasyPaste.focusSearch"))) { _ in focused = true }
     }
@@ -55,6 +80,7 @@ struct ClipGrid: View {
     }
 }
 struct ClipCard: View {
+    @ThemePalette private var palette
     @ObservedObject var history: History
     let clip: Clip
     let compact: Bool
@@ -65,7 +91,7 @@ struct ClipCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 7) {
-                Image(systemName: clip.kind == .text ? "doc.text" : clip.kind.symbol).foregroundStyle(accent).font(.system(size: 14, weight: .medium)).frame(width: 25, height: 25).background(accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+                SourceApplicationIcon(clip: clip)
                 Text(clip.shelfTypeLabel).font(.system(size: 12, weight: .medium)).lineLimit(1).foregroundStyle(Theme.ink).help("Copié depuis \(clip.source)")
                 Spacer(minLength: 3)
                 if !compact { Text(ClipDate.label(clip.date)).font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1) }
@@ -81,7 +107,7 @@ struct ClipCard: View {
             RoundedRectangle(cornerRadius: 17).fill(Theme.panel)
                 .overlay(RoundedRectangle(cornerRadius: 17).fill(LinearGradient(colors: [accent.opacity(hovered ? 0.10 : 0.065), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)))
         }
-        .overlay(RoundedRectangle(cornerRadius: 17).strokeBorder(selected ? GlassAppearance.selection : (hovered ? Theme.hoverBorder : Theme.border), lineWidth: selected ? 2 : 1))
+        .overlay(RoundedRectangle(cornerRadius: 17).strokeBorder(selected ? palette.accent : (hovered ? Theme.hoverBorder : Theme.border), lineWidth: selected ? 2 : 1))
         .shadow(color: .black.opacity(0.13), radius: 8, y: 4)
         .contentShape(RoundedRectangle(cornerRadius: 15))
         .modifier(CardInteraction(history: history, clip: clip))
@@ -99,10 +125,19 @@ struct ClipContent: View {
     @Environment(\.displayScale) private var displayScale
     let clip: Clip
     var compact = false
+    var showsImageMetadata = true
     var body: some View {
         Group {
             if clip.kind == .image || clip.kind == .video {
-                if let image = clip.image { GeometryReader { geo in Image(nsImage: image).resizable().scaledToFit().frame(width: min(geo.size.width, image.size.width / displayScale), height: min(geo.size.height, image.size.height / displayScale)).frame(width: geo.size.width, height: geo.size.height) }.clipShape(RoundedRectangle(cornerRadius: 10)) }
+                if let image = clip.image { GeometryReader { geo in Image(nsImage: image).resizable().interpolation(.high).scaledToFit().frame(width: min(geo.size.width, image.size.width / displayScale), height: min(geo.size.height, image.size.height / displayScale)).frame(width: geo.size.width, height: geo.size.height) }.clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(alignment: .bottomTrailing) {
+                            if showsImageMetadata, let metadata = clip.imageMetadata {
+                                Text(metadata.dimensions).font(.system(size: 10, weight: .medium, design: .monospaced)).foregroundStyle(Theme.ink)
+                                    .padding(.horizontal, 7).padding(.vertical, 4).background(Theme.panel.opacity(0.96), in: Capsule()).padding(5)
+                                    .help("\(metadata.dimensions) · \(metadata.fileSize)").allowsHitTesting(false)
+                            }
+                        }
+                }
                 else { Image(systemName: "photo").font(.system(size: 34)).foregroundStyle(Theme.muted).frame(maxWidth: .infinity, maxHeight: .infinity) }
             } else if clip.kind == .color {
                 ZStack(alignment: .bottomLeading) {
@@ -112,15 +147,21 @@ struct ClipContent: View {
 
             } else if clip.kind == .link {
                 VStack(alignment: .leading, spacing: 9) {
-                    Text(URL(string: clip.text)?.host ?? clip.title).font(.system(size: 16, weight: .semibold)).lineLimit(2)
+                    Text(clip.cardTitle ?? URL(string: clip.text)?.host ?? clip.title).font(.system(size: 16, weight: .semibold)).lineLimit(2)
                     if !compact { Text(String(clip.text.prefix(160))).font(.system(size: 15)).foregroundStyle(Theme.adaptive("link", light: 0x0068C6, dark: 0x87C4FF)).lineLimit(3) }
                 }
             } else if clip.kind == .file {
                 VStack(alignment: .leading, spacing: 10) { Image(systemName: "doc.text").font(.system(size: compact ? 22 : 35, weight: .light)).foregroundStyle(Theme.colors[2]); Text(clip.title).font(.system(size: 14, weight: .medium)).lineLimit(3); if !compact { Text(String(clip.text.prefix(180))).font(.system(size: 10)).foregroundStyle(Theme.muted).lineLimit(2) } }
             } else if let format = clip.structuredFormat {
-                StructuredCardPreview(clip: clip, format: format, compact: compact)
+                VStack(alignment: .leading, spacing: 7) {
+                    if let title = clip.cardTitle { Text(title).font(.system(size: compact ? 13 : 15, weight: .semibold)).lineLimit(1) }
+                    StructuredCardPreview(clip: clip, format: format, compact: compact)
+                }
             } else {
-                Text(String((clip.text.isEmpty ? clip.title : clip.text).prefix(700))).font(.system(size: compact ? 13 : 15)).lineSpacing(4).lineLimit(compact ? 3 : 5).frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 7) {
+                    if let title = clip.cardTitle, !clip.text.isEmpty { Text(title).font(.system(size: compact ? 13 : 15, weight: .semibold)).lineLimit(1) }
+                    Text(String((clip.text.isEmpty ? clip.title : clip.text).prefix(700))).font(.system(size: compact ? 13 : 15)).lineSpacing(4).lineLimit(compact ? 3 : 5).frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
     }
@@ -177,17 +218,18 @@ struct EmptyState: View {
             Text(history.fault ? "L’historique est en pause." : history.total == 0 && history.collection == "all" ? "Historique vide" : "Aucun élément").font(.system(size: 22, weight: .semibold, design: .rounded))
             Text(history.fault ? history.notice : history.total == 0 && history.collection == "all" ? "Copie du texte, une image ou un lien pour commencer." : "Modifie les filtres ou ajoute un élément.").font(.system(size: 12)).foregroundStyle(Theme.muted).multilineTextAlignment(.center).lineSpacing(5).fixedSize(horizontal: false, vertical: true)
             if !history.enabled && !history.fault { Button("Activer l’historique") { history.enabled = true; history.report("Historique activé. Copie un élément dans une autre application.") }.buttonStyle(PasteButtonStyle(primary: true)) }
-        }.padding(20)
+        }.padding(20).glassLabelPlate()
     }
 }
 
 struct ShelfView: View {
+    @ThemePalette private var palette
     @ObservedObject var history: History
     var nativeGlassHosted = false
     var body: some View {
         VStack(spacing: 12) {
             HStack(spacing: 20) {
-                Button { history.showLibrary?() } label: { HStack(spacing: 11) { ShelfBrandMark(); Text("EasyPaste").font(.system(size: 17, weight: .semibold)) }.frame(minWidth: 155, alignment: .leading) }.buttonStyle(FullAreaButtonStyle()).help("Ouvrir la bibliothèque")
+                Button { history.showLibrary?() } label: { ShelfBrandMark().frame(width: 42, height: 42).contentShape(Rectangle()) }.buttonStyle(FullAreaButtonStyle()).help("Ouvrir la bibliothèque").accessibilityLabel("Ouvrir la bibliothèque EasyPaste")
                 SearchBar(history: history, focusOnAppear: true, glass: true).frame(minWidth: 180, maxWidth: 275)
                 Spacer(minLength: 10).frame(maxWidth: 45)
                 ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 12) {
@@ -197,15 +239,15 @@ struct ShelfView: View {
                         ForEach(history.boards) { board in Button(board.name) { history.collection = board.id.uuidString } }
                         if !history.boards.isEmpty { Divider() }
                         Button("Nouvelle collection…") { history.showNewBoard = true }
-                    } label: { Label(history.boards.first { $0.id.uuidString == history.collection }?.name ?? "Collections", systemImage: "folder").font(.system(size: 14, weight: .medium)).padding(.horizontal, 12).padding(.vertical, 8).contentShape(Rectangle()) }.menuStyle(.borderlessButton).fixedSize()
+                    } label: { ShelfTabLabel(title: history.boards.first { $0.id.uuidString == history.collection }?.name ?? "Collections", icon: "folder", selected: history.boards.contains { $0.id.uuidString == history.collection }) }.menuStyle(.borderlessButton).fixedSize().tint(history.boards.contains { $0.id.uuidString == history.collection } ? Theme.onAccent : Theme.ink)
                     if !history.stack.isEmpty { shelfTab("Pile (\(history.stack.count))", icon: "square.stack", selected: history.collection == "stack") { history.collection = "stack" } }
                 } }
                 CaptureMenu(history: history, iconOnly: true)
-                Button { history.page = "settings"; history.showLibrary?() } label: { Image(systemName: "gearshape").font(.system(size: 18)).frame(width: 42, height: 42).background(GlassAppearance.labelPlate.opacity(0.48), in: Circle()) }.buttonStyle(FullAreaButtonStyle()).help("Réglages").accessibilityLabel("Réglages")
+                Button { history.page = "settings"; history.showLibrary?() } label: { Image(systemName: "gearshape").font(.system(size: 18)).frame(width: 42, height: 42).background(palette.controlPlate.opacity(0.95), in: Circle()) }.buttonStyle(FullAreaButtonStyle()).help("Réglages").accessibilityLabel("Réglages")
             }
-            if history.loading { ProgressView("Ouverture…").frame(maxWidth: .infinity, maxHeight: .infinity) }
+            if history.loading { ProgressView("Ouverture…").padding(12).glassLabelPlate().frame(maxWidth: .infinity, maxHeight: .infinity) }
             else if history.visible.isEmpty {
-                VStack(spacing: 10) { Text(history.enabled ? "Aucun élément" : "Historique en pause").font(.system(size: 17, weight: .medium)); Button("Ouvrir la bibliothèque") { history.showLibrary?() }.buttonStyle(PasteButtonStyle(primary: true)) }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                VStack(spacing: 10) { Text(history.enabled ? "Aucun élément" : "Historique en pause").font(.system(size: 17, weight: .medium)); Button("Ouvrir la bibliothèque") { history.showLibrary?() }.buttonStyle(PasteButtonStyle(primary: true)) }.padding(16).glassLabelPlate().frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -216,16 +258,36 @@ struct ShelfView: View {
             }
             if !history.recentlyTrashed.isEmpty || history.selection.count > 1 || !history.enabled { HStack(spacing: 14) {
                 Spacer()
-                if !history.recentlyTrashed.isEmpty { Button("Annuler la suppression") { history.undoTrash() }.buttonStyle(FullAreaButtonStyle()).foregroundStyle(Theme.mint) }
+                if !history.recentlyTrashed.isEmpty { Button("Annuler la suppression") { history.undoTrash() }.buttonStyle(FullAreaButtonStyle()).foregroundStyle(palette.accent) }
                 if history.selection.count > 1 { Button { history.requestTrash(history.selection) } label: { Label("Supprimer (\(history.selection.count))", systemImage: "trash").foregroundStyle(Theme.danger) }.buttonStyle(FullAreaButtonStyle()).help("Supprimer la sélection") }
                 if !history.enabled { Text("Collecte en pause") }
-            }.font(.system(size: 10)).foregroundStyle(Theme.muted) }
+            }.font(.system(size: 10)).foregroundStyle(Theme.muted).padding(5).glassLabelPlate() }
         }.overlay(alignment: .bottomLeading) {
             if let toast = history.toast { Text(toast).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.mint).lineLimit(2).padding(.horizontal, 13).padding(.vertical, 9).background(Theme.panel, in: RoundedRectangle(cornerRadius: 10)).overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.mint.opacity(0.25))).padding(.bottom, 29).allowsHitTesting(false) }
-        }.padding(.horizontal, 22).padding(.vertical, 16).background { ShelfGlass(nativeHosted: nativeGlassHosted) }.foregroundStyle(Theme.ink).environment(\.locale, Locale(identifier: "fr_FR")).modifier(HistorySheets(history: history, host: "shelf"))
+        }.padding(.horizontal, 22).padding(.vertical, 16).background { ShelfGlass(nativeHosted: nativeGlassHosted) }.foregroundStyle(Theme.ink).tint(palette.accent).environment(\.locale, Locale(identifier: "fr_FR")).modifier(HistorySheets(history: history, host: "shelf"))
     }
     private func shelfTab(_ title: String, icon: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Label(title, systemImage: icon).font(.system(size: 14, weight: .medium)).padding(.horizontal, 13).padding(.vertical, 9).foregroundStyle(selected ? Theme.mint : Theme.ink).background(selected ? GlassAppearance.selectedTab.opacity(0.94) : .clear, in: Capsule()) }.buttonStyle(FullAreaButtonStyle())
+        Button(action: action) { ShelfTabLabel(title: title, icon: icon, selected: selected) }
+            .buttonStyle(FullAreaButtonStyle()).accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+private struct ShelfTabLabel: View {
+    @ThemePalette private var palette
+    let title: String
+    let icon: String
+    let selected: Bool
+    var body: some View {
+        Label(title, systemImage: selected ? icon + ".fill" : icon)
+            .font(.system(size: 14, weight: selected ? .semibold : .medium))
+            .padding(.horizontal, 13).padding(.vertical, 9)
+            .foregroundStyle(selected ? Theme.onAccent : Theme.ink)
+            .background {
+                Capsule().fill(selected ? AnyShapeStyle(palette.actionGradient) : AnyShapeStyle(palette.controlPlate.opacity(0.95)))
+                    .glassControlFinish(radius: 20, primary: selected)
+            }
+            .overlay(Capsule().strokeBorder(selected ? palette.accent : Theme.border))
+            .contentShape(Rectangle())
     }
 }
 @MainActor enum DragProvider {

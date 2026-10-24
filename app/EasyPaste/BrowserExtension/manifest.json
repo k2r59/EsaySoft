@@ -1,17 +1,35 @@
 {
   "manifest_version": 3,
   "name": "EasyPaste · Web",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Copiez une page ou une sélection avec sa mise en forme. Retrouvez les sous-titres disponibles sur YouTube.",
   "minimum_chrome_version": "120",
-  "permissions": ["activeTab", "scripting", "clipboardWrite"],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "clipboardWrite"
+  ],
   "action": {
     "default_title": "Copier avec EasyPaste",
     "default_popup": "popup.html",
-    "default_icon": {"16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png"}
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
-  "icons": {"16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png"},
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "content_security_policy": {
     "extension_pages": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
-  }
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAo43NU5gviwARqezk9VxrCL3rpJxpUAV6SEr1dWTsk9nPQKrht1ByxJpXtG1dffDEcPFPy3zt61E//njGTQeUIiWNm1RHcIqXO307+ucd6GwGrZhYaVhJj16azFTWOtqKen2SlN/C5v58udMaGpRH2NuZHuyABkwBRaPauYqnrBDR0bCgQekd/mqdgWzR5buz591ybUur9BZBw2BAnJaYnhQGKVOFPxWtAlO5XSIx8yzQm2VuTQKUP/HyXdn2DtOoTbLqWZ5GQUuAkP3VD5Ihvh4XC577ftNYUFGpCA1RLXZ5WE0fGlgn4oCUJ+tMzqxvgGJr70TcR0KJqcXEWhadAwIDAQAB",
+  "optional_permissions": [
+    "nativeMessaging"
+  ]
 }

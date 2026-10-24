@@ -18,6 +18,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
 }
 
 struct SettingsView: View {
+    @ThemePalette private var palette
     @ObservedObject var history: History
     @State private var trusted = AXIsProcessTrusted()
     @State private var launch = SMAppService.mainApp.status == .enabled
@@ -33,15 +34,15 @@ struct SettingsView: View {
                 Spacer()
                 Text("EasyPaste \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
                     .font(.system(size: 11)).foregroundStyle(Theme.muted)
-            }.padding(.top, 43)
+            }.padding(6).glassLabelPlate().padding(.top, 43)
             HStack(spacing: 6) {
                 ForEach(SettingsCategory.allCases) { item in
                     Button { category = item } label: {
                         Label(item.rawValue, systemImage: item.icon)
                             .font(.system(size: 12, weight: .medium))
                             .frame(maxWidth: .infinity, minHeight: 42)
-                            .foregroundStyle(category == item ? Theme.mint : Theme.muted)
-                            .background(category == item ? Theme.mint.opacity(0.1) : .clear,
+                            .foregroundStyle(category == item ? palette.accent : Theme.muted)
+                            .background(category == item ? palette.accent.opacity(0.1) : .clear,
                                         in: RoundedRectangle(cornerRadius: 11))
                             .contentShape(Rectangle())
                     }.buttonStyle(FullAreaButtonStyle())
@@ -108,6 +109,9 @@ struct SettingsView: View {
                     HStack { Text("\(ByteCountFormatter.string(fromByteCount: Int64(history.totalBytes), countStyle: .file)) de contenu · \(history.total) éléments").foregroundStyle(Theme.muted); Spacer(); Button("Effacer l’historique…") { clear() }.buttonStyle(PasteButtonStyle()) }.font(.system(size: 11))
                 }
                     case .integrations:
+                section("Extension navigateur", icon: "globe") {
+                    BrowserExtensionSettings()
+                }
                 section("Intégrations", icon: "puzzlepiece.extension") {
                     BitwardenSettings(model: history.bitwarden)
                 }
@@ -129,16 +133,16 @@ struct SettingsView: View {
                     UpdateSettings(updates: history.updates, busy: history.updateBusy)
                 }
                     }
-                    if !message.isEmpty { Text(message).font(.system(size: 11)).foregroundStyle(Theme.mint) }
+                    if !message.isEmpty { Text(message).font(.system(size: 11)).foregroundStyle(palette.accent).padding(6).glassLabelPlate() }
                 }.padding(.bottom, 24)
             }.id(category)
-        }.padding(.horizontal, 32)
+        }.padding(.horizontal, 32).tint(palette.accent)
             .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                 trusted = AXIsProcessTrusted(); launch = SMAppService.mainApp.status == .enabled
             }
     }
     private func section<Content: View>(_ title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 12) { Label(title, systemImage: icon).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.mint).padding(.bottom, 4); content() }.font(.system(size: 12)).controlSize(.regular).padding(24).frame(maxWidth: .infinity, alignment: .leading).surface()
+        VStack(alignment: .leading, spacing: 12) { Label(title, systemImage: icon).font(.system(size: 15, weight: .semibold)).foregroundStyle(palette.accent).padding(.bottom, 4); content() }.font(.system(size: 12)).controlSize(.regular).padding(24).frame(maxWidth: .infinity, alignment: .leading).surface()
     }
     private func shortcut(_ title: String, _ keys: String) -> some View { PreferenceRow(title) { Text(keys).font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundStyle(Theme.muted).frame(width: 106, height: 28).background(Theme.ink.opacity(0.05), in: RoundedRectangle(cornerRadius: 7)).overlay(RoundedRectangle(cornerRadius: 7).stroke(Theme.ink.opacity(0.08))) } }
     private func appName(_ id: String) -> String { NSWorkspace.shared.urlForApplication(withBundleIdentifier: id)?.deletingPathExtension().lastPathComponent ?? id }

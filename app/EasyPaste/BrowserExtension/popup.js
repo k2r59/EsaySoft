@@ -1,6 +1,7 @@
 import { inspectYouTube, readCaptionTrack, readDisplayedTranscript, readNativeTranscript } from "./src/youtube.js";
 import { parseCaptions, formatTranscript } from "./src/captions.js";
-import { clipboardPayload } from "./src/clipboard.js";
+import { clipboardPayload, writeRichClipboard } from "./src/clipboard.js";
+import { mountNativeCard } from "./src/native.js";
 
 const $ = id => document.getElementById(id);
 let tabId, initialURL, info, youtube, busy = false;
@@ -11,7 +12,7 @@ function feedback(message, kind = "info") {
 }
 function setBusy(value) {
   busy = value;
-  for (const button of document.querySelectorAll("button")) button.disabled = value;
+  for (const button of document.querySelectorAll("#page-card button, #youtube button")) button.disabled = value;
   $("copy-page").disabled = value || !info;
   $("copy-captions").disabled = value || !youtube?.hasAvailable;
   document.body.setAttribute("aria-busy", String(value));
@@ -29,20 +30,11 @@ async function action(task) {
   catch (error) { feedback(error?.message || "La copie a échoué. Réessayez sur une page web classique.", "error"); }
   finally { setBusy(false); }
 }
-async function writeClipboard(value) {
-  try {
-    if (typeof value === "string") await navigator.clipboard.writeText(value);
-    else await navigator.clipboard.write(value);
-  } catch { throw new Error("Chrome a refusé la copie. Gardez cette fenêtre ouverte, puis réessayez."); }
-}
 async function copyWithSource({ text, html }) {
   const currentURL = await execute(() => location.href);
   if (currentURL !== initialURL) throw new Error("La page a changé. Fermez puis rouvrez EasyPaste.");
   const payload = clipboardPayload({ text, html, sourceURL: initialURL });
-  await writeClipboard([new ClipboardItem({
-    "text/html": new Blob([payload.html], { type: "text/html" }),
-    "text/plain": new Blob([payload.text], { type: "text/plain" })
-  })]);
+  writeRichClipboard(payload);
 }
 async function refreshYouTube() {
   youtube = await execute(inspectYouTube, [], "MAIN");
@@ -128,4 +120,5 @@ async function initialize() {
     feedback(error?.message?.startsWith("Ouvrez") ? error.message : "Chrome ne permet pas de copier cette page. Essayez sur un article ou sélectionnez du texte sur une page web.", "error");
   } finally { setBusy(false); }
 }
+mountNativeCard();
 initialize();

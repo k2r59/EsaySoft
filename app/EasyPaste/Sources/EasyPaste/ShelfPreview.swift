@@ -87,6 +87,7 @@ struct ShelfRootView: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.colorScheme) private var scheme
     private var layout: ShelfLayout { ShelfLayout(screenHeight: history.shelfScreenHeight, compact: history.compact, expanded: history.shelfPreview != nil, footer: history.shelfNeedsFooter) }
     var body: some View {
         GeometryReader { geometry in
@@ -108,26 +109,41 @@ struct ShelfRootView: View {
         if reduceTransparency || contrast == .increased {
             content(width: width).background(Theme.raised, in: shape)
                 .overlay(shape.stroke(Theme.ink.opacity(0.45), lineWidth: 2).allowsHitTesting(false))
+        } else if scheme == .dark {
+            // Keep native material behind the readable wash. Applying clear
+            // glass to the whole content can turn a dark, highly transparent
+            // bar into a light plate while leaving its labels white.
+            content(width: width).background {
+                ZStack {
+                    if #available(macOS 26.0, *) { Color.clear.glassEffect(.clear, in: shape) }
+                    else { shape.fill(.regularMaterial).opacity(GlassAppearance.materialOpacity(glassTransparency)) }
+                    Theme.bg.opacity(GlassAppearance.windowReadabilityOpacity(glassTransparency))
+                    ShelfGlassWash(transparency: glassTransparency, tint: GlassTint.resolve(storedGlassTint))
+                }.clipShape(shape)
+            }.overlay { ShelfGlassRim(shape: shape) }
         } else if #available(macOS 26.0, *) {
             content(width: width)
                 .background { ShelfGlassWash(transparency: glassTransparency, tint: GlassTint.resolve(storedGlassTint)).clipShape(shape) }
-                .glassEffect(.regular, in: shape)
+                .glassEffect(.clear, in: shape)
                 .overlay { ShelfGlassRim(shape: shape) }
         } else {
             content(width: width)
                 .background { ShelfGlassWash(transparency: glassTransparency, tint: GlassTint.resolve(storedGlassTint)).clipShape(shape) }
-                .background(.regularMaterial, in: shape)
+                .background { shape.fill(.regularMaterial).opacity(GlassAppearance.materialOpacity(glassTransparency)) }
                 .overlay { ShelfGlassRim(shape: shape) }
         }
     }
     private func content(width: CGFloat) -> some View {
         VStack(spacing: 0) {
             if let clip = history.shelfPreview, layout.previewHeight > 0 {
-                ShelfPreviewView(history: history, clip: clip, compactActions: width < 450)
+                ShelfPreviewView(history: history, clip: clip)
                     .id(clip.id).frame(width: width, height: layout.previewHeight).clipped()
                     .transition(.opacity)
             }
             ShelfView(history: history, nativeGlassHosted: true).frame(height: layout.barHeight)
+                .background(alignment: .top) {
+                    if history.shelfPreview != nil { ShelfGlassSeparator().frame(width: min(640, max(120, width - 80))) }
+                }
         }.frame(maxWidth: .infinity).foregroundStyle(Theme.ink)
     }
 }
@@ -188,38 +204,47 @@ struct ShelfRootView: View {
 }
 
 struct ShelfPreviewView: View {
+    @ThemePalette private var palette
+    @Environment(\.displayScale) private var displayScale
     @ObservedObject var history: History
     let clip: Clip
-    var compactActions = false
     @StateObject private var model = ShelfPreviewModel()
+    private var pinned: Bool { history.clips.first { $0.id == clip.id }?.pinned ?? clip.pinned }
     var body: some View {
         VStack(spacing: 14) {
             HStack(spacing: 9) {
-                Image(systemName: clip.kind == .image ? "camera.viewfinder" : clip.kind.symbol).font(.system(size: 17)).frame(width: 38, height: 38)
-                    .background(GlassAppearance.labelPlate.opacity(0.58), in: RoundedRectangle(cornerRadius: 12))
-                Text(clip.kind == .image ? "Capture d’écran" : clip.title).font(.system(size: 18, weight: .medium)).lineLimit(1)
+                SourceApplicationIcon(clip: clip, size: 30)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(clip.kind == .image ? "Capture d’écran" : clip.title).font(.system(size: 18, weight: .medium)).lineLimit(1)
+                    if let metadata = clip.imageMetadata { Text("\(metadata.dimensions) · \(metadata.fileSize)").font(.system(size: 11)).foregroundStyle(Theme.muted) }
+                }.padding(6).glassLabelPlate()
                 Spacer(minLength: 12)
-                Button { history.shelfPreview = nil } label: { Image(systemName: "chevron.down").font(.system(size: 16, weight: .medium)).frame(width: 42, height: 42).background(GlassAppearance.labelPlate.opacity(0.48), in: RoundedRectangle(cornerRadius: 15)) }
+                Button { history.shelfPreview = nil } label: { Image(systemName: "chevron.down").font(.system(size: 16, weight: .medium)).frame(width: 42, height: 42).background(palette.controlPlate.opacity(0.95), in: RoundedRectangle(cornerRadius: 15)) }
                     .buttonStyle(FullAreaButtonStyle()).help("Replier l’aperçu · Échap").accessibilityLabel("Replier l’aperçu")
-                Button { history.shelfPreview = nil } label: { Image(systemName: "xmark").font(.system(size: 16, weight: .medium)).frame(width: 42, height: 42).background(GlassAppearance.labelPlate.opacity(0.48), in: RoundedRectangle(cornerRadius: 15)) }
+                Button { history.shelfPreview = nil } label: { Image(systemName: "xmark").font(.system(size: 16, weight: .medium)).frame(width: 42, height: 42).background(palette.controlPlate.opacity(0.95), in: RoundedRectangle(cornerRadius: 15)) }
                     .buttonStyle(FullAreaButtonStyle()).help("Fermer l’aperçu").accessibilityLabel("Fermer l’aperçu")
             }
             GeometryReader { geometry in
                 preview(height: geometry.size.height).frame(width: geometry.size.width, height: geometry.size.height)
             }.background(Theme.panel, in: RoundedRectangle(cornerRadius: 16)).clipShape(RoundedRectangle(cornerRadius: 16))
-            if !model.note.isEmpty { Text(model.note).font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(2) }
+            if !model.note.isEmpty { Text(model.note).font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(2).padding(5).glassLabelPlate() }
             HStack(spacing: 10) {
                 if clip.kind == .image {
                     Button { history.annotate?(clip) } label: { Label("Annoter", systemImage: "pencil") }
-                        .buttonStyle(ShelfActionButtonStyle()).disabled(history.annotating || history.captureBusy)
+                        .buttonStyle(ShelfActionButtonStyle()).help("Annoter").disabled(history.annotating || history.captureBusy)
                 } else if clip.kind == .text, clip.structuredFormat != nil {
-                    Button { history.openFormatter(clip) } label: { Label("Formater", systemImage: "curlybraces") }.buttonStyle(ShelfActionButtonStyle())
+                    Button { history.openFormatter(clip) } label: { Label("Formater", systemImage: "curlybraces") }.buttonStyle(ShelfActionButtonStyle()).help("Formater")
                 } else if clip.editable {
-                    Button { history.editing = clip } label: { Label("Modifier", systemImage: "pencil") }.buttonStyle(ShelfActionButtonStyle())
+                    Button { history.editing = clip } label: { Label("Modifier", systemImage: "pencil") }.buttonStyle(ShelfActionButtonStyle()).help("Modifier")
                 }
-                Button { Task { _ = await history.copy([clip]) } } label: { Label("Copier", systemImage: "doc.on.doc") }.buttonStyle(ShelfActionButtonStyle())
-                Button { history.paste?([clip], false) } label: { Label { Text("Coller") } icon: { ShelfPasteSymbol() } }.buttonStyle(ShelfActionButtonStyle(primary: true))
-            }.frame(maxWidth: 440).labelStyle(ShelfActionLabelStyle(compact: compactActions)).disabled(model.full == nil)
+                Button { Task { _ = await history.copy([clip]) } } label: { Label("Copier", systemImage: "doc.on.doc") }.buttonStyle(ShelfActionButtonStyle()).help("Copier")
+                Button { history.paste?([clip], false) } label: { Label("Coller", systemImage: "doc.on.clipboard") }.buttonStyle(ShelfActionButtonStyle(primary: true)).help("Coller")
+                Button { history.togglePin(clip) } label: { Label(pinned ? "Retirer des favoris" : "Ajouter aux favoris", systemImage: pinned ? "star.fill" : "star") }
+                    .buttonStyle(ShelfActionButtonStyle()).help(pinned ? "Retirer des favoris" : "Ajouter aux favoris")
+                    .accessibilityAddTraits(pinned ? .isSelected : [])
+                Button { history.requestTrash([clip]) } label: { Label("Mettre à la corbeille", systemImage: "trash").foregroundStyle(Theme.danger) }
+                    .buttonStyle(ShelfActionButtonStyle()).help("Mettre à la corbeille").padding(.leading, 4)
+            }.labelStyle(.iconOnly).disabled(model.full == nil)
         }.padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 20)
             .task(id: clip.fingerprint) { await model.load(clip, history: history) }
             .onDisappear { model.reset() }
@@ -227,7 +252,13 @@ struct ShelfPreviewView: View {
     @ViewBuilder private func preview(height: CGFloat) -> some View {
         if let full = model.full {
             if let image = model.image {
-                Image(decorative: image, scale: 1).resizable().scaledToFit().padding(8)
+                GeometryReader { geometry in
+                    let available = CGSize(width: max(0, geometry.size.width - 16), height: max(0, geometry.size.height - 16))
+                    let size = ImageRaster.fittedSize(pixels: CGSize(width: image.width, height: image.height), available: available, displayScale: displayScale)
+                    Image(decorative: image, scale: displayScale).resizable().interpolation(.high)
+                        .frame(width: size.width, height: size.height)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity).padding(8)
+                }
             } else if let player = model.player {
                 VideoPreview(player: player, imageHeight: max(40, height - 56)).padding(8)
             } else if let document = model.result?.markdown {

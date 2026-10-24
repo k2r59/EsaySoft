@@ -1,10 +1,10 @@
-# Vérification locale — 0.1.2
+# Vérification locale — 0.2.0
 
-Date : 22 octobre 2026. Aucun envoi au Chrome Web Store, aucune publication GitHub.
+Date : 24 octobre 2026. Aucun envoi au Chrome Web Store, aucune publication GitHub.
 
 ## Tests automatiques
 
-47 tests passent avec Node 25.6.1 et jsdom 26.1.0. La suite 0.1.2 a passé 47 tests, y compris les 41 régressions de la version précédente. Durée finale : environ 2 secondes. Une fixture de 220 paragraphes avec emphases et liens s’extrait en environ 65 ms dans jsdom, en cédant six fois la main à la boucle d’événements. Ce chiffre ne mesure pas les performances d’une page réelle dans Chrome.
+55 tests passent avec Node 25.6.1 et jsdom 26.1.0. La suite 0.2.0 a passé 55 tests, dont les 47 régressions de la version précédente. Durée finale : environ 2 secondes. Une fixture de 220 paragraphes avec emphases et liens s’extrait en environ 65 ms dans jsdom, en cédant six fois la main à la boucle d’événements. Ce chiffre ne mesure pas les performances d’une page réelle dans Chrome.
 
 Vérifications :
 
@@ -19,10 +19,19 @@ Vérifications :
 - Liste virtualisée : récupération de chaque ligne et restauration du défilement initial.
 - Piste directe vide : repli natif avec une seule piste ; aucune substitution de langue silencieuse avec plusieurs pistes.
 - Popup : MIME HTML et texte brut ensemble, page non autorisée, navigation pendant l’ouverture, presse-papiers refusé.
-- Permissions : trois permissions seulement, aucun hôte permanent, aucun worker, aucune collecte de fond.
+- Permissions : les trois permissions de copie restent inchangées ; `nativeMessaging` est facultative. Aucun hôte web permanent, worker ou collecte de fond.
+- Identité publique stable, nonce aléatoire de 48 caractères, contrat natif strict, refus des champs inattendus et des réponses incohérentes.
+- Vérification native ponctuelle : délai maximal, hôte absent/non autorisé, permission refusée, retrait limité à nativeMessaging, contenu des erreurs rendu comme texte.
+- Aucune vérification native automatique à l’ouverture ; demande de permission dans le clic direct ; contrôles de copie indépendants de la connexion.
 - Métadonnée source : URL réelle de la page malgré faux `canonical` ou `meta`, attribution visible désactivée, sélection exacte, absence de modification du texte brut.
 - Source : HTTP(S) uniquement, rejet des identifiants, caractères de contrôle, URL relatives ou trop longues. Entités HTML et Unicode préservés par sérialisation DOM.
 - Transcription : HTML `<pre>` sûr, balisage cité rendu comme texte, source dans `<head>`, limite de 2 Mo appliquée après ajout des métadonnées.
+
+## Validation de la connexion 0.2.0
+
+Les échanges natifs sont couverts par mocks de l’API Chrome ; la vérification native réelle, l’installation de l’hôte et l’essai Arc restent à effectuer avec l’app correspondante. Aucun résultat de ces tests simulés n’est présenté comme un handshake réel. L’extension 0.2.0 n’a pas été chargée dans le navigateur par cette tâche.
+
+Le scanner natif de métadonnées a aussi été remplacé dans `BrowserOrigin.swift` : lecture bornée à 64 Ko, respect des attributs entre guillemets, exclusion des commentaires et éléments raw/inertes, URL jusqu’à 8192 octets après normalisation. Trois tests Swift supplémentaires couvrent l’expansion des entités, les balises citées et les entrées malformées. Ils sont préparés pour l’exécution native coordonnée ; ils n’ont pas été exécutés par l’agent de l’extension.
 
 ## Vérification réelle du navigateur
 

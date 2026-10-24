@@ -35,6 +35,12 @@
       <button id="refresh" class="text-button">Actualiser les pistes</button>
     </section>
     <div id="feedback" role="status" aria-live="polite" aria-atomic="true"><span id="feedback-text">Ouvrez EasyPaste pour retrouver vos copies.</span></div>
+    <section id="mac-card" class="card mac-card" aria-labelledby="mac-heading" aria-busy="false">
+      <div class="section-label"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="13" rx="2"/><path d="M8 21h8m-4-5v5"/></svg><h2 id="mac-heading">Application Mac</h2></div>
+      <p id="mac-status" class="hint" role="status" aria-live="polite">Vérifiez le lien avec EasyPaste.</p>
+      <div class="mac-actions"><button id="connect-mac" class="secondary">Connecter</button><button id="disconnect-mac" class="secondary" hidden>Déconnecter</button></div>
+      <p id="mac-last-check" class="hint" hidden></p>
+    </section>
   </main>
   <footer>À la demande. Aucun historique de navigation collecté.</footer>
   <script type="module" src="popup.js"></script>

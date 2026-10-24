@@ -12,8 +12,18 @@ async function popup(content, url = "https://example.test/article", prepareSite 
   const writes = [];
   globalThis.document = ui.document;
   globalThis.Option = ui.dom.window.Option;
-  globalThis.ClipboardItem = class { constructor(data) { this.data = data; } };
-  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard: { write: async values => writes.push(values), writeText: async value => writes.push(value) } } });
+  ui.document.execCommand = command => {
+    assert.equal(command, "copy");
+    const data = {};
+    const event = new ui.dom.window.Event("copy", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", { value: {
+      setData: (type, value) => { data[type] = new Blob([value], { type }); },
+      clearData: () => { for (const type of Object.keys(data)) delete data[type]; }
+    } });
+    ui.document.dispatchEvent(event);
+    if (event.defaultPrevented) writes.push([{ data }]);
+    return event.defaultPrevented;
+  };
   globalThis.chrome = {
     tabs: { query: async () => [{ id: 42, url }] },
     scripting: { executeScript: async ({ func, files, args = [] }) => files ? [] : [{ frameId: 0, result: await site.dom.window.eval(`(${func.toString()})(...${JSON.stringify(args)})`) }] }
@@ -30,6 +40,8 @@ test("manifest has only explicit-invocation permissions, no hosts or background 
   assert.deepEqual(manifest.permissions, ["activeTab", "scripting", "clipboardWrite"]);
   assert.equal(manifest.host_permissions, undefined); assert.equal(manifest.background, undefined); assert.equal(manifest.content_scripts, undefined);
   assert.match(manifest.content_security_policy.extension_pages, /connect-src 'none'/);
+  assert.match(manifest.content_security_policy.extension_pages, /style-src 'self';/);
+  assert.doesNotMatch(manifest.content_security_policy.extension_pages, /unsafe-inline|unsafe-eval/);
 });
 test("popup copies HTML and plain text together without exposing the raw page", async () => {
   const { ui, writes } = await popup('<article><h1>Bonjour</h1><p><b>Texte</b><script>evil()</script></p></article>');
@@ -72,7 +84,7 @@ test("a changed SPA page cannot copy stale content under the old title", async (
 });
 test("clipboard denial never displays a false success", async () => {
   const { ui } = await popup('<article>Bonjour</article>');
-  navigator.clipboard.write = async () => { throw new Error("Autorisation de copie refusée."); };
+  ui.document.execCommand = () => false;
   ui.document.getElementById("copy-page").click(); await idle(ui.document);
   assert.equal(ui.document.getElementById("feedback").dataset.kind, "error");
   assert.equal(ui.document.getElementById("copy-page").disabled, false);

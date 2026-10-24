@@ -223,6 +223,7 @@ final class RecordingWriterTests: XCTestCase {
         let copy = try await history.saveImage(DemoArtwork.png(), parent: original)
         let board = UUID(); history.mutate(original.id) { $0.pinned = true; $0.boards = [board]; $0.title = "Mon image"; $0.ocr = "ancien texte confidentiel" }; await history.flush()
         let old = try await history.fullClip(original)
+        history.surface = "shelf"; history.openPreview(old)
         let context = try XCTUnwrap(CGContext(data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
         context.setFillColor(CGColor(red: 0, green: 0, blue: 1, alpha: 1)); context.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
         let newPNG = try CaptureImage.png(XCTUnwrap(context.makeImage()))
@@ -230,6 +231,9 @@ final class RecordingWriterTests: XCTestCase {
         XCTAssertEqual(history.clips.count, 2); XCTAssertEqual(reloaded.id, original.id); XCTAssertEqual(reloaded.title, "Mon image")
         XCTAssertEqual(reloaded.date, original.date); XCTAssertTrue(reloaded.pinned); XCTAssertEqual(reloaded.boards, [board]); XCTAssertEqual(reloaded.ocr, "")
         XCTAssertEqual(reloaded.imageData, newPNG); XCTAssertEqual(reloaded.byteCount, newPNG.count)
+        XCTAssertEqual(reloaded.imageMetadata?.dimensions, "64 × 64 px")
+        XCTAssertEqual(history.shelfPreview?.fingerprint, reloaded.fingerprint, "The integrated preview must reload the replaced raster")
+        XCTAssertEqual(history.shelfPreview?.imageMetadata, reloaded.imageMetadata, "Header dimensions must not retain the original crop")
         let untouched = try await history.fullClip(copy); XCTAssertEqual(untouched.imageData, old.imageData)
         do { _ = try await history.replaceImage(newPNG, original: old); XCTFail("Stale replacement must be rejected") } catch { }
         do { _ = try await history.replaceImage(Data("invalid".utf8), original: result); XCTFail("Invalid image must be rejected") } catch { }

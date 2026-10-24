@@ -200,7 +200,7 @@ enum AnnotationRenderer {
     @Published var showingBackdrop = true
     @Published var notice = ""
     var effectiveCrop: CGRect? { AnnotationRenderer.cropRect(snapshot:snapshot,size:size,balanced:balancedBounds) }
-    var contentSize: CGSize { effectiveCrop?.size ?? size }
+    var contentSize: CGSize { effectiveCrop?.integral.intersection(CGRect(origin: .zero, size: size)).size ?? size }
     var outputSize: CGSize { snapshot.backdrop.layout(for:contentSize).size }
     @Published var nativeImage: CGImage?
     @Published var loadingNative = false

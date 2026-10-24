@@ -1,0 +1,10 @@
+{
+  "tool": "image_gen.imagegen",
+  "mode": "background-extraction",
+  "reference": "easypaste-ribbon.png",
+  "output": "easypaste-ribbon-mark.png",
+  "prompts": [
+    "Use case: background-extraction. Edit target: the provided approved EasyPaste ribbon logo. Remove ONLY the pale white/pearl background and the soft cast shadow beneath/around the mark. Output a real transparent RGBA PNG, with transparent negative space both outside and inside the ribbon loop. Preserve the identical ribbon silhouette, perspective, folds, blue/cyan/violet gradient, fine luminous edge highlights, proportions and placement. Do not redesign or simplify the logo. The actual glossy highlights on the ribbon itself stay intact. No white tile, no new background, no checkerboard baked into pixels, no text, no surrounding glow. Intended asset: small native macOS interface brand mark over colored glass, clean antialiased silhouette, same canvas size and framing as the input.",
+    "Edit target: this transparent EasyPaste ribbon logo. Clean the cutout ONLY. Remove every disconnected blue/cyan speck and all residue in the triangular opening and outside the logo. The central triangular negative space must be completely empty transparent alpha=0. Outside the smooth contiguous ribbon silhouette must also be alpha=0. Keep exactly the same contiguous ribbon silhouette, folds, proportions and blue/cyan/violet gradients. The ribbon itself remains opaque, with crisp clean antialiased edges. No cast shadows, no glow, no background color or white tile, no haze or floating particles. This will be used as a 32-point macOS interface mark on glass; it needs a pristine cutout, not a new design."
+  ]
+}

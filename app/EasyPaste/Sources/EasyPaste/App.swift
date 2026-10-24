@@ -6,6 +6,7 @@ import CryptoKit
 
 @main struct EasyPasteMain {
     static func main() {
+        if BrowserBridgeHost.runIfNeeded() { return }
         if AnnotationPreviewLauncher.runIfNeeded() { return }
         if CommandLine.arguments.contains("--render-svg") { SVGRenderer.runHelper(); return }
         if CommandLine.arguments.contains("--mcp") { MCPServer.run(); return }
@@ -50,7 +51,8 @@ import CryptoKit
         target = destinations.capture()
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1190, height: 850), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         window.title = "EasyPaste"; window.titlebarAppearsTransparent = true; window.titleVisibility = .hidden; window.delegate = self
-        window.backgroundColor = NSColor(Theme.bg); window.minSize = NSSize(width: 1050, height: 740)
+        window.titlebarSeparatorStyle = .none
+        window.isOpaque = false; window.backgroundColor = .clear; window.minSize = NSSize(width: 1050, height: 740)
         window.contentView = NSHostingView(rootView: MainView(history: history)); window.isReleasedWhenClosed = false
         window.center(); window.setFrameAutosaveName("EasyPasteLibrary")
         buildMenu(); registerHotkeys()

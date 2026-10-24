@@ -254,10 +254,15 @@ struct ClipQuery {
                 var value = clip
                 if value.payload.representations.isEmpty { value.payload = try vault.read(Clip.self, name: value.id.uuidString + ".clip").payload }
                 value.prepareThumbnail(); try vault.save(value)
-                let thumb = value.thumbnail
+                let thumb = value.thumbnail, metadata = value.imageMetadata
                 Task { @MainActor in
                     self?.writes -= 1
-                    if let i = self?.clips.firstIndex(where: { $0.id == clip.id }), self?.clips[i].thumbnail != thumb { self?.clips[i].thumbnail = thumb }
+                    if let self, let i = self.clips.firstIndex(where: { $0.id == clip.id }),
+                       self.clips[i].fingerprint == value.fingerprint,
+                       self.clips[i].thumbnail != thumb || self.clips[i].imageMetadata != metadata {
+                        var updated = self.clips[i]; updated.thumbnail = thumb; updated.imageMetadata = metadata
+                        self.clips[i] = updated
+                    }
                 }
             } catch { Task { @MainActor in self?.writes -= 1; self?.storageError(error) } }
         }
@@ -287,7 +292,7 @@ struct ClipQuery {
         guard let vault else { throw CocoaError(.fileReadUnknown) }
         return try await withCheckedThrowingContinuation { continuation in
             disk.async {
-                do { continuation.resume(returning: try vault.read(Clip.self, name: c.id.uuidString + ".clip")) }
+                do { var clip = try vault.read(Clip.self, name: c.id.uuidString + ".clip"); clip.prepareImageMetadata(); continuation.resume(returning: clip) }
                 catch { continuation.resume(throwing: error) }
             }
         }
@@ -547,7 +552,7 @@ extension History {
                     var clip = try vault.read(Clip.self, name: original.id.uuidString + ".clip")
                     guard clip.kind == .image, clip.trashedAt == nil, clip.fingerprint == original.fingerprint else { throw CaptureFailure.message("L’image a changé. Rouvre-la avant de la remplacer.") }
                     clip.payload = prepared.0; clip.fingerprint = prepared.1; clip.ocr = prepared.2
-                    clip.text = ""; clip.storedBytes = nil; clip.thumbnail = nil; clip.prepareThumbnail()
+                    clip.text = ""; clip.storedBytes = nil; clip.thumbnail = nil; clip.imageMetadata = nil; clip.prepareThumbnail()
                     try vault.save(clip)
                     continuation.resume(returning: clip)
                 } catch { continuation.resume(throwing: error) }
@@ -555,6 +560,7 @@ extension History {
         }
         guard let index = clips.firstIndex(where: { $0.id == saved.id }) else { throw CaptureFailure.message("Cette image a été supprimée pendant l’enregistrement.") }
         clips[index] = saved.metadata()
+        if shelfPreview?.id == saved.id { shelfPreview = saved.metadata() }
         selected = saved.id; selectedIDs = [saved.id]
         return saved.metadata()
     }

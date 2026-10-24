@@ -18,10 +18,15 @@ iconutil -c icns .build/EasyPaste.iconset -o .build/EasyPaste.icns
 cp .build/EasyPaste.icns "$app/Contents/Resources/EasyPaste.icns"
 binary_dir=$(swift build -j 2 -c release --arch arm64 --arch x86_64 "${link_sdk[@]}" --show-bin-path)
 cp "$binary_dir/EasyPaste" "$app/Contents/MacOS/EasyPaste"
+mkdir -p "$app/Contents/Resources/BrowserExtension"
+for item in manifest.json popup.html popup.css popup.js src icons LICENSE; do
+    ditto "BrowserExtension/$item" "$app/Contents/Resources/BrowserExtension/$item"
+done
 cp LICENSE "$app/Contents/Resources/LICENSE.txt"
 cp THIRD-PARTY-NOTICES.md "$app/Contents/Resources/THIRD-PARTY-NOTICES.md"
 cp Sources/CArgon2/LICENSE "$app/Contents/Resources/Argon2-LICENSE.txt"
 cp Sources/EasyPaste/Resources/easypaste-ribbon.png "$app/Contents/Resources/easypaste-ribbon.png"
+cp Sources/EasyPaste/Resources/easypaste-ribbon-mark.png "$app/Contents/Resources/easypaste-ribbon-mark.png"
 cp Sources/EasyPaste/Resources/clipboard-studio.png "$app/Contents/Resources/clipboard-studio.png"
 cp Sources/EasyPaste/Resources/feedback-*.wav "$app/Contents/Resources/"
 cat > "$app/Contents/Info.plist" <<'PLIST'

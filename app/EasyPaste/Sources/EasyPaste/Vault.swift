@@ -36,7 +36,7 @@ final class ClipVault: Sendable {
     }
     func load(metadataOnly:Bool=false)throws->[Clip] {
         let urls=try FileManager.default.contentsOfDirectory(at:directory,includingPropertiesForKeys:nil).filter{$0.pathExtension=="clip"}
-        return try urls.map{url in let c=try read(Clip.self,name:url.lastPathComponent);return metadataOnly ? c.metadata() : c}.sorted{$0.date>$1.date}
+        return try urls.map{url in var c=try read(Clip.self,name:url.lastPathComponent);c.prepareImageMetadata();return metadataOnly ? c.metadata() : c}.sorted{$0.date>$1.date}
     }
     func loadBoards() throws -> [Pinboard] {
         FileManager.default.fileExists(atPath: directory.appendingPathComponent("boards.json.enc").path) ? try read([Pinboard].self, name: "boards.json.enc") : []
