@@ -100,8 +100,8 @@ import ImageIO
 
     let owner = AppDelegate()
     weak var releasedEditor: EditorController?
-    autoreleasepool {
-        let editor = EditorController(image: NSImage(cgImage: cropped, size: .zero), owner: owner)
+    try autoreleasepool {
+        let editor = try EditorController(image: NSImage(cgImage: cropped, size: .zero), owner: owner)
         releasedEditor = editor
         owner.editors.append(editor)
         editor.window?.close()

@@ -1,5 +1,7 @@
 import AppKit
 
+if MainActor.assumeIsolated({ AnnotationPreviewLauncher.runIfNeeded() }) { exit(0) }
+
 // CLI transports must never register a competing GUI application with LaunchServices.
 let delegate = MainActor.assumeIsolated { AppDelegate() }
 if CommandLine.arguments.contains("--feature-tests") {

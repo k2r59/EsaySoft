@@ -62,7 +62,7 @@ import ScreenCaptureKit
         if recorder.isBusy || videoEditors.contains(where:{$0.model.exporting}) {
             message("Opération en cours","Termine l’enregistrement ou l’export avant de quitter EasyShoot.");return .terminateCancel
         }
-        if scrolling?.session.isActive == true || editors.contains(where:{!$0.canvas.marks.isEmpty}) {
+        if scrolling?.session.isActive == true || editors.contains(where:{$0.model.dirty}) {
             message("Modifications en cours","Termine la capture défilante ou ferme l’éditeur d’annotations avant de quitter EasyShoot.");return .terminateCancel
         }
         if videoEditors.contains(where:{$0.model.hasUnexportedChanges}) {
@@ -240,10 +240,12 @@ import ScreenCaptureKit
         NotificationCenter.default.post(name:Notification.Name("EasyShootCapturesChanged"),object:nil)
     }
     func showEditor(_ image: NSImage) {
-        let controller = EditorController(image: image, owner: self)
+        do {
+        let controller = try EditorController(image: image, owner: self)
         editors.append(controller)
         controller.window?.isReleasedWhenClosed = false
         controller.showWindow(nil); NSApp.activate(ignoringOtherApps: true)
+        } catch { fail(error) }
     }
     @objc func openImage() { NSApp.activate(ignoringOtherApps: true); let p = NSOpenPanel(); p.allowedContentTypes = [.image]; if p.runModal() == .OK, let u = p.url, let im = NSImage(contentsOf: u) { showEditor(im) } }
     @objc func pasteImage() { guard let im = NSImage(pasteboard: .general) else { message("Presse-papiers vide", "Copie une image pour l’ouvrir ici."); return }; showEditor(im) }
@@ -274,7 +276,7 @@ import ScreenCaptureKit
         if recorder.isRecording { message("Enregistrement en cours","Arrête l’enregistrement avant de relancer EasyShoot.");return }
         if videoEditors.contains(where:{$0.model.exporting}) {message("Export en cours","Attends la fin de l’export vidéo avant de relancer.");return}
         if videoEditors.contains(where:{$0.model.hasUnexportedChanges}) {message("Montage non exporté","Exporte ton montage ou ferme son éditeur avant de relancer EasyShoot.");return}
-        if editors.contains(where:{!$0.canvas.marks.isEmpty}) {
+        if editors.contains(where:{$0.model.dirty}) {
             let alert=NSAlert();alert.messageText="Relancer EasyShoot ?";alert.informativeText="Les annotations non exportées seront perdues. Exporte tes images avant de relancer.";alert.addButton(withTitle:"Annuler");alert.addButton(withTitle:"Relancer")
             guard alert.runModal() == .alertSecondButtonReturn else{return}
         }
