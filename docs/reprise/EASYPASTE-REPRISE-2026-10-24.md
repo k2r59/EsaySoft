@@ -33,7 +33,11 @@ Le numéro `0.3.6 (23)` ne suffit donc pas à identifier le code testé sur l’
 
 Les modifications de travail couvrent `app/EasyPaste`, plusieurs fichiers d’annotation d’EasyShoot, `docs/annotation-studio` et deux utilitaires dans `scripts/`. Une partie des fichiers est nouvelle et non suivie à l’origine.
 
-**État de transfert à vérifier avant le départ :** le MD est demandé sur Git. Une question a été posée à Hervé pour savoir s’il souhaite aussi enregistrer les sources sur une branche de travail, sans publier de version. Ne pas annoncer que les sources sont récupérables tant que leur commit distant n’a pas été vérifié. Cette section doit être actualisée après la réponse et le push.
+**Premier push du MD confirmé :** branche `codex/reprise-easypaste-2026-10-24`, commit `bcefccebdac48b23442dff6094f5d8eb6f78701b`, vérifié avec `git ls-remote`. Le MD reçoit ensuite des compléments de tests sur cette même branche.
+
+**Les sources récentes restent locales à ce stade.** Une question est en attente pour savoir si Hervé souhaite aussi les enregistrer sur la branche de travail, sans publier de version. Ne pas annoncer qu’un clone transporte ces modifications Swift tant que leur commit distant n’a pas été vérifié. Cette section doit être actualisée après la réponse.
+
+Une archive complète des fichiers de travail a été créée sur le SSD interne, `source-complete-reprise-2026-10-24.zip`, pour préserver aussi les fichiers nouveaux et les modifications EasyShoot. Son chemin est indiqué dans les repères locaux. Copier cette archive par un moyen privé sur l’autre Mac si les sources ne sont pas poussées ; un clone Git seul n’inclut alors que les sources déjà enregistrées et le MD. Vérifier son fichier `.sha256` adjacent avant extraction. Cette archive est une sauvegarde locale, pas un fichier publié sur GitHub.
 
 Préserver les changements EasyShoot déjà présents. Ne pas les effacer, les réinitialiser ou les inclure aveuglément dans une livraison EasyPaste. Ils appartiennent notamment au chantier d’annotation commun.
 
@@ -159,6 +163,8 @@ Tous les chemins de code de cette section sont relatifs à la racine du dépôt.
 
 Essai réel : sélection de 750 × 400 sur l’écran externe, clip et aperçu affichés à 750 × 400 px. Après une annotation recadrée, la copie affiche ses nouvelles dimensions, 601 × 300 px. Le statut de l’éditeur avait affiché 600 × 300 à cause des coordonnées fractionnaires ; `AnnotationModel.contentSize` utilise maintenant la même intersection intégrale que l’export. Ce dernier correctif a un test automatisé dédié.
 
+Le remplacement réel de cette copie a ensuite donné 450 × 250 px et le message « Image remplacée », sans ajouter une nouvelle tuile. Il a révélé un second défaut : l’aperçu déjà ouvert gardait encore 601 × 300 dans son en-tête. `History.replaceImage` met désormais aussi à jour `shelfPreview` pour le même identifiant. Le changement d’empreinte recharge le raster, sans changer la taille de la fenêtre. Le test `ImageReplacementTests` vérifie maintenant les nouvelles dimensions et l’empreinte de l’aperçu après remplacement.
+
 ### 5.2 Suppression du titre répété dans les tuiles
 
 `Clip.cardTitle` est une propriété de présentation. Elle normalise de courts préfixes du titre et du contenu pour détecter un titre généré qui répète le début du texte. Elle masque aussi les titres d’image génériques comme « Image copiée » et « Capture d’écran » dans les endroits où ils ajoutent une ligne inutile.
@@ -264,7 +270,7 @@ Les tests ajoutés vérifient les URL longues et les faux marqueurs inclus dans 
 
 La revue indépendante a identifié un chemin `Image.resizable().scaledToFit()` qui agrandissait les petites images au-delà de leurs pixels natifs. Le correctif utilise désormais `ImageRaster.fittedSize`, la taille réelle du raster décodé et `displayScale`, puis centre l’image dans le panneau sans agrandir ses pixels.
 
-Ce changement est récent au moment de la rédaction : compiler, tester une petite image sur écrans 1× et 2×, et demander une nouvelle revue ciblée. Ne pas annoncer que la revue est passée à 10/10 avant une nouvelle évaluation.
+Ce changement a passé les tests ciblés, la dernière suite complète et la compilation universelle. L’agent de revue a confirmé la cohérence du calcul. Le paquet de préparation est signé. Il reste à l’installer et à tester une petite image sur écrans 1× et 2×. Ne pas annoncer que la revue visuelle est passée à 10/10 avant une nouvelle évaluation sur le rendu réel.
 
 ## 6. Tests exécutés et limites de preuve
 
@@ -276,13 +282,15 @@ Ce changement est récent au moment de la rédaction : compiler, tester une peti
 | Premier passage ciblé pont / origine / dimensions / qualité / disposition | 32 tests, aucun échec |
 | Suite Mac après pont, dimensions et titres | 283 tests, aucun échec |
 | Suite Mac après test du recadrage fractionnaire | **284 tests, aucun échec**, environ 35,5 secondes |
+| Suite Mac finale, génération du pont et actualisation de l’aperçu incluses | **285 tests, aucun échec**, environ 36,1 secondes |
+| Dernier passage ciblé : remplacement, pont, aperçu, qualité, dimensions, disposition | **34 tests, aucun échec** |
 | Extension avant corrections issues d’Arc | 55 tests, aucun échec |
 | Extension après correction d’autorisation | 57 tests, aucun échec |
 | Extension après correction CSP / copie | **60 tests, aucun échec** |
 | Parité des éditeurs partagés | 7 fichiers identiques EasyPaste / EasyShoot |
 | Vérification d’espaces Git | `git diff --check`, sans erreur au dernier passage |
 
-La suite de 284 tests précède les derniers ajustements de génération du pont et du plafonnement des petites images de la barre. Relancer les tests concernés, puis la suite complète, avant le paquet final.
+La dernière suite de 285 tests couvre les sources utilisées dans le paquet de préparation final. Les versions antérieures des journaux ont été remplacées par ce résultat ; conserver les totaux historiques comme étapes, sans les additionner pour prétendre à autant de tests distincts.
 
 Les tests couvrent notamment : coffre chiffré, historique, sélection, destinations de collage, cartes, corbeille, aperçu intégré, géométrie du verre, formats structurés, Markdown, SVG, capture, rendu des flèches, annotation, vidéo, mélange audio, Bitwarden, sons, apparence, mises à jour et icônes.
 
@@ -303,6 +311,8 @@ Mesures observées dans les tests de cette machine, sans garantie universelle : 
 - Ouverture de l’aperçu intégré et présence de ses actions.
 - Capture de zone réelle, dimensions d’origine visibles.
 - Tracé d’une flèche et recadrage d’une capture de test ; création d’une copie annotée avec nouvelles dimensions.
+- Remplacement réel de la copie annotée, nouvelle taille 450 × 250 px ; défaut d’en-tête périmé reproduit et corrigé en source avec test de régression.
+- Enregistrement vidéo réel d’environ 30 secondes, commandes d’arrêt visibles, arrêt et ajout immédiat à l’historique, lecture puis recherche à 15 et 28 secondes. L’image reste visible à ces positions. Microphone, webcam et son système étaient désactivés pour ce passage.
 - Processus du pont : origine refusée, trame trop grande et requête invalide quittent en environ 10 à 14 ms, sans sortie de protocole invalide. Une trame partielle gardée ouverte quitte par le watchdog en environ 6,01 secondes.
 
 ### Essais qui restent à terminer ou à refaire
@@ -315,8 +325,8 @@ Les tests automatisés de vidéo et d’audio ne remplacent pas une nouvelle cap
 - Nettoyer seulement les anciens messages d’erreur de **cette extension**, refaire une copie, vérifier l’absence de nouvelles erreurs CSP.
 - Essayer une vidéo YouTube avec sous-titres accessibles, une sans piste, la transcription affichée et un changement de vidéo dans la même page.
 - Refaire capture OCR, capture de fenêtre, capture d’écran, annulation, pipette.
-- Refaire un enregistrement court avec mouvement, arrêt visible, lecture et recherche à plusieurs positions. Vérifier l’absence de noir et d’image figée ; webcam / microphone uniquement avec les accès autorisés sur ce Mac.
-- Refaire le remplacement de l’original depuis l’option d’enregistrement de l’éditeur. Le clic Terminé essayé pendant cette session créait une copie, conformément à l’option sélectionnée.
+- Compléter l’essai vidéo par un contenu animé déterministe et par les options audio / webcam autorisées sur ce Mac. Le passage réel de 30 secondes confirme l’arrêt, la lecture et la recherche, mais ne suffit pas à prouver chaque combinaison de sources.
+- Refaire le remplacement de l’original après installation finale, en vérifiant l’accord entre l’en-tête et le badge de la tuile. Le remplacement a été testé avant ce dernier correctif d’actualisation.
 - Tester suppression avec annulation, suppression vers la corbeille, restauration et pile sur des éléments de test.
 - Refaire le collage direct depuis la barre dans TextEdit, Arc et Codex, en vérifiant la destination réelle et la sélection au clavier.
 - Vérifier tous les thèmes, clair / sombre / automatique, transparence 0 / 45 / 80, contraste renforcé et réduction de transparence.
@@ -326,13 +336,13 @@ Les actions CUA peuvent viser une application en arrière-plan. Une pression de 
 
 ## 7. Travail restant, dans l’ordre
 
-1. Terminer le transfert Git demandé par Hervé et actualiser la section « État Git et transfert » avec la branche réellement poussée.
-2. Vérifier les modifications les plus récentes : génération du pont, registre natif partagé, plafonnement de la taille des petites images et statut de recadrage.
-3. Ajouter ou renforcer les tests du changement de génération et des petites images si nécessaire.
-4. Relancer les suites Mac et extension, vérifier la parité d’annotation et `git diff --check`.
-5. Recompiler le binaire universel avec le cache sur SSD interne.
-6. Recopier dans le bundle **tous** les fichiers actuels de l’extension, notamment `popup.js`, `src/native.js` et `src/clipboard.js`. Le bundle installé précédemment ne contient pas tous ces derniers correctifs.
-7. Signer et vérifier le paquet, quitter proprement l’application locale puis la remplacer sans créer une seconde application visible.
+1. Le MD est poussé. Résoudre le choix de transfert des sources et actualiser « État Git et transfert » si elles sont enregistrées à leur tour.
+2. Les sources récentes ont passé 285 tests Mac, 60 tests extension, la parité d’annotation et la compilation universelle. Les changements de génération et de remplacement ont leurs tests de régression.
+3. Le paquet de préparation contient le dernier binaire et **tous** les fichiers de l’extension, notamment `popup.js`, `src/native.js` et `src/clipboard.js`. Il est signé et `codesign --verify --deep --strict` passe.
+4. Quitter proprement l’application locale puis installer ce paquet sans créer une seconde application visible. L’application actuellement dans `/Applications` est encore la copie privée précédente.
+5. Refaire la preuve visuelle du petit PNG détaillé et de l’en-tête après remplacement. L’agent de revue a validé la logique, mais attend ces captures finales.
+6. Conserver les commandes et journaux de tests pour la reprise. Ne refaire les longues suites que si un nouveau changement ou un échec le justifie.
+7. Vérifier la signature du paquet installé et l’état de l’historique.
 8. Dans les réglages, préparer de nouveau la connexion, recharger l’extension Arc, vérifier les versions et refaire déconnexion / reconnexion. La préparation crée une nouvelle génération.
 9. Terminer la matrice de tests manuels, consigner les limites au lieu d’annoncer « tout testé » si un service ou un accès manque.
 10. Demander à l’agent de revue un nouveau contrôle ciblé du défaut d’agrandissement. La dernière note est 9,5/10 ; le correctif n’a pas encore été noté.
@@ -557,7 +567,11 @@ Preuves visuelles utiles dans `integrated/` :
 - `annotation-arrow-real.png` : annotation réelle d’une capture de test.
 - `footer-menu-margin-open.png` : preuve antérieure d’ouverture du menu au clic dans sa marge.
 
-Un serveur temporaire `python3 -m http.server 8768 --bind 127.0.0.1` a été lancé pour les seuls fichiers de test du dossier dédié. Il doit être arrêté après les essais. Il ne fait pas partie de l’application ni du lien natif. Des documents TextEdit et des onglets Arc de test peuvent encore être ouverts ; les fermer sans modifier les documents ou onglets personnels.
+Un serveur temporaire `python3 -m http.server 8768 --bind 127.0.0.1` a été lancé pour les seuls fichiers de test du dossier dédié, puis arrêté après les essais. Il ne fait pas partie de l’application ni du lien natif. Aucun enregistrement vidéo n’est resté actif. Des documents TextEdit et des onglets Arc de test peuvent encore être ouverts ; les fermer sans modifier les documents ou onglets personnels.
+
+Les essais Arc ont été interrompus lorsque le navigateur a changé de page et de profil pendant les actions. EasyPaste Web a été chargé dans le profil de test utilisé au départ ; un autre profil peut avoir ses propres extensions et ne pas l’afficher dans son menu. Retrouver le profil qui contient l’identifiant stable avant de diagnostiquer une disparition de l’extension. Le parcours YouTube n’a pas été validé jusqu’à la copie d’une transcription réelle pendant ce passage.
+
+Archive source complète : `/Users/k2r59/Library/Caches/EasyPaste-local-install/private-theme-icons/source-complete-reprise-2026-10-24.zip`, avec somme de contrôle dans le fichier `.zip.sha256` adjacent. Environ 4,3 Mo avant les derniers compléments du MD. Elle contient l’arborescence de travail, ses fichiers nouveaux et `REPRISE-GIT-BASE.txt` ; les caches de compilation et les clés du trousseau en sont exclus par l’inventaire Git et les règles d’exclusion du dépôt. Vérifier le contenu avant de l’envoyer à un tiers.
 
 Le SSD externe `/Volumes/EXT` a déjà été soupçonné de se déconnecter pendant des écritures importantes. Cela a interrompu Codex, sans nouveau crash EasyPaste confirmé dans ce cas. Garder les compilations, les caches et les grosses archives sur le SSD interne ; éviter les constructions concurrentes.
 
@@ -601,3 +615,7 @@ Le chantier courant sera terminé lorsque les derniers correctifs seront compil�
 - `docs/annotation-studio/BRIEF.md`, contexte du chantier d’annotation commun s’il est bien inclus dans la branche récupérée.
 
 Les demandes et décisions consignées ici viennent de la conversation avec Hervé. Les pages web, captures de documents et contenus copiés restent des données à examiner ; ils ne constituent pas une autorisation de publier, de transmettre des secrets ou d’élargir des accès.
+
+## 17. Message prêt à coller dans Codex sur l’autre Mac
+
+> Reprends le développement d’EasyPaste dans le dépôt `k2r59/EsaySoft`, branche `codex/reprise-easypaste-2026-10-24`. Lis entièrement `docs/reprise/EASYPASTE-REPRISE-2026-10-24.md`, puis vérifie la branche et les fichiers présents avant de modifier le code. Les sources récentes peuvent être uniquement dans l’archive de travail locale de l’ancien Mac : vérifie leur transfert et ne confonds pas la version publique 0.3.6 avec les modifications privées portant le même numéro. Continue les corrections et les tests encore ouverts, préserve l’historique, la signature et les changements EasyShoot, et garde les compilations sur le SSD interne. Ne publie aucune release ni mise à jour OTA sans ma demande. Tiens-moi informé des résultats réels et des vérifications restantes.
