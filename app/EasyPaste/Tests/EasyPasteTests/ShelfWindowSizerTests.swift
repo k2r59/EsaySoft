@@ -1,6 +1,7 @@
 import AppKit
 import XCTest
 import CryptoKit
+import SwiftUI
 @testable import EasyPaste
 
 @MainActor final class ShelfWindowSizerTests: XCTestCase {
@@ -51,7 +52,13 @@ import CryptoKit
     func testCompactCaptureControlStaysCircularAndAnchoredDuringRapidPreviewChanges() async throws {
         try await checkCaptureControl(compact: true)
     }
-    private func checkCaptureControl(compact: Bool) async throws {
+    func testCaptureControlDoesNotInheritPreviewActionAnimation() async throws {
+        try await checkCaptureControl(compact: false, animatedAction: true)
+    }
+    func testCompactCaptureControlDoesNotInheritPreviewActionAnimation() async throws {
+        try await checkCaptureControl(compact: true, animatedAction: true)
+    }
+    private func checkCaptureControl(compact: Bool, animatedAction: Bool = false) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let suite = "EasyPaste.motion-test." + UUID().uuidString
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
@@ -64,6 +71,7 @@ import CryptoKit
         let panel = NSPanel(contentRect: collapsed, styleMask: [.borderless], backing: .buffered, defer: false)
         panel.isReleasedWhenClosed = false
         let host = ShelfHosting.make(history: history); panel.contentView = host
+        if animatedAction { panel.orderFront(nil) }
         let sizer = ShelfWindowSizer()
         history.resizeShelf = { [weak panel, weak history] in
             guard let panel, let history else { return }
@@ -84,24 +92,44 @@ import CryptoKit
             host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(10))
         }
         let first = try XCTUnwrap(control(in: host))
+        if animatedAction {
+            first.wantsLayer = true
+            CATransaction.flush()
+            try await Task.sleep(for: .milliseconds(40))
+        }
         XCTAssertEqual(first.bounds.width, 42, accuracy: 0.5, "The capture control must keep a circular 42-point footprint")
         XCTAssertEqual(first.bounds.height, 42, accuracy: 0.5, "Native button alignment insets must not stretch the circle")
         let baseline = first.convert(first.bounds, to: nil).minY
+        func renderedY(_ button: NSButton) -> CGFloat {
+            let modelY = button.convert(button.bounds, to: nil).minY
+            guard let layer = button.layer, let presentation = layer.presentation() else { return modelY }
+            let offset = presentation.convert(layer.bounds, to: nil).minY - layer.convert(layer.bounds, to: nil).minY
+            return modelY + (host.isFlipped ? -offset : offset)
+        }
+        let renderedBaseline = renderedY(first)
+        var largestRenderShift: CGFloat = 0
         XCTAssertGreaterThan(baseline, compact ? 150 : 200, "Reject an unlaid-out or zero-coordinate measurement")
-        history.openPreview(clip)
+        func preview(_ open: Bool) {
+            let update = { if open { history.openPreview(clip) } else { history.shelfPreview = nil } }
+            if animatedAction { withAnimation(.easeInOut(duration: ShelfLayout.previewAnimationDuration), update) }
+            else { update() }
+        }
+        preview(true)
         for step in 0..<80 {
-            if step == 4 { history.shelfPreview = nil }
-            if step == 8 { history.openPreview(clip) }
-            if step == 45 { history.shelfPreview = nil }
+            if step == 4 { preview(false) }
+            if step == 8 { preview(true) }
+            if step == 45 { preview(false) }
             host.layoutSubtreeIfNeeded()
             let button = try XCTUnwrap(control(in: host))
             XCTAssertEqual(button.bounds.width, 42, accuracy: 0.5)
             XCTAssertEqual(button.bounds.height, 42, accuracy: 0.5)
             let y = button.convert(button.bounds, to: nil).minY
             XCTAssertEqual(y, baseline, accuracy: 0.5, "The actual shelf control moved at animation sample \(step)")
+            largestRenderShift = max(largestRenderShift, abs(renderedY(button) - renderedBaseline))
             try await Task.sleep(for: .milliseconds(10))
         }
         XCTAssertNil(history.shelfPreview)
+        XCTAssertLessThanOrEqual(largestRenderShift, 0.5, "The presentation layer moved the shelf even though its layout frame stayed fixed")
         let finalLayout = ShelfLayout(screenHeight: history.shelfScreenHeight, compact: compact, expanded: false, footer: history.shelfNeedsFooter)
         XCTAssertEqual(panel.frame.height, finalLayout.height, accuracy: 0.5, "A completed collapse must release the extra window space")
     }

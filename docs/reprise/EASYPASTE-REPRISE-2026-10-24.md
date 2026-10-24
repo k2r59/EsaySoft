@@ -279,7 +279,7 @@ Les tests ajoutés vérifient les URL longues et les faux marqueurs inclus dans 
 
 La revue indépendante a identifié un chemin `Image.resizable().scaledToFit()` qui agrandissait les petites images au-delà de leurs pixels natifs. Le correctif utilise désormais `ImageRaster.fittedSize`, la taille réelle du raster décodé et `displayScale`, puis centre l’image dans le panneau sans agrandir ses pixels.
 
-Ce changement a passé les tests ciblés, la dernière suite complète et la compilation universelle. L’agent de revue a confirmé la cohérence du calcul. Le paquet de préparation est signé. Il reste à l’installer et à tester une petite image sur écrans 1× et 2×. Ne pas annoncer que la revue visuelle est passée à 10/10 avant une nouvelle évaluation sur le rendu réel.
+Ce changement a passé les tests ciblés, la dernière suite complète et la compilation universelle. L’agent de revue a confirmé la cohérence du calcul. Le paquet a été installé avec le correctif d’ancrage décrit dans la section 18. L’aperçu réel de la capture 450 × 250 montre maintenant l’image centrée à sa taille native, avec un en-tête et un badge de tuile concordants. Le petit PNG détaillé à lignes d’un pixel et la vérification sur écran 2× restent à faire. Ne pas annoncer que la revue visuelle est passée à 10/10 avant une nouvelle évaluation sur le rendu réel.
 
 ## 6. Tests exécutés et limites de preuve
 
@@ -293,13 +293,15 @@ Ce changement a passé les tests ciblés, la dernière suite complète et la com
 | Suite Mac après test du recadrage fractionnaire | **284 tests, aucun échec**, environ 35,5 secondes |
 | Suite Mac finale, génération du pont et actualisation de l’aperçu incluses | **285 tests, aucun échec**, environ 36,1 secondes |
 | Dernier passage ciblé : remplacement, pont, aperçu, qualité, dimensions, disposition | **34 tests, aucun échec** |
+| Suite Mac après isolation de l’animation de l’aperçu | **287 tests, aucun échec**, environ 37,5 secondes |
+| Ancrage de fenêtre, aperçu et disposition après le correctif | **21 tests ciblés, aucun échec** |
 | Extension avant corrections issues d’Arc | 55 tests, aucun échec |
 | Extension après correction d’autorisation | 57 tests, aucun échec |
 | Extension après correction CSP / copie | **60 tests, aucun échec** |
 | Parité des éditeurs partagés | 7 fichiers identiques EasyPaste / EasyShoot |
 | Vérification d’espaces Git | `git diff --check`, sans erreur au dernier passage |
 
-La dernière suite de 285 tests couvre les sources utilisées dans le paquet de préparation final. Les versions antérieures des journaux ont été remplacées par ce résultat ; conserver les totaux historiques comme étapes, sans les additionner pour prétendre à autant de tests distincts.
+La suite de 285 tests couvre le premier point de reprise. La suite de 287 tests couvre ensuite le correctif d’animation installé, décrit dans la section 18. Conserver ces totaux comme étapes, sans les additionner pour prétendre à autant de tests distincts.
 
 Les tests couvrent notamment : coffre chiffré, historique, sélection, destinations de collage, cartes, corbeille, aperçu intégré, géométrie du verre, formats structurés, Markdown, SVG, capture, rendu des flèches, annotation, vidéo, mélange audio, Bitwarden, sons, apparence, mises à jour et icônes.
 
@@ -346,12 +348,12 @@ Les actions CUA peuvent viser une application en arrière-plan. Une pression de 
 ## 7. Travail restant, dans l’ordre
 
 1. Le MD et les sources sont réunis sur la branche de reprise. Vérifier les commits `54f7d35` et `38d5c1b` sur l’autre Mac avant de continuer ; l’archive locale n’est plus nécessaire pour un clonage normal.
-2. Les sources récentes ont passé 285 tests Mac, 60 tests extension, la parité d’annotation et la compilation universelle. Les changements de génération et de remplacement ont leurs tests de régression.
+2. Le correctif d’animation a ensuite passé 287 tests Mac et la compilation universelle. Les 60 tests extension n’ont pas été relancés pour ce changement limité à la barre. Les changements de génération et de remplacement gardent leurs tests de régression.
 3. Le paquet de préparation contient le dernier binaire et **tous** les fichiers de l’extension, notamment `popup.js`, `src/native.js` et `src/clipboard.js`. Il est signé et `codesign --verify --deep --strict` passe.
-4. Quitter proprement l’application locale puis installer ce paquet sans créer une seconde application visible. L’application actuellement dans `/Applications` est encore la copie privée précédente.
+4. L’installation locale a été effectuée avec le correctif d’animation de la section 18. `/Applications/EasyPaste.app` contient maintenant ce dernier paquet privé, toujours en 0.3.6 (23), avec signature vérifiée et même exigence désignée de signature.
 5. Refaire la preuve visuelle du petit PNG détaillé et de l’en-tête après remplacement. L’agent de revue a validé la logique, mais attend ces captures finales.
 6. Conserver les commandes et journaux de tests pour la reprise. Ne refaire les longues suites que si un nouveau changement ou un échec le justifie.
-7. Vérifier la signature du paquet installé et l’état de l’historique.
+7. Signature et égalité du binaire installé avec le paquet de préparation ont été vérifiées. L’historique a été relu et les copies de test retrouvées après relance.
 8. Dans les réglages, préparer de nouveau la connexion, recharger l’extension Arc, vérifier les versions et refaire déconnexion / reconnexion. La préparation crée une nouvelle génération.
 9. Terminer la matrice de tests manuels, consigner les limites au lieu d’annoncer « tout testé » si un service ou un accès manque.
 10. Demander à l’agent de revue un nouveau contrôle ciblé du défaut d’agrandissement. La dernière note est 9,5/10 ; le correctif n’a pas encore été noté.
@@ -586,7 +588,9 @@ Le SSD externe `/Volumes/EXT` a déjà été soupçonné de se déconnecter pend
 
 ## 14. Reprendre le contrôle du Mac et les agents
 
-Les actions d’interface passent par le contrôle natif de l’ordinateur, par exemple `cua.getApp(...)` et les observations AX / captures. Après reprise d’un contexte résumé, relire la documentation de l’outil avant de réutiliser ses API. Relever de nouveaux indices AX après les actions ; les anciens indices ne sont pas des identifiants stables.
+Les actions d’interface passent par le contrôle natif de l’ordinateur et les observations AX / captures. L’ancienne API `cua_repl` utilisée au début de la session a été remplacée dans l’environnement courant : utiliser la skill `computer-use` et `node_repl` avec `@oai/sky`. Après reprise d’un contexte résumé, relire la documentation de l’outil disponible avant de réutiliser ses API. Relever de nouveaux indices AX après les actions ; les anciens indices ne sont pas des identifiants stables.
+
+Initialisation actuelle : `var sky = (await import('@oai/sky')).sky`, puis `await sky.get_app_state({app:'/Applications/EasyPaste.app'})`. Préférer ce chemin absolu : plusieurs sauvegardes anciennes partagent `app.easypaste.mac`, ce qui rend la résolution par bundle ID ambiguë. `press_key` cible l’application et ne déclenche pas les raccourcis globaux du système. Un menu exposant l’action AX `Cancel` peut être refermé avec `perform_secondary_action`. Ne pas rappeler `get_app_state` après Quitter avant le remplacement du paquet, car cet outil peut relancer l’application automatiquement.
 
 Les menus SwiftUI peuvent être visibles dans la capture sans apparaître dans l’arbre AX. Une absence d’élément AX ne prouve pas que le menu ne s’est pas ouvert. Vérifier l’image avant d’annoncer un bug de zone cliquable.
 
@@ -628,3 +632,32 @@ Les demandes et décisions consignées ici viennent de la conversation avec Herv
 ## 17. Message prêt à coller dans Codex sur l’autre Mac
 
 > Reprends le développement d’EasyPaste dans le dépôt `k2r59/EsaySoft`, branche `codex/reprise-easypaste-2026-10-24`. Lis entièrement `docs/reprise/EASYPASTE-REPRISE-2026-10-24.md`, puis vérifie la branche, les fichiers et la présence des commits de sources `54f7d35` et `38d5c1b` avant de modifier le code. Cette branche contient le MD et les sources de travail : ne confonds pas la version publique 0.3.6 avec les modifications privées portant le même numéro. Continue les corrections et les tests encore ouverts, préserve l’historique, la signature et les changements EasyShoot, et garde les compilations sur le SSD interne. Ne publie aucune release ni mise à jour OTA sans ma demande. Tiens-moi informé des résultats réels et des vérifications restantes.
+
+## 18. Correctif de la barre qui remonte puis redescend à l’ouverture de l’aperçu
+
+Hervé a signalé de nouveau ce mouvement au clic sur l’œil après le transfert des sources. Les anciens contrôles de géométrie de fenêtre passaient ; ils ne reproduisaient pas automatiquement le ressaut optique rapporté. Ne pas présenter un test passant avant et après la modification comme une preuve de reproduction initiale du défaut.
+
+Dans `ShelfPreview.swift`, l’effet de verre et l’animation entouraient auparavant le contenu complet, barre comprise. Le correctif sépare trois couches ancrées en bas :
+
+- Le fond en verre et son contour gardent l’animation de la silhouette.
+- L’aperçu utilise une zone rognée dont la hauteur s’anime au-dessus de la barre.
+- Les contrôles de `ShelfView` restent dans une couche fixe. La transaction extérieure ne transmet pas d’animation aux changements de taille du panneau AppKit.
+
+Le contour de hit-test est appliqué à la hauteur visible, avant le cadre extérieur réservé pour le repli. La revue a relevé ce point pour éviter d’étendre la zone interactive au-dessus de la barre pendant la réduction différée. Les réglages de réduction des animations et le dimensionnement du bouton Capture restent respectés.
+
+`ShelfWindowSizerTests.swift` ajoute deux scénarios avec une transaction animée appelante, en mode normal et compact. Les essais suivent aussi les positions de présentation Core Animation du contrôle natif lorsque cette couche est disponible, en complément de ses coordonnées de disposition. Les tests de géométrie sont échantillonnés pendant des ouvertures, fermetures et réouvertures rapides.
+
+Vérifications effectuées pour ce correctif :
+
+- 21 tests ciblés et suite complète de 287 tests Mac, aucun échec. Après l’ajustement du contour interactif, la suite complète a de nouveau passé.
+- Compilation universelle arm64 / x86_64 avec minimum macOS 15, signature Developer ID et `codesign --verify --deep --strict` réussis.
+- Installation atomique dans `/Applications/EasyPaste.app`, après fermeture propre, avec sauvegarde et comparaison des exigences désignées de signature. Aucun identifiant ou droit d’accès n’a été modifié.
+- Relance réelle ; trois cycles de clic sur l’œil puis repli d’une capture, puis trois cycles identiques sur une tuile de texte. Chaque ouverture a exposé l’aperçu attendu et chaque fermeture l’a retiré.
+- Menu Capture ouvert depuis la barre avec l’aperçu déployé, puis refermé sans lancer de capture. Recherche vidée et aperçu refermé à la fin des essais.
+- Capture réelle du rendu 450 × 250 : image centrée sans agrandissement, dimensions cohérentes entre en-tête et tuile.
+
+SHA-256 du binaire signé installé : `b4a7eb7ccab20cb0cc191c84bb80d20927c72bf95596b28d8dc891c2d92c0f01`. Le numéro reste `0.3.6 (23)` pour cet essai local. Aucune release, modification d’appcast ou publication OTA n’accompagne le correctif.
+
+Preuves locales dans `EasyPaste-visual-review/integrated/` : `preview-motion-before-collapsed.png`, `preview-motion-before-expanded.png`, `preview-motion-fixed-collapsed.png` et `preview-motion-fixed-expanded.png`. Les captures fixes montrent les états terminés ; elles ne constituent pas une vidéo image par image du mouvement. La confirmation du ressenti d’Hervé au clic a été demandée après installation et reste à consigner à sa réponse.
+
+Journaux locaux : `/tmp/easypaste-preview-motion-before.log`, `/tmp/easypaste-preview-motion-after.log`, `/tmp/easypaste-preview-motion-full.log`, `/tmp/easypaste-preview-motion-release.log`. Sauvegarde avant remplacement : `/Users/k2r59/Library/Caches/EasyPaste-local-install/private-theme-icons/before-preview-motion-2026-10-24.zip`.

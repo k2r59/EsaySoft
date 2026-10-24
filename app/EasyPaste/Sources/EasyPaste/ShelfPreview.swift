@@ -89,31 +89,56 @@ struct ShelfRootView: View {
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.colorScheme) private var scheme
     private var layout: ShelfLayout { ShelfLayout(screenHeight: history.shelfScreenHeight, compact: history.compact, expanded: history.shelfPreview != nil, footer: history.shelfNeedsFooter) }
+    private var previewAnimation: Animation? { reduceMotion ? nil : .easeInOut(duration: ShelfLayout.previewAnimationDuration) }
     var body: some View {
         GeometryReader { geometry in
             let width = ShelfLayout.previewWidth(in: geometry.size.width)
             let shape = ShelfOutline(previewHeight: layout.previewHeight, previewWidth: width)
-            surface(shape: shape, width: width)
-                .frame(width: geometry.size.width, height: layout.height, alignment: .bottom)
-                .contentShape(shape)
-                .animation(reduceMotion ? nil : .easeInOut(duration: ShelfLayout.previewAnimationDuration), value: history.shelfPreview != nil)
-                // The window reserves the expanded area before the animation.
-                // Anchor the animated surface, rather than its host, to the bottom.
-                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottom)
+            ZStack(alignment: .bottom) {
+                // Glass morphing must not capture or animate the shelf controls.
+                // Its silhouette can grow while the bar stays in a fixed layer.
+                surface(shape: shape)
+                    .frame(width: geometry.size.width, height: layout.height)
+                    .animation(previewAnimation, value: history.shelfPreview != nil)
+                    .allowsHitTesting(false).accessibilityHidden(true)
+                VStack(spacing: 0) {
+                    if let clip = history.shelfPreview, layout.previewHeight > 0 {
+                        ShelfPreviewView(history: history, clip: clip)
+                            .id(clip.id).frame(width: width, height: layout.previewHeight).transition(.opacity)
+                    }
+                }
+                .frame(width: geometry.size.width, height: layout.previewHeight, alignment: .bottom)
+                .clipped()
+                .animation(previewAnimation, value: history.shelfPreview != nil)
+                .padding(.bottom, layout.barHeight)
+                ShelfView(history: history, nativeGlassHosted: true).frame(height: layout.barHeight)
+                    .background(alignment: .top) {
+                        if history.shelfPreview != nil { ShelfGlassSeparator().frame(width: min(640, max(120, width - 80))) }
+                    }
+            }
+            .frame(width: geometry.size.width, height: layout.height, alignment: .bottom)
+            .contentShape(shape)
+            // The transparent space retained during collapse is not interactive.
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottom)
+            .foregroundStyle(Theme.ink)
         }
+        // AppKit reserves/releases window space synchronously. Inheriting that
+        // geometry change into a SwiftUI animation makes the bar bounce. Only
+        // the glass and the clipped preview above opt into animation.
+        .transaction { $0.animation = nil }
         .onChange(of: history.selected) { _, _ in history.followShelfSelection() }
         .onChange(of: history.shelfNeedsFooter) { _, _ in history.resizeShelf?() }
         .onChange(of: history.visible.map { $0.id }) { _, _ in history.followShelfSelection() }
     }
-    @ViewBuilder private func surface(shape: ShelfOutline, width: CGFloat) -> some View {
+    @ViewBuilder private func surface(shape: ShelfOutline) -> some View {
         if reduceTransparency || contrast == .increased {
-            content(width: width).background(Theme.raised, in: shape)
+            Color.clear.background(Theme.raised, in: shape)
                 .overlay(shape.stroke(Theme.ink.opacity(0.45), lineWidth: 2).allowsHitTesting(false))
         } else if scheme == .dark {
             // Keep native material behind the readable wash. Applying clear
             // glass to the whole content can turn a dark, highly transparent
             // bar into a light plate while leaving its labels white.
-            content(width: width).background {
+            Color.clear.background {
                 ZStack {
                     if #available(macOS 26.0, *) { Color.clear.glassEffect(.clear, in: shape) }
                     else { shape.fill(.regularMaterial).opacity(GlassAppearance.materialOpacity(glassTransparency)) }
@@ -122,29 +147,16 @@ struct ShelfRootView: View {
                 }.clipShape(shape)
             }.overlay { ShelfGlassRim(shape: shape) }
         } else if #available(macOS 26.0, *) {
-            content(width: width)
+            Color.clear
                 .background { ShelfGlassWash(transparency: glassTransparency, tint: GlassTint.resolve(storedGlassTint)).clipShape(shape) }
                 .glassEffect(.clear, in: shape)
                 .overlay { ShelfGlassRim(shape: shape) }
         } else {
-            content(width: width)
+            Color.clear
                 .background { ShelfGlassWash(transparency: glassTransparency, tint: GlassTint.resolve(storedGlassTint)).clipShape(shape) }
                 .background { shape.fill(.regularMaterial).opacity(GlassAppearance.materialOpacity(glassTransparency)) }
                 .overlay { ShelfGlassRim(shape: shape) }
         }
-    }
-    private func content(width: CGFloat) -> some View {
-        VStack(spacing: 0) {
-            if let clip = history.shelfPreview, layout.previewHeight > 0 {
-                ShelfPreviewView(history: history, clip: clip)
-                    .id(clip.id).frame(width: width, height: layout.previewHeight).clipped()
-                    .transition(.opacity)
-            }
-            ShelfView(history: history, nativeGlassHosted: true).frame(height: layout.barHeight)
-                .background(alignment: .top) {
-                    if history.shelfPreview != nil { ShelfGlassSeparator().frame(width: min(640, max(120, width - 80))) }
-                }
-        }.frame(maxWidth: .infinity).foregroundStyle(Theme.ink)
     }
 }
 
