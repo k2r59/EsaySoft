@@ -6,7 +6,7 @@
 
 1. Lire ce document avant de modifier le projet.
 2. Vérifier la branche, le dernier commit et `git status --short`. Le répertoire de départ de Codex peut appartenir à un autre projet.
-3. Vérifier la présence des fichiers de travail décrits dans la section « État Git et transfert ». Un MD seul ne transporte pas des modifications Swift non enregistrées.
+3. Vérifier la présence des fichiers et des commits de sources décrits dans la section « État Git et transfert ». La branche de reprise contient désormais le MD et les sources de travail.
 4. Consulter la section « Travail restant » avant de considérer la version locale comme terminée.
 5. Continuer les tests et les corrections locales. **Hervé a demandé de ne pas publier de nouvelle version de l’application pour le moment.**
 
@@ -31,13 +31,22 @@ Le numéro `0.3.6 (23)` ne suffit donc pas à identifier le code testé sur l’
 
 ### État des sources au moment de la rédaction
 
-Les modifications de travail couvrent `app/EasyPaste`, plusieurs fichiers d’annotation d’EasyShoot, `docs/annotation-studio` et deux utilitaires dans `scripts/`. Une partie des fichiers est nouvelle et non suivie à l’origine.
+Les modifications de travail couvrent `app/EasyPaste`, plusieurs fichiers d’annotation d’EasyShoot, `docs/annotation-studio` et deux utilitaires dans `scripts/`. Les fichiers nouveaux ont été ajoutés à Git avec les modifications des fichiers existants.
 
 **Premier push du MD confirmé :** branche `codex/reprise-easypaste-2026-10-24`, commit `bcefccebdac48b23442dff6094f5d8eb6f78701b`, vérifié avec `git ls-remote`. Le MD reçoit ensuite des compléments de tests sur cette même branche.
 
-**Les sources récentes restent locales à ce stade.** Une question est en attente pour savoir si Hervé souhaite aussi les enregistrer sur la branche de travail, sans publier de version. Ne pas annoncer qu’un clone transporte ces modifications Swift tant que leur commit distant n’a pas été vérifié. Cette section doit être actualisée après la réponse.
+**Hervé a validé « MD et sources sur une branche de travail ».** La branche `codex/reprise-easypaste-2026-10-24` regroupe le document et les deux points de sauvegarde suivants :
 
-Une archive complète des fichiers de travail a été créée sur le SSD interne, `source-complete-reprise-2026-10-24.zip`, pour préserver aussi les fichiers nouveaux et les modifications EasyShoot. Son chemin est indiqué dans les repères locaux. Copier cette archive par un moyen privé sur l’autre Mac si les sources ne sont pas poussées ; un clone Git seul n’inclut alors que les sources déjà enregistrées et le MD. Vérifier son fichier `.sha256` adjacent avant extraction. Cette archive est une sauvegarde locale, pas un fichier publié sur GitHub.
+| Commit de sources | Contenu | Niveau de validation |
+| --- | --- | --- |
+| `54f7d35` | EasyPaste : interface en verre, palettes, icônes, dimensions, titres des tuiles, aperçu, extension et pont natif, ressources et tests | 285 tests Mac et 60 tests extension réussis pendant la session ; compilation universelle et paquet de préparation signé ; essais manuels restant à terminer ci-dessous |
+| `38d5c1b` | EasyShoot : état de travail de l’annotation commune, tests associés, brief et utilitaires de développement | Sauvegarde de reprise ; parité des 7 fichiers partagés vérifiée, sans déclaration de validation complète d’EasyShoot pendant cette session |
+
+Un clone à jour de cette branche contient donc les sources récentes et les fichiers nécessaires à leur reprise. Le transfert sur cette branche ne crée ni tag, ni GitHub Release, ni mise à jour d’appcast. `main` n’a pas été fusionnée ou remplacée. Les binaires, installateurs, caches de compilation, historiques utilisateur et secrets du trousseau restent hors de ces commits.
+
+Avant de reprendre sur l’autre Mac, confirmer la présence de ces commits dans `git log` après `git fetch` et `git pull --ff-only`. Les fichiers de travail étaient propres après les deux commits de sources ; les derniers changements du MD les accompagnent dans un commit de documentation distinct.
+
+Une archive complète des fichiers de travail a aussi été créée sur le SSD interne, `source-complete-reprise-2026-10-24.zip`, avant l’enregistrement des sources. Son chemin est indiqué dans les repères locaux. Elle sert de sauvegarde de secours ; le clone de la branche de reprise suffit désormais pour le code et le MD. Éviter de recopier par-dessus ce clone une ancienne version du MD contenue dans l’archive. Vérifier le fichier `.sha256` adjacent en cas de restauration. Cette archive est locale et n’est pas publiée sur GitHub.
 
 Préserver les changements EasyShoot déjà présents. Ne pas les effacer, les réinitialiser ou les inclure aveuglément dans une livraison EasyPaste. Ils appartiennent notamment au chantier d’annotation commun.
 
@@ -336,7 +345,7 @@ Les actions CUA peuvent viser une application en arrière-plan. Une pression de 
 
 ## 7. Travail restant, dans l’ordre
 
-1. Le MD est poussé. Résoudre le choix de transfert des sources et actualiser « État Git et transfert » si elles sont enregistrées à leur tour.
+1. Le MD et les sources sont réunis sur la branche de reprise. Vérifier les commits `54f7d35` et `38d5c1b` sur l’autre Mac avant de continuer ; l’archive locale n’est plus nécessaire pour un clonage normal.
 2. Les sources récentes ont passé 285 tests Mac, 60 tests extension, la parité d’annotation et la compilation universelle. Les changements de génération et de remplacement ont leurs tests de régression.
 3. Le paquet de préparation contient le dernier binaire et **tous** les fichiers de l’extension, notamment `popup.js`, `src/native.js` et `src/clipboard.js`. Il est signé et `codesign --verify --deep --strict` passe.
 4. Quitter proprement l’application locale puis installer ce paquet sans créer une seconde application visible. L’application actuellement dans `/Applications` est encore la copie privée précédente.
@@ -618,4 +627,4 @@ Les demandes et décisions consignées ici viennent de la conversation avec Herv
 
 ## 17. Message prêt à coller dans Codex sur l’autre Mac
 
-> Reprends le développement d’EasyPaste dans le dépôt `k2r59/EsaySoft`, branche `codex/reprise-easypaste-2026-10-24`. Lis entièrement `docs/reprise/EASYPASTE-REPRISE-2026-10-24.md`, puis vérifie la branche et les fichiers présents avant de modifier le code. Les sources récentes peuvent être uniquement dans l’archive de travail locale de l’ancien Mac : vérifie leur transfert et ne confonds pas la version publique 0.3.6 avec les modifications privées portant le même numéro. Continue les corrections et les tests encore ouverts, préserve l’historique, la signature et les changements EasyShoot, et garde les compilations sur le SSD interne. Ne publie aucune release ni mise à jour OTA sans ma demande. Tiens-moi informé des résultats réels et des vérifications restantes.
+> Reprends le développement d’EasyPaste dans le dépôt `k2r59/EsaySoft`, branche `codex/reprise-easypaste-2026-10-24`. Lis entièrement `docs/reprise/EASYPASTE-REPRISE-2026-10-24.md`, puis vérifie la branche, les fichiers et la présence des commits de sources `54f7d35` et `38d5c1b` avant de modifier le code. Cette branche contient le MD et les sources de travail : ne confonds pas la version publique 0.3.6 avec les modifications privées portant le même numéro. Continue les corrections et les tests encore ouverts, préserve l’historique, la signature et les changements EasyShoot, et garde les compilations sur le SSD interne. Ne publie aucune release ni mise à jour OTA sans ma demande. Tiens-moi informé des résultats réels et des vérifications restantes.
