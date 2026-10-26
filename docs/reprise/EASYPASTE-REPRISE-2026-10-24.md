@@ -668,3 +668,20 @@ Journaux locaux : `/tmp/easypaste-preview-motion-before.log`, `/tmp/easypaste-pr
 Hervé a demandé : « tu peu publier la derniere version ». La livraison préparée est **EasyPaste 0.3.7, build 24**, à partir de cette branche de reprise, y compris le correctif d’ancrage `b521f0c` validé par Hervé. Cette autorisation concerne EasyPaste ; les travaux EasyShoot ne sont pas livrés comme nouvelle version d’EasyShoot.
 
 Les notes utilisateur sont dans `app/EasyPaste/docs/RELEASE-0.3.7.md`. La distribution conserve le même identifiant, le même certificat Developer ID et les clés Sparkle existantes. La signature, la notarisation et l’intégrité des archives doivent être contrôlées avant d’avancer le flux OTA. Les essais manuels encore ouverts dans les sections précédentes restent des limites de couverture ; une publication ne signifie pas qu’ils ont tous été rejoués.
+
+
+### Résultat de publication du 26 octobre
+
+- **EasyPaste 0.3.7 (24) publiée**, release stable : https://github.com/k2r59/EsaySoft/releases/tag/easypaste-v0.3.7
+- Commit ciblé par le tag : `ae4a0bcb81589ab6fea6e3e21fbb2a2a7b5ea47f`.
+- Paquets universels DMG et ZIP, archive des sources et `SHA256SUMS` téléversés. Le script a retéléchargé tous les fichiers du brouillon et vérifié leurs empreintes avant publication.
+- Notarisation Apple acceptée : `b4aee7cc-51b2-4b3f-a79e-dcd9cfd4afae`. Gatekeeper accepte l’application et le DMG.
+- DMG monté en lecture seule : application embarquée en 0.3.7 (24), binaire et Info.plist identiques au paquet signé, signature valide. Exécutable arm64/x86_64, macOS minimum 15.0, SDK 27.0.
+- Même exigence de signature désignée que `/Applications/EasyPaste.app`, afin de conserver l’identité de l’application. L’app installée n’a pas été remplacée dans cette session de publication.
+- Tests du 26 octobre : 287 tests Mac Debug et 287 tests Mac Release sans échec ; 60 tests extension sans échec ; parité des sept fichiers communs conforme. La couverture manuelle restante est conservée ci-dessus et dans `app/EasyPaste/QA-0.3.7.md`.
+- Flux public https://k2r59.github.io/EsaySoft/easypaste/appcast.xml vérifié octet pour octet avec le flux local signé ; première entrée 0.3.7 / build 24 ; signature Ed25519 valide. SHA-256 du flux : `eb650c9402392ac7125c2e1e58fb45ad4f99d0c86b8f532723f1f9b4d26869f8`.
+- Déploiement GitHub Pages réussi, commit `7d97616da835e8ea0d3a930bbeaa46d4b54e9e53`.
+
+Installateur : https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.7/EasyPaste-0.3.7-universal.dmg
+
+Les nouvelles publications au-delà de cette version nécessitent une nouvelle demande ; cette publication ne livre aucune nouvelle version d’EasyShoot ou d’EasyTile. Les sources restent sur la branche de reprise, sans fusion automatique de `main`.
