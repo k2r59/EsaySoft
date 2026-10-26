@@ -6,6 +6,29 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyPaste</title>
         <item>
+            <title>0.3.7</title>
+            <pubDate>Mon, 26 Oct 2026 09:43:46 +0100</pubDate>
+            <sparkle:version>24</sparkle:version>
+            <sparkle:shortVersionString>0.3.7</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.7
+
+- Bibliothèque allégée : fond continu, filtres soulignés et actions sans panneau supplémentaire. Les dégradés, boutons et onglets actifs suivent la teinte choisie dans Apparence.
+- Barre rapide : logo P transparent, contraste renforcé et aperçu intégré avec de petites icônes pour modifier, copier, coller, gérer les favoris et supprimer.
+- Correction du mouvement de la barre à l’ouverture et à la fermeture de l’aperçu. Le bas de la barre reste fixe pendant l’animation.
+- Affichage des icônes des applications sources et de la page web d’origine lorsqu’elle est disponible.
+- Dimensions des images et captures en pixels, conservées après annotation ou remplacement. Les petites images restent à leur taille native dans l’aperçu.
+- Suppression des titres répétés dans les tuiles de texte et des légendes génériques inutiles pour les images.
+- Nouvelle section **Réglages → Intégrations → Extension navigateur** : préparation de l’extension EasyPaste Web et vérification du lien local avec Arc ou Chrome. L’extension permet de copier une page avec sa mise en forme et les transcriptions YouTube disponibles. Elle s’installe séparément depuis ce menu.
+- Correctifs de copie avec mise en forme dans l’extension et vérification plus stricte des informations de page d’origine.
+
+L’historique reste stocké sur le Mac. Le collage direct nécessite l’autorisation Accessibilité de macOS.
+
+macOS 15 ou ultérieur, Intel et Apple Silicon. Le matériau Liquid Glass natif nécessite macOS 26 ; les versions précédentes utilisent un matériau compatible.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.7/EasyPaste-0.3.7-universal.dmg" length="13025030" type="application/octet-stream" sparkle:edSignature="/Z/U0VIw3CZJVnKymOvSUIgIRVrXBPslPxY5mk6q14uCFfX3o9coOImEWOnsfVz3HWVETu7/I1SNgcSyzhrfCA=="/>
+        </item>
+        <item>
             <title>0.3.6</title>
             <pubDate>Fri, 23 Oct 2026 10:53:05 +0200</pubDate>
             <sparkle:version>23</sparkle:version>
@@ -45,26 +68,9 @@ macOS 15 ou ultérieur, Intel et Apple Silicon.
 ]]></description>
             <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.5/EasyPaste-0.3.5-universal.dmg" length="9470614" type="application/octet-stream" sparkle:edSignature="6VmH21Sz7SS69k53fVUZ1FNcd2kGWvi8QECqyYy6D6Ba8qQ8reUn2imazxz1RU5renTZFvZ3w6fX//RTs5+2DA=="/>
         </item>
-        <item>
-            <title>0.3.4</title>
-            <pubDate>Wed, 21 Oct 2026 18:15:22 +0200</pubDate>
-            <sparkle:version>21</sparkle:version>
-            <sparkle:shortVersionString>0.3.4</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.4
-
-- Dans la barre rapide (⇧⌘V), un clic sur une carte colle directement dans l’application précédente. Cmd-clic et Maj-clic conservent la sélection multiple.
-- La dernière carte reste sélectionnée à la réouverture. Dès qu’un nouveau contenu est copié, sa carte devient la sélection, même si ce contenu existait déjà dans l’historique.
-- Les flèches d’annotation ont une pointe nette : le trait ne dépasse plus, y compris sur les flèches courtes.
-- Si l’autorisation Accessibilité manque, EasyPaste propose d’ouvrir le réglage nécessaire au collage direct.
-
-macOS 15 ou ultérieur, Intel et Apple Silicon.
-]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.4/EasyPaste-0.3.4-universal.dmg" length="9472918" type="application/octet-stream" sparkle:edSignature="yaZmq+SGFTy8GWLdNF9wra6xPWjE3r4VCfbAE6y0SsvpsK8bnY6EJvR/Gdd90E0qfDT5ftLW56MudGfskkeIDg=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: CGfoerwrMVqTWiPWldGc8p4LJooS5RuOqPfpXtPySmNwDQju5DFEvpCgzdIBEaRbTQ/btBA5W5JMCDkw1PiVDQ==
-length: 5280
+edSignature: b6WwiWMsGSpLpn05ZXMk3uNEROb31+yjODoKnNnWPtHLaeCGfgfaPEd61YzVFkX5eTIowT1jqbcbp+rQS1nyAQ==
+length: 6255
 -->
