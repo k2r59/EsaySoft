@@ -289,6 +289,7 @@ import CryptoKit
     private func paste(_ clips: [Clip], plain: Bool) {
         guard !isPasting else { return }; isPasting = true
         let destination = target
+        let fromStack = history.collection == "stack"
         Task {
             defer { isPasting = false }
             guard await history.copy(clips, plain: plain) else { return }
@@ -309,7 +310,6 @@ import CryptoKit
                 history.report("Contenu copié. La destination a changé : utilise ⌘V dans l’application souhaitée.")
                 return
             }
-            if history.collection == "stack" { history.consumeStack(clips) }
             closeShelf(restore: false)
             guard destination.activate(options: []) else { return }
             try? await Task.sleep(nanoseconds: 180_000_000)
@@ -318,6 +318,8 @@ import CryptoKit
                   let up = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false) else { return }
             down.flags = .maskCommand; up.flags = .maskCommand
             down.postToPid(destination.processIdentifier); up.postToPid(destination.processIdentifier)
+            history.recordPaste(clips, plain: plain)
+            if fromStack { history.consumeStack(clips) }
             history.report("Collé dans \(destination.localizedName ?? "l’application").")
         }
     }

@@ -81,6 +81,9 @@ struct SettingsView: View {
                     SoundSettings(sounds: history.sounds)
                 }
                 section("Collage", icon: "cursorarrow.click.2") {
+                    PreferenceToggle("Afficher le nombre de collages", isOn: $history.showPasteCounts)
+                    Text("Compte les collages lancés depuis EasyPaste.").font(.system(size: 11)).foregroundStyle(Theme.muted)
+                    Divider().opacity(0.3)
                     HStack(alignment: .center, spacing: 24) { VStack(alignment: .leading, spacing: 6) { Text(trusted ? "Collage direct autorisé" : "Collage direct").fontWeight(.medium); if !trusted { Text("Autorise l’Accessibilité pour coller directement. Sinon, utilise ⌘V après la copie.").font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true) } }; Spacer(); Button(trusted ? "Vérifier" : "Autoriser…") { if !trusted { let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary; _ = AXIsProcessTrustedWithOptions(options) }; trusted = AXIsProcessTrusted() }.buttonStyle(PasteButtonStyle(primary: !trusted)) }
                     Divider().opacity(0.3)
                     SettingsDetails("Raccourcis clavier") {

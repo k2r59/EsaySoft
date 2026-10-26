@@ -94,6 +94,7 @@ struct ClipCard: View {
                 SourceApplicationIcon(clip: clip)
                 Text(clip.shelfTypeLabel).font(.system(size: 12, weight: .medium)).lineLimit(1).foregroundStyle(Theme.ink).help("Copié depuis \(clip.source)")
                 Spacer(minLength: 3)
+                if history.showPasteCounts { PasteCountBadge(count: history.pasteUsage.count(for: clip.id)) }
                 if !compact { Text(ClipDate.label(clip.date)).font(.system(size: 11)).foregroundStyle(Theme.muted).lineLimit(1) }
             }.padding(.horizontal, 15).padding(.top, 13).padding(.bottom, 13)
             ClipContent(clip: clip, compact: compact).overlay {

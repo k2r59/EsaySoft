@@ -65,6 +65,8 @@ struct ClipQuery {
     @Published var mcpEnabled: Bool { didSet { defaults.set(mcpEnabled, forKey: "mcpEnabled") } }
     @Published var compact: Bool { didSet { defaults.set(compact, forKey: "compact"); resizeShelf?() } }
     @Published var confirmTrash: Bool { didSet { defaults.set(confirmTrash, forKey: "confirmTrash") } }
+    @Published var showPasteCounts: Bool { didSet { defaults.set(showPasteCounts, forKey: "showPasteCounts") } }
+    @Published private(set) var pasteUsage = PasteUsage()
     @Published var stack: [UUID] = [] { didSet { refresh() } }
     @Published var stackRecording = false
     @Published var recentlyTrashed: [UUID] = []
@@ -110,6 +112,7 @@ struct ClipQuery {
     var showLibrary: (() -> Void)?
     private let defaults: UserDefaults
     private var vault: ClipVault?
+    private var pasteUsageAvailable = true
     private let disk = DispatchQueue(label: "EasyPaste.storage", qos: .userInitiated)
     private let ocrQueue = DispatchQueue(label: "EasyPaste.ocr", qos: .utility)
     private var timer: Timer?
@@ -137,20 +140,25 @@ struct ClipQuery {
         mcpEnabled = defaults.bool(forKey: "mcpEnabled")
         compact = defaults.bool(forKey: "compact")
         confirmTrash = defaults.object(forKey: "confirmTrash") == nil || defaults.bool(forKey: "confirmTrash")
+        showPasteCounts = defaults.object(forKey: "showPasteCounts") == nil || defaults.bool(forKey: "showPasteCounts")
         changeCount = NSPasteboard.general.changeCount
         sounds.muted = { [weak self] in self?.recording ?? true }
         if let vault {
             self.vault = vault
-            do { clips = try vault.load(metadataOnly: true) } catch { storageError(error) }
+            do {
+                clips = try vault.load(metadataOnly: true)
+                restorePasteUsage(Result { try vault.loadPasteUsage() })
+            } catch { storageError(error) }
             loading = false; refresh()
         } else {
             Task {
                 do {
-                    let loaded = try await Task.detached(priority: .userInitiated) { () -> (ClipVault, [Clip], [Pinboard]) in
+                    let loaded = try await Task.detached(priority: .userInitiated) { () -> (ClipVault, [Clip], [Pinboard], Result<PasteUsage, Error>) in
                         let v = try ClipVault()
-                        v.cleanPlaybackCache(); return (v, try v.load(metadataOnly: true), try v.loadBoards())
+                        v.cleanPlaybackCache(); return (v, try v.load(metadataOnly: true), try v.loadBoards(), Result { try v.loadPasteUsage() })
                     }.value
                     self.vault = loaded.0; clips = loaded.1; boards = loaded.2
+                    restorePasteUsage(loaded.3)
                     loading = false; prune(); refresh()
                 } catch { storageError(error); loading = false }
             }
@@ -299,6 +307,47 @@ struct ClipQuery {
     }
     func stopMonitoring() { stopping = true; timer?.invalidate(); timer = nil }
     func flush() async { await withCheckedContinuation { c in disk.async { c.resume() } } }
+    private func restorePasteUsage(_ result: Result<PasteUsage, Error>) {
+        switch result {
+        case .success(var value):
+            value.retain(Set(clips.map(\.id))); pasteUsage = value
+        case .failure:
+            // A damaged optional index must not block the clipboard/history or
+            // silently overwrite the unreadable counter file.
+            pasteUsageAvailable = false
+            report("Le compteur de collages est indisponible. L’historique reste accessible.")
+        }
+    }
+    /// Called only after the paste command has been dispatched to its destination.
+    /// Copying, previewing and failed/cancelled delivery do not call this method.
+    func recordPaste(_ pasted: [Clip], plain: Bool = false) {
+        guard vault != nil, pasteUsageAvailable, !fault, !stopping else { return }
+        let current = Dictionary(uniqueKeysWithValues: clips.map { ($0.id, $0) })
+        let textBatch = plain || (pasted.count > 1 && pasted.allSatisfy { [.text, .link, .color].contains($0.kind) })
+        let ids = Set(pasted.compactMap { clip -> UUID? in
+            guard let value = current[clip.id], value.trashedAt == nil, value.fingerprint == clip.fingerprint,
+                  !textBatch || !(value.kind == .image ? value.ocr : value.text).isEmpty else { return nil }
+            return value.id
+        })
+        guard !ids.isEmpty else { return }
+        pasteUsage.record(ids); savePasteUsage()
+    }
+    private func savePasteUsage() {
+        guard let vault, pasteUsageAvailable else { return }
+        let value = pasteUsage
+        writes += 1
+        disk.async { [weak self] in
+            do {
+                try vault.write(value, name: ClipVault.pasteUsageFile)
+                Task { @MainActor in self?.writes -= 1 }
+            } catch {
+                Task { @MainActor in
+                    self?.writes -= 1
+                    self?.report("Le compteur de collages n’a pas pu être enregistré.")
+                }
+            }
+        }
+    }
     func copy(_ clips: [Clip], plain: Bool = false, to pb: NSPasteboard = .general, sound: FeedbackSound? = .copy) async -> Bool {
         guard !clips.isEmpty else { return false }
         do {
@@ -405,7 +454,13 @@ struct ClipQuery {
         disk.async { [weak self] in
             do {
                 for id in ids { try vault.delete(id) }
-                Task { @MainActor in self?.clips.removeAll { ids.contains($0.id) }; self?.stack.removeAll { ids.contains($0) }; self?.recentlyTrashed.removeAll { ids.contains($0) } }
+                Task { @MainActor in
+                    guard let self else { return }
+                    self.clips.removeAll { ids.contains($0.id) }; self.stack.removeAll { ids.contains($0) }; self.recentlyTrashed.removeAll { ids.contains($0) }
+                    let previous = self.pasteUsage
+                    self.pasteUsage.retain(Set(self.clips.map(\.id)))
+                    if previous != self.pasteUsage { self.savePasteUsage() }
+                }
             } catch { Task { @MainActor in self?.storageError(error) } }
         }
     }

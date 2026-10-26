@@ -32,7 +32,9 @@ struct LibraryClipCard: View {
             HStack(spacing: 8) {
                 sourceIcon
                 Text(clip.source).font(.system(size: 12, weight: .medium)).lineLimit(1)
-                Spacer(minLength: 0); more
+                Spacer(minLength: 0)
+                if history.showPasteCounts { PasteCountBadge(count: history.pasteUsage.count(for: clip.id)) }
+                more
                 if selected { Image(systemName: "checkmark.square.fill").font(.system(size: 18)).foregroundStyle(palette.accent).accessibilityLabel("Sélectionné") }
             }.frame(height: 23)
             preview.frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
@@ -54,7 +56,10 @@ struct LibraryClipCard: View {
             VStack(alignment: .leading, spacing: 7) {
                 Text(clip.cardTitle ?? (clip.text.isEmpty ? clip.title : String(clip.text.prefix(160)))).font(.system(size: 14, weight: .medium)).lineLimit(2)
                 if let metadata = clip.imageMetadata { Text("\(metadata.dimensions) · \(metadata.fileSize)").font(.system(size: 11)).foregroundStyle(Theme.muted) }
-                HStack(spacing: 8) { sourceIcon; Text(clip.source); Text("·"); Text(clip.kind.label) }.font(.system(size: 11)).foregroundStyle(Theme.muted)
+                HStack(spacing: 8) {
+                    sourceIcon; Text(clip.source); Text("·"); Text(clip.kind.label)
+                    if history.showPasteCounts { PasteCountBadge(count: history.pasteUsage.count(for: clip.id)) }
+                }.font(.system(size: 11)).foregroundStyle(Theme.muted)
             }.frame(maxWidth: .infinity, alignment: .leading)
             Text(ClipDate.label(clip.date)).font(.system(size: 11)).foregroundStyle(Theme.muted)
             ClipCardFooter(history: history, clip: clip).frame(width: 118); more

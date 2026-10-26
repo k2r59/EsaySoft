@@ -685,3 +685,37 @@ Les notes utilisateur sont dans `app/EasyPaste/docs/RELEASE-0.3.7.md`. La distri
 Installateur : https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.7/EasyPaste-0.3.7-universal.dmg
 
 Les nouvelles publications au-delà de cette version nécessitent une nouvelle demande ; cette publication ne livre aucune nouvelle version d’EasyShoot ou d’EasyTile. Les sources restent sur la branche de reprise, sans fusion automatique de `main`.
+
+
+## 20. Compteur de collages privé, 26 octobre 2026
+
+Après la publication 0.3.7, Hervé a demandé un repère sur les tuiles pour distinguer les liens déjà utilisés, puis a précisé : **uniquement un badge numérique, sans le texte « Déjà collé », activé par défaut**. Il a explicitement demandé de **ne pas publier cette modification pour le moment**.
+
+### Comportement
+
+- Réglages → Général → Collage → « Afficher le nombre de collages », activé pour les préférences non encore définies. La désactivation masque les badges sans effacer les compteurs.
+- Un badge apparaît après le premier collage : 1, 2, 3… Il suit la palette, dans la barre rapide normale/compacte et les vues grille/liste de la bibliothèque. Aucun badge à zéro ; libellé accessible et nombre exact pour VoiceOver.
+- Le compteur représente les commandes de collage lancées depuis EasyPaste. Il est incrémenté après l’émission de ⌘V vers la destination choisie, après les contrôles d’Accessibilité, de destination et de focus. Il ne confirme pas qu’un destinataire a reçu un message ni qu’une app a accepté le contenu. Les ⌘V effectués manuellement hors d’EasyPaste ne sont pas observés. Aucun calcul rétroactif des anciens collages.
+- Une sélection, un aperçu, un favori ou une simple copie ne compte pas. Un collage multiple incrémente chaque élément contributeur une fois, même si son identifiant est répété dans la requête. Les éléments sans texte ne comptent pas dans un collage texte qui les exclut.
+- La pile n’est consommée qu’après émission de la commande de collage ; les gardes qui annulent le collage conservent la pile.
+- Les compteurs sont liés aux identifiants des tuiles : conservés lors du dédoublonnage, des modifications de la même tuile et d’une restauration depuis la corbeille ; une nouvelle tuile commence à zéro. Suppression définitive : retrait de l’entrée de compteur.
+
+### Stockage et performances
+
+`PasteUsage.swift` définit un petit index chiffré, `Vault/paste-usage.json.enc`, avec la clé existante du coffre et des permissions 0600. Les écritures passent par la file disque existante, sans déchiffrer ou réécrire les gros fichiers `.clip` ni les vidéos, et sans relancer le filtrage de l’historique. Les écritures sont incluses dans le flush avant fermeture. Le compteur sature à `Int.max`.
+
+Un ancien coffre sans cet index démarre avec des compteurs à zéro. Un index illisible ne bloque pas l’historique et n’est pas écrasé : le suivi est alors désactivé dans cette session avec un message explicatif.
+
+Fichiers : `PasteUsage.swift`, `History.swift`, `App.swift`, `Views.swift`, `LibraryCard.swift`, `SettingsView.swift`. Tests : `PasteUsageTests.swift` et rendu des tuiles dans `InterfaceLayoutTests.swift`. Les captures de contrôle sont dans `/Users/k2r59/Library/Caches/EasyPaste-visual-review/paste-counts/` ; badge 15 contrôlé sur les tuiles compacte claire et grille sombre.
+
+La version publique, ses archives et son flux OTA restent inchangés en 0.3.7 (24). Cette section décrit une modification privée postérieure au tag ; identifier aussi le commit de la branche pour la reprise.
+
+
+### Validation et préparation locale du compteur
+
+- 11 tests dédiés dans `PasteUsageTests` ; suite Release complète : **298 tests, zéro échec**, 34,83 s. Les tests de mise en page et d’ancrage sont inclus.
+- Premier contrôle ciblé : une assertion de suppression utilisait une ancienne copie de tuile non marquée comme mise à la corbeille. Le test a été corrigé pour employer la tuile courante, conformément au contrat existant ; le contrôle ciblé suivant passe (22 tests avant ajout du cas de contribution texte vide).
+- Compilation universelle réussie, bundle local signé et vérifié : `/Users/k2r59/Library/Caches/EasyPaste-local-install/private-paste-counts/EasyPaste.app`. Version privée 0.3.7 (24), même exigence de signature désignée que l’app installée.
+- Contrôle visuel de rendus réels NSHostingView : badge numérique 15, tailles compactes/normales et thèmes clair/sombre. Pas de texte « Déjà collé » dans l’interface.
+- Logs internes : `/tmp/easypaste-paste-usage-targeted.log`, `/tmp/easypaste-paste-usage-release-tests.log`, `/tmp/easypaste-paste-usage-universal.log`.
+- L’outil de contrôle ne retrouve plus de fenêtre EasyPaste (`noWindowsAvailable`). Le processus normal est encore actif : remplacement local en attente d’une fermeture propre par Hervé, demandée dans la conversation. Aucun arrêt forcé n’a été effectué, aucune app publiée.

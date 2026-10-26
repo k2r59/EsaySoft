@@ -43,6 +43,8 @@ import CryptoKit
         await history.flush()
         for _ in 0..<100 where history.visible.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
         let clip = try XCTUnwrap(history.visible.first)
+        for _ in 0..<15 { history.recordPaste([clip]) }
+        await history.flush()
         history.enabled = true
         for compact in [false, true] {
             history.compact = compact
