@@ -8,7 +8,7 @@
 2. Vérifier la branche, le dernier commit et `git status --short`. Le répertoire de départ de Codex peut appartenir à un autre projet.
 3. Vérifier la présence des fichiers et des commits de sources décrits dans la section « État Git et transfert ». La branche de reprise contient désormais le MD et les sources de travail.
 4. Consulter la section « Travail restant » avant de considérer la version locale comme terminée.
-5. Continuer les tests et les corrections locales. **Hervé a demandé de ne pas publier de nouvelle version de l’application pour le moment.**
+5. Consulter la dernière section de publication. **Le 26 octobre 2026, Hervé a autorisé la publication de la dernière version d’EasyPaste, levant la consigne précédente de rester en version privée pour cette livraison.**
 
 La demande immédiate d’Hervé est de disposer de ce fichier sur Git pour continuer depuis son autre Mac, sans perdre le contexte. Le transfert du MD et une publication OTA sont deux opérations distinctes.
 
@@ -661,3 +661,10 @@ SHA-256 du binaire signé installé : `b4a7eb7ccab20cb0cc191c84bb80d20927c72bf95
 Preuves locales dans `EasyPaste-visual-review/integrated/` : `preview-motion-before-collapsed.png`, `preview-motion-before-expanded.png`, `preview-motion-fixed-collapsed.png` et `preview-motion-fixed-expanded.png`. Les captures fixes montrent les états terminés ; elles ne constituent pas une vidéo image par image du mouvement. Après installation, Hervé a confirmé le 24 octobre 2026 que la barre reste fixe au clic sur l’œil. Le correctif d’ancrage est donc validé par son essai réel. Les autres vérifications encore ouvertes dans ce document restent à terminer.
 
 Journaux locaux : `/tmp/easypaste-preview-motion-before.log`, `/tmp/easypaste-preview-motion-after.log`, `/tmp/easypaste-preview-motion-full.log`, `/tmp/easypaste-preview-motion-release.log`. Sauvegarde avant remplacement : `/Users/k2r59/Library/Caches/EasyPaste-local-install/private-theme-icons/before-preview-motion-2026-10-24.zip`.
+
+
+## 19. Publication autorisée le 26 octobre 2026
+
+Hervé a demandé : « tu peu publier la derniere version ». La livraison préparée est **EasyPaste 0.3.7, build 24**, à partir de cette branche de reprise, y compris le correctif d’ancrage `b521f0c` validé par Hervé. Cette autorisation concerne EasyPaste ; les travaux EasyShoot ne sont pas livrés comme nouvelle version d’EasyShoot.
+
+Les notes utilisateur sont dans `app/EasyPaste/docs/RELEASE-0.3.7.md`. La distribution conserve le même identifiant, le même certificat Developer ID et les clés Sparkle existantes. La signature, la notarisation et l’intégrité des archives doivent être contrôlées avant d’avancer le flux OTA. Les essais manuels encore ouverts dans les sections précédentes restent des limites de couverture ; une publication ne signifie pas qu’ils ont tous été rejoués.
