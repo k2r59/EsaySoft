@@ -719,3 +719,14 @@ La version publique, ses archives et son flux OTA restent inchangés en 0.3.7 (2
 - Contrôle visuel de rendus réels NSHostingView : badge numérique 15, tailles compactes/normales et thèmes clair/sombre. Pas de texte « Déjà collé » dans l’interface.
 - Logs internes : `/tmp/easypaste-paste-usage-targeted.log`, `/tmp/easypaste-paste-usage-release-tests.log`, `/tmp/easypaste-paste-usage-universal.log`.
 - L’outil de contrôle ne retrouve plus de fenêtre EasyPaste (`noWindowsAvailable`). Le processus normal est encore actif : remplacement local en attente d’une fermeture propre par Hervé, demandée dans la conversation. Aucun arrêt forcé n’a été effectué, aucune app publiée.
+
+
+### Installation privée terminée
+
+Hervé a confirmé la fermeture d’EasyPaste ; l’absence de processus a été vérifiée avant remplacement atomique de `/Applications/EasyPaste.app`. Backup : `/Users/k2r59/Library/Caches/EasyPaste-local-install/private-paste-counts/before-paste-counts.zip`.
+
+La signature profonde et le binaire installé ont été vérifiés. SHA-256 du binaire : `6e81b472a0bd9b3068a0fcbaf2cd9f8b91183f90d36f739c6f669799886be3b2`. L’app a été relancée sans nouvelle demande d’autorisation.
+
+Essai dans la véritable fenêtre installée : Réglages → Général → Collage affiche « Afficher le nombre de collages » **on** au premier lancement. Coche désactivée puis réactivée avec contrôle AX de chaque état ; laissée **on** pour Hervé. Les tests automatisés couvrent la persistance des compteurs et des préférences ; aucun collage de contenu utilisateur dans une application tierce n’a été déclenché pendant ce contrôle de réglage. Les badges chiffrés ont été inspectés dans les rendus de test.
+
+Code privé sauvegardé sur la branche de reprise au commit `8c56c66`. Le document est complété par un commit distinct après installation. **Aucune nouvelle release, aucun tag ni modification du flux OTA** : le flux public est resté identique au SHA-256 de la livraison 0.3.7 mentionné en section 19.
