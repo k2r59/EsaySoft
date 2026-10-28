@@ -13,7 +13,7 @@ import SwiftUI
         guard let model, !model.saving else { return event }
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         if flags == .command, event.charactersIgnoringModifiers == "s" {
-            if model.dirty { save(replaceOriginal: model.replaceOriginal, copyToClipboard: model.copyToClipboard) }; return nil
+            if model.dirty { save(copyToClipboard: model.copyToClipboard) }; return nil
         }
         if !(window?.firstResponder is NSTextView), flags.contains(.command), event.charactersIgnoringModifiers == "z" {
             if flags.contains(.shift) { model.redo() } else { model.undo() }; return nil
@@ -37,7 +37,7 @@ import SwiftUI
                 let panel = NSPanel(contentRect: CGRect(x: frame.midX-width/2, y: frame.midY-height/2, width: width, height: height), styleMask: [.titled,.closable,.resizable,.fullSizeContentView], backing: .buffered, defer: false)
                 panel.title = "Annoter la capture"; panel.titleVisibility = .hidden; panel.titlebarAppearsTransparent = true; panel.isReleasedWhenClosed = false
                 panel.minSize = CGSize(width: 1080, height: 700); panel.level = .floating; panel.delegate = self; panel.isOpaque = false; panel.backgroundColor = .clear; panel.titlebarAppearsTransparent = true
-                panel.contentView = NSHostingView(rootView: AnnotationView(model: model, cancel: { [weak self] in self?.requestClose() }, save: { [weak self] replace, copy in self?.save(replaceOriginal: replace, copyToClipboard: copy) }, copy:{ [weak self] in self?.actions?.copy() }, export:{ [weak self] in self?.actions?.export() }, pin:{ [weak self] in self?.actions?.pin() }, dragProvider:{ [weak self] in self?.actions?.provider() ?? NSItemProvider() }).ignoresSafeArea(.container,edges:.top))
+                panel.contentView = NSHostingView(rootView: AnnotationView(model: model, cancel: { [weak self] in self?.requestClose() }, save: { [weak self] _, copy in self?.save(copyToClipboard: copy) }, copy:{ [weak self] in self?.actions?.copy() }, export:{ [weak self] in self?.actions?.export() }, pin:{ [weak self] in self?.actions?.pin() }, dragProvider:{ [weak self] in self?.actions?.provider() ?? NSItemProvider() }, allowReplacement: false).ignoresSafeArea(.container,edges:.top))
                 window = panel; panel.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
             } catch { history.annotating = false; history.report(error.localizedDescription) }
         }
@@ -51,7 +51,7 @@ import SwiftUI
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if canClose() { close() }; return false }
     private func close() { window?.orderOut(nil); window = nil; model = nil; actions = nil; clip = nil; history.annotating = false }
-    private func save(replaceOriginal: Bool, copyToClipboard: Bool) {
+    private func save(copyToClipboard: Bool) {
         guard let model, let clip, !model.saving else { return }
         if model.textPoint != nil { model.addText() }
         model.saving = true; model.error = ""
@@ -59,9 +59,9 @@ import SwiftUI
         Task {
             do {
                 let png = try await Task.detached(priority: .userInitiated) { try AnnotationRenderer.export(data: data, snapshot: snapshot, customBackground:background) }.value
-                let saved = replaceOriginal ? try await history.replaceImage(png, original: clip) : try await history.saveImage(png, parent: clip)
+                let saved = try await history.saveImage(png, parent: clip)
                 let copied = copyToClipboard ? await history.copy([saved]) : false; close(); onSaved?()
-                let action = replaceOriginal ? "Image remplacée" : "Copie modifiée créée"
+                let action = "Image enregistrée"
                 history.report(copied ? action + " · ⌘V pour coller" : copyToClipboard ? action + ". Utilise Copier pour la préparer." : action + " dans l’historique.")
             } catch { model.saving = false; model.error = error.localizedDescription }
         }

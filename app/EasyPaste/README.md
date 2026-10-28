@@ -61,9 +61,9 @@ La procédure de publication est documentée dans [docs/UPDATES.md](docs/UPDATES
 2. Sélectionner la carte, puis choisir **Formater…** ou appuyer sur **Espace**. Pour un texte non reconnu, utiliser **Formater…** dans le menu de la carte et choisir le format.
 3. Choisir la présentation : **Original**, **Formaté**, **Compact** pour JSON, **Tableau** pour CSV ou **Structure** pour XML.
 4. Utiliser **Modifier** pour éditer le texte ou, dans le tableau CSV, double-cliquer sur une cellule. Choisir **Terminer** pour appliquer la mise en forme. **Commande + F** ouvre la recherche.
-5. Choisir **Copier le JSON**, **Copier le SQL**, **Copier le CSV** ou **Copier le XML** pour copier la présentation affichée. Le menu **Enregistrer** propose une copie dans l’historique, le remplacement de l’original après confirmation ou l’export d’un fichier.
+5. Choisir **Copier le JSON**, **Copier le SQL**, **Copier le CSV** ou **Copier le XML** pour copier la présentation affichée. **Enregistrer** ajoute toujours une nouvelle entrée à l’historique. **Exporter…** permet de choisir un fichier de destination.
 
-La présentation seule ne modifie pas l’historique. Dans la barre rapide et la bibliothèque, un clic sélectionne la carte et un double-clic colle son contenu dans l’application précédente. La copie créée apparaît à côté de l’original. Le remplacement conserve le titre, la date, les favoris et les collections ; le contenu devient du texte brut.
+La présentation seule ne modifie pas l’historique. Dans la barre rapide et la bibliothèque, un clic sélectionne la carte et un double-clic colle son contenu dans l’application précédente. La copie créée apparaît à côté de l’original, qui reste inchangé. Cette règle s’applique aussi à l’éditeur de texte classique, au Markdown, au SVG et aux images annotées. Chaque nouvelle entrée possède son propre compteur de collages.
 
 Le formatage JSON préserve les grands nombres, les échappements, l’ordre et les clés répétées. CSV conserve les valeurs comme `00123`, les cellules entre guillemets et les retours à la ligne internes. Les séparateurs proposés sont la virgule, le point-virgule, la tabulation et la barre verticale. La recherche dans le tableau ne retire aucune ligne de la copie ni de l’export.
 
@@ -112,7 +112,7 @@ Le menu près de l’heure propose **Capturer une zone** directement. Le sous-me
 2. Retrouver la capture dans la barre rapide. L’image est aussi copiée, prête à coller avec **Commande + V**.
 3. Survoler sa carte et cliquer sur le crayon pour ouvrir l’éditeur.
 4. Ajouter une flèche, un cadre, du texte ou un surlignage. **Masquer** recouvre les informations avec un rectangle opaque. **Recadrer** conserve la zone choisie.
-5. Choisir **Créer une copie** ou **Remplacer l’originale**, puis valider. Une copie apparaît à côté de l’originale. Le remplacement conserve la même carte, son titre, sa date, ses favoris et ses collections, et recalcule le texte reconnu. L’option **Copier dans le presse-papiers** permet aussi de copier l’image obtenue.
+5. Choisir **Terminé** pour enregistrer une nouvelle image à côté de l’originale. L’image d’origine reste inchangée. L’option **Copier avec Terminé** permet aussi de copier l’image obtenue.
 
 Les captures sont enregistrées en PNG sans perte, à la densité native de l’écran. Une zone de 600 × 400 points sur un écran Retina produit 1 200 × 800 pixels. Les miniatures servent à l’affichage ; la copie conserve tous les pixels de l’original. Dans **Aperçu**, **100 %** affiche un pixel de l’image pour un pixel de l’écran, avec défilement si nécessaire. **Ajuster** montre l’ensemble sans agrandir artificiellement une petite image. Les images sont limitées à 50 mégapixels et à 20 Mo encodés.
 

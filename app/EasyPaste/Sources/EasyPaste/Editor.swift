@@ -95,6 +95,7 @@ struct EditorView: View {
     @StateObject private var model = RichTextModel()
     @State private var title = ""
     @State private var error = ""
+    @State private var saving = false
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         VStack(alignment: .leading, spacing: 17) {
@@ -109,15 +110,23 @@ struct EditorView: View {
             }.padding(6).chromeSurface(radius: 13)
             if model.ready { RichTextEditor(model: model).frame(height: 310).clipShape(RoundedRectangle(cornerRadius: 12)) }
             else { ProgressView("Ouverture du texte…").frame(height: 310).frame(maxWidth: .infinity) }
-            HStack { Text(error).font(.system(size: 11)).foregroundStyle(Theme.warning); Spacer(); Button("Enregistrer") {
+            HStack { Text(error).font(.system(size: 11)).foregroundStyle(Theme.warning); Spacer(); Button(saving ? "Enregistrement…" : "Enregistrer") {
                 let text = model.textView.string
                 guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { error = "Saisis un texte avant d’enregistrer."; return }
                 guard text.utf8.count + (model.rtf?.count ?? 0) <= ClipboardReader.limit else { error = "Ce texte dépasse la limite de 20 Mo."; return }
                 let name = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? String(text.prefix(90)) : title
-                if let clip { history.edit(clip.id, title: name, text: text, rtf: model.rtf) } else { history.makeSnippet(name, text: text, rtf: model.rtf) }
-                dismiss()
-            }.buttonStyle(PasteButtonStyle(primary: true)).disabled(!model.ready).keyboardShortcut("s", modifiers: .command) }
-        }.padding(26).frame(width: 640).chromeSurface(radius: 22).foregroundStyle(Theme.ink)
+                let rtf = model.rtf
+                saving = true; error = ""
+                Task { @MainActor in
+                    defer { saving = false }
+                    do {
+                        if let clip { _ = try await history.saveEditedText(text, title: name, rtf: rtf, original: clip) }
+                        else { _ = try await history.makeSnippet(name, text: text, rtf: rtf) }
+                        dismiss()
+                    } catch { self.error = error.localizedDescription }
+                }
+            }.buttonStyle(PasteButtonStyle(primary: true)).disabled(!model.ready || saving).keyboardShortcut("s", modifiers: .command) }
+        }.disabled(saving).interactiveDismissDisabled(saving).padding(26).frame(width: 640).chromeSurface(radius: 22).foregroundStyle(Theme.ink)
         .task { title = clip?.title ?? ""; do { if let clip { model.load(try await history.fullClip(clip)) } else { model.load(nil) } } catch { self.error = error.localizedDescription } }
     }
     private func format(_ icon: String, _ label: String, action: @escaping () -> Void) -> some View { Button(action: action) { Image(systemName: icon).frame(width: 25, height: 25) }.buttonStyle(PasteButtonStyle()).help(label).accessibilityLabel(label) }

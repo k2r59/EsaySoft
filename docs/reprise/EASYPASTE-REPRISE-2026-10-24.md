@@ -793,3 +793,23 @@ Construction et paquet : `/Users/k2r59/Library/Caches/EasyPaste-release-0.3.8/ap
 Flux public confirmé après déploiement GitHub Pages : première entrée **0.3.8 / build 25**, identique octet pour octet au flux local signé. Signature Ed25519 du fichier public valide. SHA-256 : `ebd3b0c836568ced04b927929f3e91f4149af7fe2728f693b7f9a9682402441d`. GitHub Pages indique `built` sur le commit attendu. Les utilisateurs peuvent rechercher la mise à jour dans l’application.
 
 Installateur : https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.8/EasyPaste-0.3.8-universal.dmg
+
+## 23. Enregistrement sans remplacement — chantier local du 28 octobre 2026
+
+Nouvelle consigne d’Hervé : **toute modification de contenu enregistrée dans EasyPaste doit créer une nouvelle entrée ; ne jamais remplacer l’original**. Cette règle remplace l’ancienne demande d’annotation avec remplacement. Retirer les choix « Créer une copie » et « Remplacer l’original » : un bouton Enregistrer suffit. Aucune nouvelle publication n’est demandée après 0.3.8.
+
+- Éditeur structuré (JSON, SQL, CSV, XML, Markdown, SVG) : Enregistrer directement, raccourci ⌘S, Exporter séparé. Suppression du menu de choix et de la confirmation de remplacement. L’onglet Original continue à montrer la source après enregistrement.
+- Éditeur de texte classique : enregistrement asynchrone d’une variante, avec RTF, lien de parenté, origine web et collections. Désactivation pendant l’écriture, fermeture uniquement après réussite, erreur visible sans perdre le texte.
+- Annotation : bouton Terminé et ⌘S passent uniquement par `saveImage(parent:)`, option de remplacement non exposée. Le contrôleur ne possède plus de branche de remplacement et `History.replaceImage` est supprimée. Les fichiers d’annotation partagés avec EasyShoot restent identiques ; EasyShoot n’est pas modifié.
+- Stockage : nouvelle identité à chaque enregistrement, y compris si le résultat est identique. `History.edit` est supprimée ; `saveEditedText` crée une variante chiffrée et laisse le fichier source intact. La création d’un texte neuf contourne aussi la déduplication de l’import du presse-papiers. Les favoris, collections et suppressions restent des actions de gestion sur la carte existante ; la collecte ordinaire conserve sa déduplication.
+- Compteur : chaque variante commence à zéro, celui de l’original reste intact. Limites de taille et validation des images conservées. Aucun réencodage supplémentaire des PNG.
+- Tests : 308 en Debug sans échec (42,65 s), 308 en Release sans échec (39,88 s). Quatre nouveaux tests couvrent les six formats, les répétitions identiques, le texte enrichi/liens/couleurs, l’origine et les collections, les compteurs, les nouveaux extraits identiques et un échec d’enregistrement. Ils comparent aussi les octets du fichier source chiffré avant/après. Les anciens tests de remplacement sont adaptés à la conservation de l’original et aux modifications concurrentes de métadonnées.
+- Rendus natifs générés dans `/Users/k2r59/Library/Caches/EasyPaste-visual-review/copy-only`, Markdown inspecté : les trois actions Exporter / Enregistrer / Copier sont lisibles et tiennent dans la fenêtre.
+
+### Installation locale
+
+Compilation universelle réussie (arm64 et x86_64). Bundle privé 0.3.8 (25) signé dans `/Users/k2r59/Library/Caches/EasyPaste-local-install/copy-only/EasyPaste.app`, installé au chemin habituel après fermeture normale depuis le menu. Sauvegarde précédente : `before-copy-only.zip` dans ce même dossier. Signature stricte vérifiée avant et après remplacement ; SHA-256 du binaire installé : `f4d9a7e3a34d81a38785fad3b5758463090695a09a4149bbe73032bd87d88be6`. Aucun changement de permissions, aucun historique utilisateur modifié pour ces essais.
+
+Relancement réel vérifié : barre rapide ouverte et recherche focalisée. L’aperçu du changelog s’ouvre. La tentative suivante d’ouverture de Formater via l’outil CUA renvoie AXError.failure, puis aucune fenêtre accessible ; le processus EasyPaste reste vivant et aucun rapport de crash EasyPaste n’est trouvé. Cette dernière étape ne constitue donc pas une validation manuelle de l’éditeur installé. Les rendus natifs, les tests d’intégration et la correspondance du binaire installé sont validés. Aucun enregistrement d’une copie de test dans l’historique utilisateur n’a été effectué.
+
+Aucune release, aucun tag et aucun flux OTA modifiés après la publication 0.3.8 : cette évolution reste locale et dans les sources de la branche. Ne pas confondre le paquet public 0.3.8 avec ce binaire privé, qui affiche le même numéro mais ajoute l’enregistrement sans remplacement.

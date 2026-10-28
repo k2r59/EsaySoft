@@ -121,13 +121,12 @@ import SwiftUI
             guard !Task.isCancelled else { return }; self?.visibleRows = matches
         }
     }
-    func save(history: History, replacing: Bool) async {
+    func save(history: History) async {
         guard canUseOutput else { return }; saving = true; message = nil
         defer { saving = false }
         do {
-            let saved = try await history.saveStructuredText(output, original: original, replacing: replacing)
-            if replacing { original = saved; draft = output }
-            hasEdits = false; message = replacing ? "Original remplacé." : "Copie ajoutée à l’historique."
+            _ = try await history.saveStructuredText(output, original: original)
+            hasEdits = false; message = "Enregistré dans l’historique."
         } catch { message = error.localizedDescription }
     }
     func copy(history: History, to pasteboard: NSPasteboard = .general) {

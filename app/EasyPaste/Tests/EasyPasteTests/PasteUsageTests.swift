@@ -97,7 +97,7 @@ import XCTest
     func testStaleChangedTrashedAndUnknownCardsCannotIncrement() async {
         history.recordPaste([links[0]])
         history.trash(links[0])
-        history.edit(links[1].id, title: "Nouveau", text: "different", rtf: nil)
+        history.mutate(links[1].id) { $0.fingerprint = "external-change" }
         history.recordPaste([links[0], links[1], makeClip("Absent")])
         XCTAssertEqual(history.pasteUsage.count(for: links[0].id), 1)
         XCTAssertEqual(history.pasteUsage.count(for: links[1].id), 0)

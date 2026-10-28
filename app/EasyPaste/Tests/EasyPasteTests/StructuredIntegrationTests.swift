@@ -40,19 +40,22 @@ import SwiftUI
         model.selectPresentation(.compact); try await ready(model)
         XCTAssertEqual(model.output, clip.text); XCTAssertEqual(history.clips.count, 1)
     }
-    func testVariantIsAdjacentAndReplacementKeepsMetadata() async throws {
+    func testEverySaveCreatesAdjacentVariantAndKeepsOriginalMetadata() async throws {
         let original = await insert(#"{"a":1}"#)
         history.togglePin(original); history.addBoard("Code"); history.toggleBoard(original, history.boards[0]); await history.flush()
         let full = try await history.fullClip(original)
         let formatted = try StructuredText.process(full.text, format: .json).text
-        let copy = try await history.saveStructuredText(formatted, original: full, replacing: false)
+        let copy = try await history.saveStructuredText(formatted, original: full)
         XCTAssertNotEqual(copy.id, full.id); XCTAssertEqual(copy.parentID, full.id); XCTAssertFalse(copy.pinned)
         XCTAssertEqual(copy.boards, full.boards); XCTAssertEqual(history.clips.count, 2)
         let ordered = ClipQuery().apply(history.clips)
         XCTAssertEqual(ordered.prefix(2).map(\.id), [full.id, copy.id])
-        let saved = try await history.saveStructuredText(formatted, original: full, replacing: true)
-        XCTAssertEqual(saved.id, full.id); XCTAssertTrue(saved.pinned); XCTAssertEqual(saved.boards, full.boards)
-        XCTAssertEqual(saved.title, full.title); XCTAssertEqual(saved.date, full.date)
+        let saved = try await history.saveStructuredText(formatted, original: full)
+        XCTAssertNotEqual(saved.id, full.id); XCTAssertNotEqual(saved.id, copy.id); XCTAssertFalse(saved.pinned)
+        XCTAssertEqual(saved.boards, full.boards); XCTAssertEqual(history.clips.count, 3)
+        let untouched = try await history.fullClip(full)
+        XCTAssertEqual(untouched.payload, full.payload); XCTAssertEqual(untouched.title, full.title)
+        XCTAssertEqual(untouched.date, full.date); XCTAssertTrue(untouched.pinned)
         let savedFull = try await history.fullClip(saved)
         XCTAssertEqual(savedFull.text, formatted)
         XCTAssertEqual(saved.payload.representations.count, 0, "Returned metadata must not retain the payload")
@@ -61,20 +64,22 @@ import SwiftUI
     }
     func testStaleAndTrashedOriginalsCannotBeOverwritten() async throws {
         let original = await insert(#"{"a":1}"#)
-        history.edit(original.id, title: "Modifié", text: "autre contenu", rtf: nil); await history.flush()
-        do { _ = try await history.saveStructuredText("{}", original: original, replacing: true); XCTFail("Must reject stale snapshot") } catch { }
+        history.mutate(original.id) { $0.fingerprint = "external-change" }; await history.flush()
+        do { _ = try await history.saveStructuredText("{}", original: original); XCTFail("Must reject stale snapshot") } catch { }
         let stillCurrent = try await history.fullClip(original)
-        XCTAssertEqual(stillCurrent.text, "autre contenu")
+        XCTAssertEqual(stillCurrent.text, original.text)
         let latest = try await history.fullClip(original); history.trash(latest); await history.flush()
-        do { _ = try await history.saveStructuredText("{}", original: latest, replacing: false); XCTFail("Must reject trash") } catch { }
+        do { _ = try await history.saveStructuredText("{}", original: latest); XCTFail("Must reject trash") } catch { }
     }
-    func testReplacementQueuesConcurrentFavoriteEdit() async throws {
+    func testSavingVariantKeepsConcurrentFavoriteOnOriginal() async throws {
         let original = await insert(#"{"a":1}"#)
-        let replacement = Task { try await history.saveStructuredText("{\n  \"a\": 2\n}", original: original, replacing: true) }
+        let replacement = Task { try await history.saveStructuredText("{\n  \"a\": 2\n}", original: original) }
         await Task.yield(); history.togglePin(original)
         let saved = try await replacement.value; await history.flush()
         let full = try await history.fullClip(saved)
-        XCTAssertTrue(full.pinned); XCTAssertTrue(full.text.contains("2"))
+        XCTAssertFalse(full.pinned); XCTAssertTrue(full.text.contains("2"))
+        let source = try await history.fullClip(original)
+        XCTAssertTrue(source.pinned); XCTAssertEqual(source.text, original.text)
     }
     func testMalformedJSONCanBeEditedAndValidated() async throws {
         let clip = await insert(#"{"a":}"#), model = StructuredEditorModel(clip: clip)
@@ -82,10 +87,10 @@ import SwiftUI
         model.beginEditing(); model.changeText(#"{"a":"Élodie"}"#); try await ready(model)
         XCTAssertNil(model.issue); XCTAssertEqual(model.output, #"{"a":"Élodie"}"#); XCTAssertTrue(model.hasEdits)
         model.editing = false; model.refresh(); try await ready(model)
-        await model.save(history: history, replacing: true)
-        XCTAssertFalse(model.hasEdits); XCTAssertTrue(model.message?.contains("remplacé") == true)
+        await model.save(history: history)
+        XCTAssertFalse(model.hasEdits); XCTAssertTrue(model.message?.contains("Enregistré") == true)
         model.selectPresentation(.original)
-        XCTAssertTrue(model.output.contains("Élodie"), "Original now refers to the saved replacement")
+        XCTAssertEqual(model.output, clip.text, "Original must remain the source even after saving")
     }
     func testChangingFormatAndModeDiscardsStaleWork() async throws {
         let clip = await insert("[" + Array(repeating: "1", count: 100_000).joined(separator: ",") + "]")
@@ -207,7 +212,7 @@ import SwiftUI
             XCTAssertNotNil(model.issue); XCTAssertFalse(model.canUseOutput); XCTAssertTrue(model.canEdit)
             let pb = NSPasteboard(name: .init(UUID().uuidString)); defer { pb.releaseGlobally() }; pb.setString("inchangé", forType: .string)
             model.copy(history: history, to: pb); XCTAssertEqual(pb.string(forType: .string), "inchangé")
-            await model.save(history: history, replacing: true)
+            await model.save(history: history)
             let original = try await history.fullClip(clip); XCTAssertEqual(original.text, invalid)
             model.beginEditing(); model.changeText(corrected); try await ready(model)
             XCTAssertNil(model.issue); XCTAssertTrue(model.canUseOutput)
@@ -227,7 +232,7 @@ import SwiftUI
             XCTAssertNil(released, "Closed editors must release their buffers and jobs")
         }
     }
-    func testMarkdownPreviewSourceEditingAndReplacement() async throws {
+    func testMarkdownPreviewSavesIndependentVariants() async throws {
         let clip = await insert(MarkdownFixtures.document), model = StructuredEditorModel(clip: clip)
         XCTAssertEqual(model.format, .markdown); XCTAssertEqual(model.presentation, .rendered)
         model.refresh(); try await ready(model)
@@ -239,12 +244,14 @@ import SwiftUI
         model.changeText(changed); try await ready(model); XCTAssertNil(model.issue)
         model.finishEditing(); try await ready(model); XCTAssertEqual(model.presentation, .rendered)
         XCTAssertTrue(model.result!.markdown!.text.contains("**Syntaxe incomplète"))
-        await model.save(history: history, replacing: false)
+        await model.save(history: history)
         XCTAssertEqual(history.clips.count, 2)
         let unmodified = try await history.fullClip(clip); XCTAssertEqual(unmodified.text, clip.text)
-        await model.save(history: history, replacing: true)
-        let replaced = try await history.fullClip(clip); XCTAssertEqual(replaced.text, changed)
-        model.selectPresentation(.original); XCTAssertEqual(model.output, changed)
+        await model.save(history: history)
+        XCTAssertEqual(history.clips.count, 3)
+        let untouched = try await history.fullClip(clip); XCTAssertEqual(untouched.text, clip.text)
+        let variant = try await history.fullClip(XCTUnwrap(history.selectedClip)); XCTAssertEqual(variant.text, changed)
+        model.selectPresentation(.original); XCTAssertEqual(model.output, clip.text)
     }
     func testLargeMarkdownCopyAndCancellation() async throws {
         let source = "# Un long document\n\n" + String(repeating: "**Texte** é😀\n\n", count: 20_000)
@@ -313,7 +320,7 @@ import SwiftUI
         model.copy(history: history, to: pb); XCTAssertEqual(pb.string(forType: .string), "préservé")
         model.changeText(SVGFixtures.gradient); try await ready(model); model.finishEditing(); try await ready(model)
         XCTAssertNil(model.issue); XCTAssertEqual(model.presentation, .rendered)
-        await model.save(history: history, replacing: false)
+        await model.save(history: history)
         let original = try await history.fullClip(clip)
         XCTAssertEqual(original.text, SVGFixtures.icon); XCTAssertEqual(history.clips.count, 2)
         model.selectPresentation(.original); XCTAssertEqual(model.output, SVGFixtures.icon)

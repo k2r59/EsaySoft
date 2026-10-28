@@ -191,8 +191,8 @@ final class RecordingWriterTests: XCTestCase {
     }
 }
 
-@MainActor final class ImageReplacementTests: XCTestCase {
-    func testMetadataEditsDuringReplacementKeepNewImageAndFingerprint() async throws {
+@MainActor final class ImageVariantTests: XCTestCase {
+    func testConcurrentMetadataChangesDoNotAffectSavedImageVariant() async throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let vault = try ClipVault(directory: folder, key: SymmetricKey(size: .bits256))
         let history = History(vault: vault, monitor: false, defaults: UserDefaults(suiteName: UUID().uuidString)!)
@@ -202,7 +202,7 @@ final class RecordingWriterTests: XCTestCase {
         context.setFillColor(CGColor(red: 1, green: 0, blue: 0, alpha: 1)); context.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
         let png = try CaptureImage.png(XCTUnwrap(context.makeImage()))
         var started = false
-        let replacement = Task { @MainActor in started = true; return try await history.replaceImage(png, original: original) }
+        let replacement = Task { @MainActor in started = true; return try await history.saveImage(png, parent: original) }
         while !started { await Task.yield() }
         let board = UUID()
         history.mutate(original.id) { $0.title = "Renommée pendant l’annotation"; $0.boards = [board]; $0.pinned = true }
@@ -211,11 +211,13 @@ final class RecordingWriterTests: XCTestCase {
         let reloaded = try await history.fullClip(result)
         XCTAssertEqual(reloaded.imageData, png)
         XCTAssertEqual(reloaded.fingerprint, Clip.fingerprint(reloaded.payload))
-        XCTAssertEqual(reloaded.title, "Renommée pendant l’annotation")
-        XCTAssertEqual(reloaded.boards, [board]); XCTAssertTrue(reloaded.pinned)
+        XCTAssertNotEqual(reloaded.id, original.id); XCTAssertFalse(reloaded.pinned)
+        let source = try await history.fullClip(original)
+        XCTAssertEqual(source.title, "Renommée pendant l’annotation"); XCTAssertEqual(source.boards, [board]); XCTAssertTrue(source.pinned)
+        XCTAssertEqual(source.imageData, DemoArtwork.png())
         XCTAssertEqual(history.clips.first?.fingerprint, reloaded.fingerprint)
     }
-    func testReplaceRetainsCardAndCollectionsButClearsOldTextAndKeepsCopyIndependent() async throws {
+    func testImageSaveAlwaysPreservesOriginalAndEarlierVariants() async throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString), vault = try ClipVault(directory: folder, key: SymmetricKey(size: .bits256))
         let history = History(vault: vault, monitor: false, defaults: UserDefaults(suiteName: UUID().uuidString)!)
         defer { history.stopMonitoring(); try? FileManager.default.removeItem(at: folder) }
@@ -227,16 +229,20 @@ final class RecordingWriterTests: XCTestCase {
         let context = try XCTUnwrap(CGContext(data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
         context.setFillColor(CGColor(red: 0, green: 0, blue: 1, alpha: 1)); context.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
         let newPNG = try CaptureImage.png(XCTUnwrap(context.makeImage()))
-        let result = try await history.replaceImage(newPNG, original: old), reloaded = try await history.fullClip(result)
-        XCTAssertEqual(history.clips.count, 2); XCTAssertEqual(reloaded.id, original.id); XCTAssertEqual(reloaded.title, "Mon image")
-        XCTAssertEqual(reloaded.date, original.date); XCTAssertTrue(reloaded.pinned); XCTAssertEqual(reloaded.boards, [board]); XCTAssertEqual(reloaded.ocr, "")
+        let result = try await history.saveImage(newPNG, parent: old), reloaded = try await history.fullClip(result)
+        XCTAssertEqual(history.clips.count, 3); XCTAssertNotEqual(reloaded.id, original.id); XCTAssertEqual(reloaded.parentID, original.id)
+        XCTAssertFalse(reloaded.pinned); XCTAssertEqual(reloaded.boards, [board]); XCTAssertEqual(reloaded.ocr, "")
+        let source = try await history.fullClip(old)
+        XCTAssertEqual(source.payload, old.payload); XCTAssertEqual(source.date, old.date); XCTAssertEqual(source.title, old.title)
+        XCTAssertTrue(source.pinned); XCTAssertEqual(source.ocr, old.ocr)
         XCTAssertEqual(reloaded.imageData, newPNG); XCTAssertEqual(reloaded.byteCount, newPNG.count)
         XCTAssertEqual(reloaded.imageMetadata?.dimensions, "64 × 64 px")
-        XCTAssertEqual(history.shelfPreview?.fingerprint, reloaded.fingerprint, "The integrated preview must reload the replaced raster")
-        XCTAssertEqual(history.shelfPreview?.imageMetadata, reloaded.imageMetadata, "Header dimensions must not retain the original crop")
+        XCTAssertEqual(history.shelfPreview?.fingerprint, old.fingerprint, "The source preview must keep the original raster")
+        XCTAssertEqual(history.shelfPreview?.imageMetadata, old.imageMetadata)
         let untouched = try await history.fullClip(copy); XCTAssertEqual(untouched.imageData, old.imageData)
-        do { _ = try await history.replaceImage(newPNG, original: old); XCTFail("Stale replacement must be rejected") } catch { }
-        do { _ = try await history.replaceImage(Data("invalid".utf8), original: result); XCTFail("Invalid image must be rejected") } catch { }
+        let repeated = try await history.saveImage(newPNG, parent: old)
+        XCTAssertNotEqual(repeated.id, result.id); XCTAssertEqual(history.clips.count, 4)
+        do { _ = try await history.saveImage(Data("invalid".utf8), parent: result); XCTFail("Invalid image must be rejected") } catch { }
         let afterFailure = try await history.fullClip(result); XCTAssertEqual(afterFailure.imageData, newPNG)
         await history.flush()
     }

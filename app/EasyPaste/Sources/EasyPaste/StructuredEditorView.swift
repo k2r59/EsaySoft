@@ -6,7 +6,6 @@ struct StructuredEditorView: View {
     @ObservedObject var history: History
     let close: () -> Void
     @FocusState private var searching: Bool
-    @State private var showingSave = false
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
@@ -84,16 +83,12 @@ struct StructuredEditorView: View {
             HStack {
                 if model.hasEdits { Text("Modifications non enregistrées").font(.system(size: 11)).foregroundStyle(Theme.muted) }
                 Spacer()
-                Button { showingSave.toggle() } label: { HStack(spacing: 9) { Text(model.saving ? "Enregistrement…" : "Enregistrer"); Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)) } }
+                Button("Exporter…") { model.export() }
                     .buttonStyle(PasteButtonStyle()).disabled(!model.canUseOutput)
-                    .popover(isPresented: $showingSave, arrowEdge: .bottom) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            saveAction("Créer une copie", icon: "plus.square.on.square") { Task { await model.save(history: history, replacing: false) } }
-                            saveAction("Remplacer l’original…", icon: "arrow.triangle.2.circlepath") { confirmReplacement() }
-                            Divider()
-                            saveAction("Exporter le fichier…", icon: "square.and.arrow.up") { model.export() }
-                        }.padding(8).frame(width: 240).background(Theme.panel)
-                    }
+                Button(model.saving ? "Enregistrement…" : "Enregistrer") { Task { await model.save(history: history) } }
+                    .buttonStyle(PasteButtonStyle()).disabled(!model.canUseOutput)
+                    .keyboardShortcut("s", modifiers: .command)
+                    .help("Enregistrer une nouvelle entrée en conservant l’original")
                 Button("Copier le \(model.format.rawValue)") { model.copy(history: history) }
                     .buttonStyle(PasteButtonStyle(primary: model.format != .svg)).disabled(!model.canUseOutput)
             }
@@ -102,10 +97,6 @@ struct StructuredEditorView: View {
             .task { model.refresh() }.onDisappear { model.cancel() }
             .onChange(of: model.options) { _, _ in model.refresh() }
             .onChange(of: model.query) { _, _ in model.search() }
-    }
-    private func saveAction(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
-        Button { showingSave = false; action() } label: { Label(title, systemImage: icon).font(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading).padding(10) }
-            .buttonStyle(FullAreaButtonStyle()).foregroundStyle(Theme.ink)
     }
     @ViewBuilder private var content: some View {
         if model.presentation == .rendered, let document = model.result?.svg {
@@ -125,12 +116,7 @@ struct StructuredEditorView: View {
             }
         } else { StructuredCodeView(model: model) }
     }
-    private func confirmReplacement() {
-        let alert = NSAlert(); alert.messageText = "Remplacer l’original ?"
-        alert.informativeText = "Le texte et sa mise en forme d’origine seront remplacés."
-        alert.addButton(withTitle: "Remplacer"); alert.addButton(withTitle: "Annuler")
-        if alert.runModal() == .alertFirstButtonReturn { Task { await model.save(history: history, replacing: true) } }
-    }
+
 }
 extension XMLBranch { var outlineChildren: [XMLBranch]? { children.isEmpty ? nil : children } }
 

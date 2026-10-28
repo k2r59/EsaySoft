@@ -124,8 +124,8 @@ struct ClipQuery {
     private var pendingClipboardSelection: UUID?
     private var stopping = false
     private var writes = 0
-    private var replacingImages = Set<UUID>()
-    private var pendingImageMutations: [UUID: [(inout Clip) -> Void]] = [:]
+    private var savingTextVariants = Set<UUID>()
+    private var pendingTextMutations: [UUID: [(inout Clip) -> Void]] = [:]
     var selectedClip: Clip? { clips.first { $0.id == selected } }
     var selection: [Clip] {
         !selectedIDs.isEmpty ? visible.filter { selectedIDs.contains($0.id) } : selectedClip.map { [$0] } ?? []
@@ -291,9 +291,8 @@ struct ClipQuery {
     }
     func mutate(_ id: UUID, _ body: @escaping (inout Clip) -> Void) {
         guard let i = clips.firstIndex(where: { $0.id == id }), vault != nil, !fault else { return }
-        // Apply metadata edits after the image transaction, so a queued favorite,
-        // rename or trash action cannot write back an obsolete image fingerprint.
-        if replacingImages.contains(id) { pendingImageMutations[id, default: []].append(body); return }
+        // Keep metadata changes ordered while a text variant reads its source.
+        if savingTextVariants.contains(id) { pendingTextMutations[id, default: []].append(body); return }
         var c = clips[i]; body(&c); clips[i] = c.metadata(); persist(c)
     }
     func fullClip(_ c: Clip) async throws -> Clip {
@@ -467,20 +466,12 @@ struct ClipQuery {
     func queue(_ c: Clip) { if !stack.contains(c.id) { stack.append(c.id); report("Ajouté à la pile · \(stack.count) élément(s).") } }
     func nextInStack() { guard let id = stack.first, let c = clips.first(where: { $0.id == id }) else { report("La pile est vide."); return }; paste?([c], false) }
     func consumeStack(_ pasted: [Clip]) { let ids = Set(pasted.map(\.id)); stack.removeAll { ids.contains($0) } }
-    func edit(_ id: UUID, title: String, text: String, rtf: Data?) {
-        mutate(id) { c in
-            c.title = String(title.prefix(150)); c.text = text
-            var reps = [ClipRepresentation(type: NSPasteboard.PasteboardType.string.rawValue, data: Data(text.utf8))]
-            if let rtf { reps.append(.init(type: NSPasteboard.PasteboardType.rtf.rawValue, data: rtf)) }
-            c.payload = ClipPayload(representations: [reps]); c.storedBytes = nil
-            c.fingerprint = Clip.fingerprint(c.payload); c.kind = Clip.kind(for: text)
-        }
-    }
-    func makeSnippet(_ title: String, text: String, rtf: Data? = nil) {
+    func makeSnippet(_ title: String, text: String, rtf: Data? = nil) async throws -> Clip {
+        guard text.utf8.count + (rtf?.count ?? 0) <= ClipboardReader.limit else { throw TextIssue(message: "Ce texte dépasse la limite de 20 Mo.") }
         var reps = [ClipRepresentation(type: NSPasteboard.PasteboardType.string.rawValue, data: Data(text.utf8))]
         if let rtf { reps.append(.init(type: NSPasteboard.PasteboardType.rtf.rawValue, data: rtf)) }
         let payload = ClipPayload(representations: [reps])
-        add(Clip(title: title, text: text, source: "EasyPaste", sourceID: "app.easypaste.mac", kind: Clip.kind(for: text), fingerprint: Clip.fingerprint(payload), payload: payload, pinned: true))
+        return try await insertCapture(Clip(title: title, text: text, source: "EasyPaste", sourceID: "app.easypaste.mac", kind: Clip.kind(for: text), fingerprint: Clip.fingerprint(payload), payload: payload, pinned: true))
     }
     private func prune() {
         guard vault != nil, !fault else { return }
@@ -495,7 +486,7 @@ struct ClipQuery {
             let result: Result<String, Error> = autoreleasepool { Result { try ImageText.recognize(data) } }
             Task { @MainActor in
                 self?.ocrTasks.remove(clip.id)
-                guard self?.replacingImages.contains(clip.id) != true else { return }
+                guard self?.savingTextVariants.contains(clip.id) != true else { return }
                 guard case .success(let text) = result else { self?.report("Le texte de cette image n’a pas pu être reconnu. L’image est conservée."); return }
                 guard !text.isEmpty, self?.clips.first(where: { $0.id == clip.id })?.fingerprint == clip.fingerprint else { return }
                 self?.mutate(clip.id) { $0.ocr = text }
@@ -506,35 +497,40 @@ struct ClipQuery {
 
 
 extension History {
-    /// The same per-card transaction lock as image replacement queues concurrent
-    /// metadata edits. Publish after the encrypted write, never before it succeeds.
-    func saveStructuredText(_ text: String, original: Clip, replacing: Bool) async throws -> Clip {
+    func saveStructuredText(_ text: String, original: Clip) async throws -> Clip {
         guard text.utf8.count <= StructuredText.outputLimit else { throw TextIssue(message: "Le résultat dépasse 8 Mo.") }
-        guard let vault, !fault, !stopping, !replacingImages.contains(original.id),
-              let current = clips.first(where: { $0.id == original.id }), current.kind == .text,
+        return try await saveEditedText(text, title: String(original.title.prefix(130)) + " · formaté", rtf: nil, original: original, kind: .text)
+    }
+    /// Every content edit creates a distinct encrypted record. The source is never written.
+    func saveEditedText(_ text: String, title: String, rtf: Data?, original: Clip, kind: ClipKind? = nil) async throws -> Clip {
+        guard text.utf8.count + (rtf?.count ?? 0) <= ClipboardReader.limit else { throw TextIssue(message: "Ce texte dépasse la limite de 20 Mo.") }
+        guard let vault, !fault, !stopping, !savingTextVariants.contains(original.id),
+              let current = clips.first(where: { $0.id == original.id }), current.editable,
               current.trashedAt == nil, current.fingerprint == original.fingerprint else {
             throw TextIssue(message: "L’original a changé ou a été supprimé. Rouvre-le avant d’enregistrer.")
         }
-        replacingImages.insert(original.id); writes += 1
+        savingTextVariants.insert(original.id); writes += 1
         defer {
-            writes -= 1; replacingImages.remove(original.id)
-            for update in pendingImageMutations.removeValue(forKey: original.id) ?? [] { mutate(original.id, update) }
+            writes -= 1; savingTextVariants.remove(original.id)
+            for update in pendingTextMutations.removeValue(forKey: original.id) ?? [] { mutate(original.id, update) }
         }
         let saved: Clip = try await withCheckedThrowingContinuation { continuation in
             disk.async {
                 do {
                     var clip = try vault.read(Clip.self, name: original.id.uuidString + ".clip")
                     guard clip.trashedAt == nil, clip.fingerprint == original.fingerprint else { throw TextIssue(message: "L’original a changé. Rouvre-le avant d’enregistrer.") }
-                    let payload = ClipPayload(representations: [[.init(type: NSPasteboard.PasteboardType.string.rawValue, data: Data(text.utf8))]])
-                    if !replacing { clip.id = UUID(); clip.parentID = original.parentID ?? original.id; clip.date = Date(); clip.title = String(original.title.prefix(130)) + " · formaté"; clip.source = "EasyPaste"; clip.sourceID = "app.easypaste.mac"; clip.pinned = false }
+                    var reps = [ClipRepresentation(type: NSPasteboard.PasteboardType.string.rawValue, data: Data(text.utf8))]
+                    if let rtf { reps.append(.init(type: NSPasteboard.PasteboardType.rtf.rawValue, data: rtf)) }
+                    let payload = ClipPayload(representations: [reps])
+                    clip.id = UUID(); clip.parentID = original.parentID ?? original.id; clip.date = Date()
+                    clip.title = String(title.prefix(150)); clip.source = "EasyPaste"; clip.sourceID = "app.easypaste.mac"; clip.pinned = false
                     clip.text = text; clip.payload = payload; clip.fingerprint = Clip.fingerprint(payload)
-                    clip.storedBytes = nil; clip.ocr = ""; clip.thumbnail = nil; clip.kind = .text
+                    clip.storedBytes = nil; clip.ocr = ""; clip.thumbnail = nil; clip.kind = kind ?? Clip.kind(for: text)
                     try vault.save(clip); continuation.resume(returning: clip)
                 } catch { continuation.resume(throwing: error) }
             }
         }
-        if replacing, let index = clips.firstIndex(where: { $0.id == saved.id }) { clips[index] = saved.metadata() }
-        else { clips.insert(saved.metadata(), at: 0) }
+        clips.insert(saved.metadata(), at: 0)
         selected = saved.id; selectedIDs = [saved.id]; prune()
         return saved.metadata()
     }
@@ -564,7 +560,9 @@ extension History {
     }
     func saveImage(_ data: Data, parent: Clip? = nil, sourceURL: String? = nil) async throws -> Clip {
         guard data.count <= ClipboardReader.limit else { throw CaptureFailure.message("Cette image dépasse 20 Mo. Sélectionne une zone plus petite.") }
-        let clip = await Task.detached(priority: .userInitiated) {
+        let clip = try await Task.detached(priority: .userInitiated) {
+            guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { throw CaptureFailure.message("L’image modifiée n’est pas lisible.") }
+            _ = try ImageRaster.dimensions(source)
             let payload = ClipPayload(representations: [[.init(type: NSPasteboard.PasteboardType.png.rawValue, data: data)]])
             var clip = Clip(title: parent.map { $0.title + " · modifiée" } ?? "Capture d’écran", text: "", source: "EasyPaste", sourceID: "app.easypaste.mac", kind: .image, fingerprint: Clip.fingerprint(payload), payload: payload)
             clip.parentID = parent.map { $0.parentID ?? $0.id }; clip.boards = parent?.boards ?? []
@@ -579,45 +577,6 @@ extension History {
         var clip = Clip(title: String(text.prefix(90)), text: text, source: "Capture de texte", sourceID: "app.easypaste.mac", kind: .text, fingerprint: Clip.fingerprint(payload), payload: payload)
         clip.sourceURL = BrowserOrigin.url(sourceURL)?.absoluteString
         return try await insertCapture(clip)
-    }
-    /// Replace the encrypted image atomically while retaining the card identity,
-    /// title, ordering, favorites and collections. Never retain the old OCR text.
-    func replaceImage(_ data: Data, original: Clip) async throws -> Clip {
-        guard data.count <= ClipboardReader.limit else { throw CaptureFailure.message("Cette image dépasse 20 Mo.") }
-        guard let vault, !fault, !stopping, !replacingImages.contains(original.id),
-              let current = clips.first(where: { $0.id == original.id }), current.kind == .image,
-              current.trashedAt == nil, current.fingerprint == original.fingerprint else {
-            throw CaptureFailure.message("L’image a changé ou n’est plus disponible. Rouvre-la avant de la remplacer.")
-        }
-        replacingImages.insert(original.id)
-        defer {
-            replacingImages.remove(original.id)
-            for update in pendingImageMutations.removeValue(forKey: original.id) ?? [] { mutate(original.id, update) }
-        }
-        let prepared = try await Task.detached(priority: .userInitiated) {
-            guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { throw CaptureFailure.message("L’image modifiée n’est pas lisible.") }
-            _ = try ImageRaster.dimensions(source)
-            let payload = ClipPayload(representations: [[.init(type: NSPasteboard.PasteboardType.png.rawValue, data: data)]])
-            return (payload, Clip.fingerprint(payload), (try? ImageText.recognize(data)) ?? "")
-        }.value
-        writes += 1; defer { writes -= 1 }
-        let saved: Clip = try await withCheckedThrowingContinuation { continuation in
-            disk.async {
-                do {
-                    var clip = try vault.read(Clip.self, name: original.id.uuidString + ".clip")
-                    guard clip.kind == .image, clip.trashedAt == nil, clip.fingerprint == original.fingerprint else { throw CaptureFailure.message("L’image a changé. Rouvre-la avant de la remplacer.") }
-                    clip.payload = prepared.0; clip.fingerprint = prepared.1; clip.ocr = prepared.2
-                    clip.text = ""; clip.storedBytes = nil; clip.thumbnail = nil; clip.imageMetadata = nil; clip.prepareThumbnail()
-                    try vault.save(clip)
-                    continuation.resume(returning: clip)
-                } catch { continuation.resume(throwing: error) }
-            }
-        }
-        guard let index = clips.firstIndex(where: { $0.id == saved.id }) else { throw CaptureFailure.message("Cette image a été supprimée pendant l’enregistrement.") }
-        clips[index] = saved.metadata()
-        if shelfPreview?.id == saved.id { shelfPreview = saved.metadata() }
-        selected = saved.id; selectedIDs = [saved.id]
-        return saved.metadata()
     }
     func saveVideo(_ url: URL) async throws -> Clip {
         let asset = AVURLAsset(url: url)
