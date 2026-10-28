@@ -6,6 +6,26 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyPaste</title>
         <item>
+            <title>0.3.8</title>
+            <pubDate>Wed, 28 Oct 2026 13:57:11 +0100</pubDate>
+            <sparkle:version>25</sparkle:version>
+            <sparkle:shortVersionString>0.3.8</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.8
+
+- **Compteur de collages** : un badge numérique sur chaque tuile indique combien de fois son contenu a été collé depuis EasyPaste. Pratique pour retrouver les liens déjà envoyés. Le badge apparaît dès le premier collage et s’adapte au thème.
+- **Activé par défaut** : l’affichage du compteur peut être masqué dans **Réglages → Général → Collage → Afficher le nombre de collages**. Les compteurs sont conservés localement et chiffrés avec l’historique.
+- **Recherche prête à saisir** : correction du focus parfois absent à l’ouverture de la barre rapide et après une sélection. Le raccourci ⌘F cible la recherche de la fenêtre active.
+- **Défilement horizontal** : la zone de défilement inclut désormais les espaces entre les tuiles et les marges de la barre rapide.
+- **Pile de collage** : les éléments sont retirés de la pile après l’envoi de la commande de collage, pour éviter leur retrait lorsque l’application cible ne peut pas être activée.
+
+Le compteur suit les commandes de collage envoyées par EasyPaste. Il ne compte pas les ⌘V effectués directement dans une autre application et ne reconstitue pas les collages antérieurs à son activation. Il ne confirme pas l’envoi d’un message dans l’application cible.
+
+macOS 15 ou ultérieur, Intel et Apple Silicon.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.8/EasyPaste-0.3.8-universal.dmg" length="13073563" type="application/octet-stream" sparkle:edSignature="LLVThvNga6F/qJt5kvG/3tS9fkKmZqzqccGs68RRxL2Qy+aFa8o3redXLlupsDZJ4HhW7toZ6qJGGv2LuaRwAA=="/>
+        </item>
+        <item>
             <title>0.3.7</title>
             <pubDate>Mon, 26 Oct 2026 09:43:46 +0100</pubDate>
             <sparkle:version>24</sparkle:version>
@@ -49,28 +69,9 @@ macOS 15 ou ultérieur, Intel et Apple Silicon. Le matériau Liquid Glass natif 
 ]]></description>
             <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.6/EasyPaste-0.3.6-universal.dmg" length="12032856" type="application/octet-stream" sparkle:edSignature="scDgbNfcpWung8rS4wD27bUnQ2IeU4Lqk8A8wnpfYW4183ZbV5DCEp0XnchWOkJDDpUvr4AZC7aOkYf6+6CEDA=="/>
         </item>
-        <item>
-            <title>0.3.5</title>
-            <pubDate>Wed, 21 Oct 2026 19:07:31 +0200</pubDate>
-            <sparkle:version>22</sparkle:version>
-            <sparkle:shortVersionString>0.3.5</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.5
-
-- Ouvrir EasyPaste ou utiliser ⇧⌘V affiche uniquement la barre rapide en bas de l’écran. La grande bibliothèque ne se place plus derrière.
-- La bibliothèque reste accessible depuis le bouton EasyPaste dans la barre et le menu « Ouvrir la bibliothèque… ».
-- Fermer la barre ou coller un élément laisse l’application de travail visible.
-- Le lancement à l’ouverture de session reste silencieux.
-
-Cette version conserve le collage en un clic, la sélection adaptée aux nouvelles copies et les pointes de flèches corrigées de la version 0.3.4. Le collage direct nécessite l’accès Accessibilité.
-
-macOS 15 ou ultérieur, Intel et Apple Silicon.
-]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.5/EasyPaste-0.3.5-universal.dmg" length="9470614" type="application/octet-stream" sparkle:edSignature="6VmH21Sz7SS69k53fVUZ1FNcd2kGWvi8QECqyYy6D6Ba8qQ8reUn2imazxz1RU5renTZFvZ3w6fX//RTs5+2DA=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: b6WwiWMsGSpLpn05ZXMk3uNEROb31+yjODoKnNnWPtHLaeCGfgfaPEd61YzVFkX5eTIowT1jqbcbp+rQS1nyAQ==
-length: 6255
+edSignature: 1A4mGtUr3Nb/y59zV0NecsJabg3tFK1aMeGWSbNZbVJCl1PyTLXJp8pRioad5Q3j8I0+bSQQiCJzVS01V18RCg==
+length: 6919
 -->
