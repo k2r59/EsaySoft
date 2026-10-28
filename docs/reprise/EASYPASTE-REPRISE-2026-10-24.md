@@ -768,3 +768,11 @@ Rendus de mise en page : `/Users/k2r59/Library/Caches/EasyPaste-visual-review/sc
 - **Trois cycles réels supplémentaires** : saisir « Capture », ouvrir une capture via l’œil, replier avec Échap, fermer la barre avec Échap, rouvrir EasyPaste depuis le Finder, vérifier le champ focalisé puis saisir à nouveau. Trois cycles réussis. Aucun collage vers une application tierce, aucune modification de contenu utilisateur, aucune nouvelle capture déclenchée.
 - Les gestes horizontaux de l’outil de contrôle restent non concluants pour le défilement physique, même au centre d’une tuile. La couverture de ce point repose donc sur les événements AppKit, les zones de hit-test et leurs déplacements contrôlés ; Hervé devra confirmer le ressenti avec son périphérique. Ne pas prétendre avoir reproduit son trackpad à l’identique.
 - La barre est laissée ouverte, aperçu fermé, recherche vide et focus dans le champ. Rien n’est publié : aucun nouveau tag, aucune release ou modification d’appcast par ce chantier.
+
+## 22. Publication 0.3.8 autorisée le 28 octobre 2026
+
+Hervé a demandé de publier la mise à jour et son changelog, en incluant le compteur de collages. Cette demande lève la consigne de garder privés les changements des sections 20 et 21. Livraison préparée : **0.3.8, build 25**. Elle inclut le badge numérique actif par défaut, le réglage d’affichage, sa persistance chiffrée, le retrait différé de la pile après envoi de la commande, le focus de recherche et les zones de défilement entre les tuiles.
+
+Notes : `app/EasyPaste/docs/RELEASE-0.3.8.md`. Validation : `app/EasyPaste/QA-0.3.8.md`. Suite Release relancée : 304 tests sans échec, 37,12 s. Extension : 60 tests sans échec dans une copie avec dépendances verrouillées sur SSD interne. Parité des sept fichiers partagés conforme. Les limites de validation physique du trackpad restent explicites ; elles ne sont pas effacées par l’autorisation de publication.
+
+Construction et paquet : `/Users/k2r59/Library/Caches/EasyPaste-release-0.3.8/app/EasyPaste`, cache Swift interne partagé, deux tâches au maximum. Publication avec le script existant uniquement après signature, notarisation et contrôles d’intégrité. Les résultats définitifs seront consignés ci-dessous après vérification du flux public.

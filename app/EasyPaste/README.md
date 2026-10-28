@@ -4,7 +4,7 @@ Un gestionnaire de presse-papiers natif pour macOS, gratuit et sous licence MIT.
 
 ## Installation
 
-1. Ouvrir `dist/EasyPaste-0.3.7-universal.dmg`.
+1. Ouvrir `dist/EasyPaste-0.3.8-universal.dmg`.
 2. Glisser EasyPaste dans Applications, puis l’ouvrir.
 3. Cliquer sur **Activer l’historique**. Les prochaines copies seront enregistrées.
 4. Depuis une autre application, ouvrir la barre rapide avec **Maj + Commande + V**.
@@ -32,7 +32,7 @@ mémorisé sur ce Mac. Les couleurs des images et les documents copiés sont con
 
 L’onglet Apparence propose aussi cinq teintes de verre et une transparence de 0 à 80 %. Ces choix s’appliquent à la fenêtre, à sa navigation et à la barre rapide ; les zones de lecture restent opaques. L’aperçu de la barre se déploie vers le haut dans la même fenêtre. Les commandes Aperçu, Favoris et Corbeille sont accessibles sur chaque carte. Le logo Ruban et son [prompt de création](Sources/EasyPaste/Resources/easypaste-ribbon.provenance.json) figurent dans les sources.
 
-Les changements de cette version sont décrits dans [les notes de version 0.3.7](docs/RELEASE-0.3.7.md).
+Les changements de cette version sont décrits dans [les notes de version 0.3.8](docs/RELEASE-0.3.8.md).
 
 La procédure de publication est documentée dans [docs/UPDATES.md](docs/UPDATES.md).
 
