@@ -730,3 +730,41 @@ La signature profonde et le binaire installé ont été vérifiés. SHA-256 du b
 Essai dans la véritable fenêtre installée : Réglages → Général → Collage affiche « Afficher le nombre de collages » **on** au premier lancement. Coche désactivée puis réactivée avec contrôle AX de chaque état ; laissée **on** pour Hervé. Les tests automatisés couvrent la persistance des compteurs et des préférences ; aucun collage de contenu utilisateur dans une application tierce n’a été déclenché pendant ce contrôle de réglage. Les badges chiffrés ont été inspectés dans les rendus de test.
 
 Code privé sauvegardé sur la branche de reprise au commit `8c56c66`. Le document est complété par un commit distinct après installation. **Aucune nouvelle release, aucun tag ni modification du flux OTA** : le flux public est resté identique au SHA-256 de la livraison 0.3.7 mentionné en section 19.
+
+
+## 21. Défilement et focus de recherche, chantier privé du 28 octobre 2026
+
+Hervé a signalé un arrêt du défilement horizontal lorsque le pointeur est entre deux tuiles, et un focus absent par moments à l’ouverture de la recherche. Il a demandé de vérifier soigneusement pendant son absence. La consigne de ne pas publier la version privée reste applicable.
+
+### Changements
+
+- La rangée `LazyHStack` et la zone du `ScrollView` horizontal déclarent un `contentShape(Rectangle())`, afin de couvrir aussi les interstices et marges de la zone de défilement. Aucun panneau visuel, moniteur global ou conversion du sens de défilement ajouté.
+- `SearchInput.swift` remplace le champ de recherche SwiftUI par un champ AppKit sans bordure, en gardant les mêmes couleurs, tailles et indicateurs visuels. Le focus porte sur le véritable éditeur AppKit, sans dépendre d’un booléen `FocusState` qui peut survivre à la fermeture de la barre.
+- Chaque demande de focus porte la fenêtre cible (`NSWindow`) comme objet de notification. Les champs de fenêtres cachées ignorent les demandes destinées à l’autre fenêtre. `toggleShelf`, `revealShelf` et ⌘F emploient cette demande ciblée.
+- Une demande trop précoce est conservée jusqu’à l’attachement, la mise en page ou l’activation de la fenêtre. Elle est consommée dès que le champ devient réellement premier répondant ; aucun minuteur de surveillance et aucune répétition permanente. Les observateurs utilisent des références faibles et sont retirés à la destruction.
+- La saisie, y compris les accents, et l’effacement programmatique du champ restent reliés à `history.query`. Le collage, les raccourcis de navigation et l’aperçu conservent leur gestion existante.
+
+### Vérifications ciblées et limites du diagnostic
+
+`SearchFocusTests.swift` vérifie la demande avant ouverture, huit réouvertures après perte du premier répondant, l’isolation entre fenêtres, les champs cachés/détachés et la saisie/effacement sur un vrai `NSHostingView`.
+
+`ShelfInteractionTests.swift` vérifie le hit-test et le déplacement réel de `NSClipView.bounds` après chaque événement de molette horizontal : corps de tuile et centres d’interstices, marche avant et retour, mode normal/compact et aperçu fermé/ouvert. Le retour atteint l’origine à 0,5 point près. Il utilise des événements dans une fenêtre de test isolée, sans envoyer de touches à une application tierce.
+
+Le test natif de base passait aussi avant l’ajout des rectangles : il ne constitue donc pas une reproduction automatisée certaine du défaut rapporté par Hervé. L’outil de contrôle a donné des gestes horizontaux sans déplacement visible même sur une tuile dans l’ancienne app ; ces essais sont non concluants pour comparer les interstices. En revanche, l’ancienne barre a bien été observée avec sa fenêtre comme élément focalisé, plutôt que le champ. Ne pas transformer ces observations en garantie sur tous les périphériques.
+
+Les premiers ajustements de tests ont corrigé leurs coordonnées : `NSView.hitTest` reçoit un point dans le repère du superview, et la séquence inverse doit parcourir les mêmes points en sens inverse pour qu’ils restent dans la partie visible après défilement. Les assertions finales couvrent les quatre configurations.
+
+Rendus de mise en page : `/Users/k2r59/Library/Caches/EasyPaste-visual-review/scroll-focus/`. Logs : `/tmp/easypaste-scroll-focus-targeted-final.log`, `/tmp/easypaste-scroll-four-modes.log`, `/tmp/easypaste-scroll-focus-full-debug.log`, `/tmp/easypaste-scroll-focus-full-release.log`, `/tmp/easypaste-scroll-focus-build.log`.
+
+
+### Validation et installation du 28 octobre
+
+- Suite complète Debug : **304 tests, zéro échec**, 41,78 s. Suite complète Release : **304 tests, zéro échec**, 36,91 s. Six tests ajoutés pour ce chantier (cinq de focus, un test de défilement couvrant quatre configurations et deux sens). Les tests de compteur de collages et d’ancrage de la barre restent inclus.
+- Compilation universelle arm64/x86_64 réussie, minimum macOS 15, SDK 27. La seule dépréciation x86_64 du SDK est un avertissement, pas un abandon de l’architecture distribuée.
+- Bundle privé préparé : `/Users/k2r59/Library/Caches/EasyPaste-local-install/private-scroll-focus/EasyPaste.app`. Sauvegarde précédente : `before-scroll-focus.zip` dans le même dossier parent.
+- Fermeture normale de l’application depuis son menu « Quitter EasyPaste », arrêt du processus vérifié, remplacement atomique à `/Applications/EasyPaste.app`, puis vérification profonde de signature et égalité du binaire. Même exigence de signature désignée et même identifiant. Aucune réinitialisation de droits macOS ou d’historique.
+- Binaire installé SHA-256 : `fb2a1a483a5a14d266bf51cbb66a3b32cf64697a1c80a942e95d5771b5dc2dc8`. La version affichée reste 0.3.7 (24), avec ces correctifs privés et le compteur postérieurs au tag public.
+- Essai réel au lancement : l’élément focalisé est bien « Rechercher dans l’historique » ; saisie de « Capture » sans clic préalable, filtrage effectif des captures.
+- **Trois cycles réels supplémentaires** : saisir « Capture », ouvrir une capture via l’œil, replier avec Échap, fermer la barre avec Échap, rouvrir EasyPaste depuis le Finder, vérifier le champ focalisé puis saisir à nouveau. Trois cycles réussis. Aucun collage vers une application tierce, aucune modification de contenu utilisateur, aucune nouvelle capture déclenchée.
+- Les gestes horizontaux de l’outil de contrôle restent non concluants pour le défilement physique, même au centre d’une tuile. La couverture de ce point repose donc sur les événements AppKit, les zones de hit-test et leurs déplacements contrôlés ; Hervé devra confirmer le ressenti avec son périphérique. Ne pas prétendre avoir reproduit son trackpad à l’identique.
+- La barre est laissée ouverte, aperçu fermé, recherche vide et focus dans le champ. Rien n’est publié : aucun nouveau tag, aucune release ou modification d’appcast par ce chantier.

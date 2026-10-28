@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 struct SearchBar: View {
     @ThemePalette private var palette
     @ObservedObject var history: History
-    @FocusState private var focused: Bool
+    @State private var focused = false
     @Environment(\.colorSchemeContrast) private var contrast
     var focusOnAppear = false
     var glass = false
@@ -15,7 +15,9 @@ struct SearchBar: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass").foregroundStyle(secondary)
-            TextField("Rechercher dans l’historique…", text: $history.query, prompt: Text(glass ? "Rechercher…" : "Rechercher dans l’historique…").foregroundColor(secondary)).textFieldStyle(.plain).focused($focused).font(.system(size: glass ? 15 : 13)).accessibilityLabel("Rechercher dans l’historique")
+            SearchInput(text: $history.query, focused: $focused,
+                        prompt: glass ? "Rechercher…" : "Rechercher dans l’historique…",
+                        color: secondary, fontSize: glass ? 15 : 13, focusOnAppear: focusOnAppear)
             if !history.query.isEmpty { Button { history.query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(secondary).frame(width: 24, height: 24) }.buttonStyle(FullAreaButtonStyle()) }
             if !glass { KeyCap(text: "⌘F") }
         }.padding(.horizontal, 16).padding(.vertical, 12)
@@ -39,8 +41,6 @@ struct SearchBar: View {
                     Capsule().fill(palette.chromeAccent.opacity(0.35)).frame(height: 1).padding(.horizontal, 16).allowsHitTesting(false)
                 }
             }
-        .onAppear { if focusOnAppear { focused = true } }
-        .onReceive(NotificationCenter.default.publisher(for: .init("EasyPaste.focusSearch"))) { _ in focused = true }
     }
 }
 struct FilterBar: View {
@@ -252,8 +252,10 @@ struct ShelfView: View {
             } else {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal, showsIndicators: false) {
-                        LazyHStack(spacing: 13) { ForEach(Array(history.visible.enumerated()), id: \.element.id) { index, clip in ClipCard(history: history, clip: clip, compact: history.compact, quickIndex: index).frame(width: history.compact ? 215 : 252).id(clip.id) } }.padding(3)
-                    }.onChange(of: history.selected) { _, value in if let value { proxy.scrollTo(value) } }
+                        LazyHStack(spacing: 13) { ForEach(Array(history.visible.enumerated()), id: \.element.id) { index, clip in ClipCard(history: history, clip: clip, compact: history.compact, quickIndex: index).frame(width: history.compact ? 215 : 252).id(clip.id) } }
+                            .padding(3).contentShape(Rectangle())
+                    }.contentShape(Rectangle())
+                    .onChange(of: history.selected) { _, value in if let value { proxy.scrollTo(value) } }
                     .onAppear { if let value = history.selected { proxy.scrollTo(value) } }
                 }
             }

@@ -229,7 +229,10 @@ import CryptoKit
     }
     private func revealShelf() {
         if shelf?.isVisible != true { toggleShelf() }
-        else { window.orderOut(nil); history.surface = "shelf"; shelf?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
+        else {
+            window.orderOut(nil); history.surface = "shelf"; shelf?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+            NotificationCenter.default.post(name: SearchTextField.focusNotification, object: shelf)
+        }
     }
     private func recordingStatus(_ text: String?) {
         guard let text else {
@@ -266,7 +269,7 @@ import CryptoKit
             panel.contentView = ShelfHosting.make(history: history); shelf = panel
         }
         resizeShelf(); shelf?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
-        NotificationCenter.default.post(name: .init("EasyPaste.focusSearch"), object: nil)
+        NotificationCenter.default.post(name: SearchTextField.focusNotification, object: shelf)
     }
     private func resizeShelf() {
         guard let panel = shelf, let screen = (panel.isVisible ? panel.screen : nil) ?? NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main else { return }
@@ -333,7 +336,7 @@ import CryptoKit
             if history.shelfPreview != nil { history.shelfPreview = nil } else { closeShelf() }
             return nil
         }
-        if cmd, event.charactersIgnoringModifiers == "f" { NotificationCenter.default.post(name: .init("EasyPaste.focusSearch"), object: nil); return nil }
+        if cmd, event.charactersIgnoringModifiers == "f" { NotificationCenter.default.post(name: SearchTextField.focusNotification, object: NSApp.keyWindow); return nil }
         if cmd, event.charactersIgnoringModifiers == "n" { if flags.contains(.shift) { history.showNewBoard = true } else { history.newSnippet = true }; return nil }
         if cmd, event.charactersIgnoringModifiers == "e", let clip = history.selectedClip, clip.trashedAt == nil {
             if clip.kind == .image { annotations.open(clip); return nil }
