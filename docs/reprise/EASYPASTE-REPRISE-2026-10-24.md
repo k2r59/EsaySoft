@@ -776,3 +776,20 @@ Hervé a demandé de publier la mise à jour et son changelog, en incluant le co
 Notes : `app/EasyPaste/docs/RELEASE-0.3.8.md`. Validation : `app/EasyPaste/QA-0.3.8.md`. Suite Release relancée : 304 tests sans échec, 37,12 s. Extension : 60 tests sans échec dans une copie avec dépendances verrouillées sur SSD interne. Parité des sept fichiers partagés conforme. Les limites de validation physique du trackpad restent explicites ; elles ne sont pas effacées par l’autorisation de publication.
 
 Construction et paquet : `/Users/k2r59/Library/Caches/EasyPaste-release-0.3.8/app/EasyPaste`, cache Swift interne partagé, deux tâches au maximum. Publication avec le script existant uniquement après signature, notarisation et contrôles d’intégrité. Les résultats définitifs seront consignés ci-dessous après vérification du flux public.
+
+### Résultat de distribution
+
+- Release stable **EasyPaste 0.3.8 (25)** publiée : https://github.com/k2r59/EsaySoft/releases/tag/easypaste-v0.3.8
+- Tag distant ciblant `78d0550fe203c5c20756489f8588c205377f5680`. Les quatre fichiers téléversés ont été retéléchargés et comparés par SHA-256 avant de rendre la release publique.
+- Notarisation Apple acceptée : `2f4056fd-bc4a-432c-997b-613d1b47c671`. Tickets agrafés au DMG et à l’application ZIP. Gatekeeper accepte les deux. Même exigence de signature désignée que la version installée.
+- DMG monté en lecture seule : signature valide, exécutable et Info.plist identiques au paquet signé. Les 200 fichiers suivis de l’application correspondent à la copie de construction ; l’archive source contient la version et les notes correctes, sans node_modules.
+- SHA-256 DMG : `daad03b2e3c1dd9642fb04d4efebc5af7023ce5961124049935f526cd71d4756`.
+- SHA-256 ZIP application : `7ae54788640b68460fd40d563168af8c461cb0d37d0984d8d6f4524cfc7ff790`.
+- SHA-256 ZIP sources : `5a128b81798095c20f35727327ee3e4133951b192ea35a5a8a5ce6990a39d01e`.
+- Flux signé déployé sur `gh-pages`, commit `0118deb405073afd97eaf67cc6a5de0fc3e9a77c`. Contrôles Ed25519 du flux et du DMG réussis avec la clé publique existante.
+- Les archives sont conservées sur SSD interne et copiées dans le `dist` ignoré du dépôt pour le script de publication. Un premier essai de lien symbolique vers le DMG a été refusé par `stapler validate` ; remplacement du lien par une copie exacte, puis validation et publication normales. Aucun changement du script ni contournement de la validation.
+- Cette demande portait sur la publication : `/Applications/EasyPaste.app` n’a pas été remplacée pendant ce tour. L’utilisateur peut installer 0.3.8 via le menu de mise à jour ; la copie privée précédente contient déjà les correctifs mais affiche encore 0.3.7 (24).
+
+Flux public confirmé après déploiement GitHub Pages : première entrée **0.3.8 / build 25**, identique octet pour octet au flux local signé. Signature Ed25519 du fichier public valide. SHA-256 : `ebd3b0c836568ced04b927929f3e91f4149af7fe2728f693b7f9a9682402441d`. GitHub Pages indique `built` sur le commit attendu. Les utilisateurs peuvent rechercher la mise à jour dans l’application.
+
+Installateur : https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.8/EasyPaste-0.3.8-universal.dmg
