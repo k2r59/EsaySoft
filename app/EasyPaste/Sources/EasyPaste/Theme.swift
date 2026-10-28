@@ -57,7 +57,7 @@ struct BrandMark: View {
 struct Surface: ViewModifier {
     @ThemePalette private var palette
     @Environment(\.colorSchemeContrast) private var contrast
-    func body(content: Content) -> some View { content.background(Theme.panel, in: RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(contrast == .increased ? Theme.ink.opacity(0.5) : palette.accent.opacity(0.10))) }
+    func body(content: Content) -> some View { content.background(Theme.panel, in: RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(contrast == .increased ? Theme.ink.opacity(0.5) : palette.accent.opacity(0.10)).allowsHitTesting(false).accessibilityHidden(true)) }
 }
 extension View { func surface() -> some View { modifier(Surface()) } }
 

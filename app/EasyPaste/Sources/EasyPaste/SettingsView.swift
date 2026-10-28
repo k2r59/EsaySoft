@@ -192,14 +192,25 @@ struct PreferenceRow<Control: View>: View {
     }
 }
 struct PreferenceToggle: View {
+    @ThemePalette private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let title: String
     @Binding var isOn: Bool
     init(_ title: String, isOn: Binding<Bool>) { self.title = title; _isOn = isOn }
     var body: some View {
         Button { isOn.toggle() } label: {
             PreferenceRow(title) {
-                Toggle(title, isOn: $isOn).labelsHidden().toggleStyle(.switch).controlSize(.small)
-                    .allowsHitTesting(false).accessibilityHidden(true)
+                // A decorative track, not a disabled native control nested inside a button.
+                // The enclosing button owns the entire row, including this indicator.
+                Capsule().fill(isOn ? palette.accent : Theme.muted.opacity(0.28))
+                    .overlay(alignment: isOn ? .trailing : .leading) {
+                        Circle().fill(.white)
+                            .overlay(Circle().strokeBorder(.black.opacity(0.12), lineWidth: 0.5))
+                            .padding(2).frame(width: 24, height: 24)
+                    }
+                    .frame(width: 42, height: 24)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isOn)
+                    .accessibilityHidden(true)
             }.contentShape(Rectangle())
         }.buttonStyle(FullAreaButtonStyle())
             .accessibilityRepresentation {
