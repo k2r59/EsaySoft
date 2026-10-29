@@ -26,10 +26,18 @@ import AppKit
     @Published var downloadErrors: [String: String] = [:]
     @Published var searching = false
     @Published var searched = false
-    @Published var notice: String?
-    var noticeIsWarning: Bool {
-        let text = notice?.lowercased() ?? ""
-        return ["impossible", "aucune version", "protégé", "indisponible", "erreur", "dépassé", "plusieurs versions", "ne répond", "trop de demandes", "trop de temps"].contains { text.contains($0) }
+    let notifications = MusicNotifications()
+    @Published private var latestNotice: String?
+    var notice: String? {
+        get { latestNotice }
+        set {
+            latestNotice = newValue
+            if let newValue { notifications.post(newValue) }
+        }
+    }
+    func showError(_ message: String) {
+        latestNotice = message
+        notifications.post(message, warning: true)
     }
     @Published var selected: Track?
     @Published var formats: [AudioFormat] = []
@@ -53,6 +61,7 @@ import AppKit
     private var playbackTask: Task<Void, Never>?
     private var streamPrefetchTask: Task<AudioStream?, Never>?
     private var streamPrefetchTarget: Track?
+    private var streamPrefetchIsIntent = false
     private var bufferTimeout: Task<Void, Never>?
     private var itemObservation: NSKeyValueObservation?
     private var controlObservation: NSKeyValueObservation?
@@ -117,7 +126,7 @@ import AppKit
         do {
             try fm.createDirectory(at: storage.deletingLastPathComponent(), withIntermediateDirectories: true)
             if fm.fileExists(atPath: storage.path) { library = try JSONDecoder().decode(Library.self, from: Data(contentsOf: storage)) }
-        } catch { notice = "La bibliothèque n’a pas pu être chargée : \(error.localizedDescription)" }
+        } catch { showError("La bibliothèque n’a pas pu être chargée : \(error.localizedDescription)") }
         player.volume = volume
         guard observePlayback else { return }
         endObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: nil, queue: .main) { [weak self] notification in
@@ -177,7 +186,7 @@ import AppKit
     }
     func save() {
         do { try JSONEncoder().encode(library).write(to: storage, options: .atomic) }
-        catch { notice = "Impossible d’enregistrer la bibliothèque : \(error.localizedDescription)" }
+        catch { showError("Impossible d’enregistrer la bibliothèque : \(error.localizedDescription)") }
     }
     func chooseFolder() {
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
@@ -219,14 +228,14 @@ import AppKit
                         results = [track]; selected = track; formats = available; selectedFormat = "best"; searching = false
                         return
                     }
-                } catch { if searchID == id { notice = error.localizedDescription; searching = false }; return }
+                } catch { if searchID == id { showError(error.localizedDescription); searching = false }; return }
             }
             let resolvedSpotify = URL(string: text)?.host == "open.spotify.com"
             if mode != .tracks && mode != .all && !resolvedSpotify {
                 do {
                     let items = try await Catalog.search(actual, mode: mode)
                     if searchID == id { catalogItems = items; searching = false; if !items.isEmpty { rememberInterest(actual, weight: 1) } }
-                } catch { if searchID == id { notice = error.localizedDescription; searching = false } }
+                } catch { if searchID == id { showError(error.localizedDescription); searching = false } }
                 return
             }
             await withTaskGroup(of: (String, [Track], [CatalogItem], String?).self) { group in
@@ -252,7 +261,7 @@ import AppKit
                 guard searchID == id else { return }
                 searching = false
                 if !results.isEmpty || !catalogItems.isEmpty { rememberInterest(actual, weight: 1) }
-                if !failures.isEmpty { notice = "Sources momentanément indisponibles : \(failures.joined(separator: ", ")). Les autres résultats restent utilisables." }
+                if !failures.isEmpty { showError("Sources momentanément indisponibles : \(failures.joined(separator: ", ")). Les autres résultats restent utilisables.") }
             }
         }
     }
@@ -279,7 +288,7 @@ import AppKit
                     let tracks = try await Catalog.tracks(in: item)
                     if searchID == id { results = tracks; if !tracks.isEmpty { rememberInterest(item.kind == "album" && !item.subtitle.isEmpty ? item.subtitle : item.name, weight: 1) } }
                 }
-            } catch { if searchID == id { notice = error.localizedDescription } }
+            } catch { if searchID == id { showError(error.localizedDescription) } }
             if searchID == id { searching = false }
         }
     }
@@ -298,7 +307,7 @@ import AppKit
                 let (_, available) = try await Engine.inspect(track.url)
                 guard inspectID == id else { return }
                 formats = available; inspecting = false
-            } catch { if inspectID == id { inspecting = false; notice = error.localizedDescription } }
+            } catch { if inspectID == id { inspecting = false; showError(error.localizedDescription) } }
         }
     }
     @discardableResult func importPlaylist(_ link: String) async -> Bool {
@@ -306,7 +315,7 @@ import AppKit
         importingPlaylist = true; notice = nil
         defer { importingPlaylist = false }
         do { acceptImport(try await PlaylistImport.load(link)); return true }
-        catch { notice = error.localizedDescription; return false }
+        catch { showError(error.localizedDescription); return false }
     }
     func acceptImport(_ imported: ImportedPlaylist) {
         // Re-import updates the same playlist; existing local additions remain intact.
@@ -377,7 +386,6 @@ import AppKit
                     }
                 }, status: { [weak self] phase in
                     self?.updateDownload(requested.id, progress: 0, phase: phase)
-                    if phase.hasPrefix("Autre source") { self?.notice = "Une source audio a échoué pour « \(requested.title) ». \(phase)" }
                 })
             }
             let (source, path) = result
@@ -387,7 +395,11 @@ import AppKit
             if !library.tracks.contains(where: { $0.path == path }) { library.tracks.insert(LocalTrack(track: saved, path: path, bitrateKbps: bitrate), at: 0) }
             save(); notice = "« \(requested.title) » est dans votre bibliothèque."
         } catch {
-            downloadErrors[requested.id] = error.localizedDescription; notice = error.localizedDescription
+            downloadErrors[requested.id] = error.localizedDescription
+            let reason = error.localizedDescription
+            showError(reason.contains("« \(requested.title) »")
+                      ? "Téléchargement impossible. \(reason)"
+                      : "Téléchargement impossible pour « \(requested.title) ». \(reason)")
         }
     }
     @discardableResult func createPlaylist(_ name: String, navigate: Bool = true) -> UUID? {
@@ -423,7 +435,7 @@ import AppKit
         if let local = downloaded(track) { play(local, keepQueue: keepQueue); return }
         if !keepQueue { preparePlaybackQueue(for: track) }
         let preparation = streamPrefetchTarget.map { matchesRecording($0, track) } == true ? streamPrefetchTask : nil
-        if preparation != nil { streamPrefetchTask = nil; streamPrefetchTarget = nil }
+        if preparation != nil { streamPrefetchTask = nil; streamPrefetchTarget = nil; streamPrefetchIsIntent = false }
         resetPlaybackRequest()
         playing = nil; previewing = nil; streaming = nil
         player.pause(); player.replaceCurrentItem(with: nil); isPlaying = false
@@ -435,6 +447,7 @@ import AppKit
         playbackTask?.cancel(); playbackTask = nil
         streamPrefetchTask?.cancel(); streamPrefetchTask = nil
         streamPrefetchTarget = nil
+        streamPrefetchIsIntent = false
         bufferTimeout?.cancel(); bufferTimeout = nil
         itemObservation = nil; playbackID = UUID()
         requestedPlayback = nil; previewLoadingID = nil; isBuffering = false
@@ -470,7 +483,7 @@ import AppKit
             } catch {
                 guard playbackID == id, !Task.isCancelled else { return }
                 requestedPlayback = nil; streaming = nil; isBuffering = false; isPlaying = false
-                notice = "Lecture en ligne impossible pour « \(track.title) ». \(error.localizedDescription)"
+                showError("Lecture en ligne impossible pour « \(track.title) ». \(error.localizedDescription)")
             }
         }
     }
@@ -514,20 +527,36 @@ import AppKit
     }
     private func prepareNextStream() {
         streamPrefetchTask?.cancel(); streamPrefetchTask = nil
-        streamPrefetchTarget = nil
+        streamPrefetchTarget = nil; streamPrefetchIsIntent = false
         guard observesPlayback, streamResolver == nil || streamPrefetchResolver != nil, previewing == nil, let currentTrack,
               let index = playbackQueue.firstIndex(where: { matchesRecording($0, currentTrack) }),
               index + 1 < playbackQueue.count else { return }
         let next = playbackQueue[index + 1]
         guard downloaded(next) == nil else { return }
-        streamPrefetchTarget = next
+        startStreamPreparation(next, intention: false)
+    }
+    func preparePlaybackIntent(_ track: Track, hovering: Bool) {
+        if !hovering {
+            guard streamPrefetchIsIntent, streamPrefetchTarget.map({ matchesRecording($0, track) }) == true else { return }
+            prepareNextStream()
+            return
+        }
+        guard observesPlayback, streamResolver == nil || streamPrefetchResolver != nil,
+              requestedPlayback == nil, previewLoadingID == nil, previewing == nil,
+              downloaded(track) == nil, currentTrack.map({ matchesRecording($0, track) }) != true else { return }
+        guard streamPrefetchTarget.map({ matchesRecording($0, track) }) != true else { return }
+        streamPrefetchTask?.cancel()
+        startStreamPreparation(track, intention: true)
+    }
+    private func startStreamPreparation(_ track: Track, intention: Bool) {
+        streamPrefetchTarget = track; streamPrefetchIsIntent = intention
         let resolver = streamPrefetchResolver
         // Only resolve metadata and prepare the audio stream. Never add media to the library.
         streamPrefetchTask = Task(priority: .utility) {
             do {
-                try await Task.sleep(nanoseconds: 1_000_000_000)
-                if let resolver { return try await resolver(next) }
-                return try await AudioStreaming.resolve(next)
+                try await Task.sleep(nanoseconds: intention ? 250_000_000 : 1_000_000_000)
+                if let resolver { return try await resolver(track) }
+                return try await AudioStreaming.resolve(track)
             } catch { return nil }
         }
     }
@@ -546,7 +575,7 @@ import AppKit
         itemObservation = nil; bufferTimeout?.cancel(); bufferTimeout = nil
         player.pause(); player.replaceCurrentItem(with: nil); isPlaying = false; isBuffering = false
         guard let track = streaming, let source = streamSource else {
-            notice = previewing != nil ? "Extrait indisponible. Réessayez dans un instant." : "Lecture impossible pour ce format. Le fichier reste accessible dans le Finder."
+            showError(previewing != nil ? "Extrait indisponible. Réessayez dans un instant." : "Lecture impossible pour ce format. Le fichier reste accessible dans le Finder.")
             return
         }
         attemptedStreams.insert(source.url)
@@ -556,11 +585,11 @@ import AppKit
             resolveStream(track, id: playbackID, resumeAt: position)
         } else {
             requestedPlayback = nil; streaming = nil
-            notice = "Lecture en ligne impossible : aucune autre source audio accessible pour « \(track.title) ». Réessayez dans un instant."
+            showError("Lecture en ligne impossible : aucune autre source audio accessible pour « \(track.title) ». Réessayez dans un instant.")
         }
     }
     func play(_ track: LocalTrack, keepQueue: Bool = false) {
-        guard FileManager.default.fileExists(atPath: track.path) else { notice = "Ce fichier a été déplacé ou supprimé : \(track.path)"; return }
+        guard FileManager.default.fileExists(atPath: track.path) else { showError("Ce fichier a été déplacé ou supprimé : \(track.path)"); return }
         if !keepQueue { preparePlaybackQueue(for: track.track) }
         resetPlaybackRequest()
         let id = playbackID
@@ -583,7 +612,7 @@ import AppKit
                 listeningSeconds = 0; listeningRecorded = false; lastListeningTick = Date()
                 installPlayerItem(AVPlayerItem(url: url))
             } catch {
-                if playbackID == id, !Task.isCancelled { requestedPlayback = nil; isBuffering = false; notice = error.localizedDescription }
+                if playbackID == id, !Task.isCancelled { requestedPlayback = nil; isBuffering = false; showError(error.localizedDescription) }
             }
         }
     }
@@ -599,7 +628,7 @@ import AppKit
                 let target = try await Transfer.export(tracks, name: name, into: parent)
                 NSWorkspace.shared.open(target)
                 notice = "Export prêt. Dans Offline Music sur iPhone : Import → Files ou Computer. Importez les fichiers audio ; les playlists doivent être recréées dans l’application."
-            } catch { notice = error.localizedDescription }
+            } catch { showError(error.localizedDescription) }
             exporting = false
         }
     }
@@ -634,7 +663,7 @@ import AppKit
                 playing = nil; streaming = nil; previewing = track; previewLoadingID = nil; position = 0
                 listeningSeconds = 0; listeningRecorded = false; lastListeningTick = Date()
                 installPlayerItem(AVPlayerItem(url: url))
-            } catch { if playbackID == id, !Task.isCancelled { previewLoadingID = nil; notice = error.localizedDescription } }
+            } catch { if playbackID == id, !Task.isCancelled { previewLoadingID = nil; showError(error.localizedDescription) } }
         }
     }
     func togglePlayback() {

@@ -70,10 +70,12 @@ enum PlaylistImport {
                   let title = row["title"] as? String, !title.isEmpty else { return nil }
             let id = String(uri.dropFirst("spotify:track:".count))
             guard id.count == 22, id.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) }) else { return nil }
+            let artists = (row["subtitle"] as? String ?? "").components(separatedBy: ",\u{00a0}")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
             return Track(id: "spotify:\(id)", title: title, artist: row["subtitle"] as? String ?? "",
                          duration: (row["duration"] as? Double).map { $0 / 1000 }, artwork: cover,
                          url: "https://open.spotify.com/track/\(id)", source: "Spotify",
-                         preview: (row["audioPreview"] as? [String: Any])?["url"] as? String, isCatalog: true)
+                         preview: (row["audioPreview"] as? [String: Any])?["url"] as? String, isCatalog: true, artistCredits: artists)
         }
         return try checked(ImportedPlaylist(name: entity["name"] as? String ?? "Playlist Spotify",
             sourceURL: "https://open.spotify.com/playlist/\(key)", tracks: tracks,

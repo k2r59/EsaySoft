@@ -16,11 +16,40 @@ struct AudioStream {
 }
 
 enum AudioStreaming {
+    static func warmUpRuntime() async {
+        guard let runtime = Bundle.main.resourceURL?.appendingPathComponent("bin/yt-dlp-runtime/yt-dlp_macos"),
+              FileManager.default.isExecutableFile(atPath: runtime.path) else { return }
+        // Prime the installed executable locally. No catalogue or audio request.
+        _ = try? await StreamingProcess.run(["--version"], timeout: 8)
+    }
     // Every branch explicitly excludes video. No extraction, conversion, output path or download section.
     // YouTube DASH M4A can report twice the duration in AVFoundation. Native HLS has correct timing.
     static let formatSelection = "bestaudio[vcodec=none][protocol^=m3u8]/bestaudio[vcodec=none][ext=m4a][acodec^=mp4a]/bestaudio[vcodec=none][ext=m4a][acodec=aac]/bestaudio[vcodec=none][ext=mp3]"
-    static func extractionArguments(_ url: String) -> [String] {
-        ["--skip-download", "--dump-single-json", "-f", formatSelection, "--", url]
+    static func extractionArguments(_ url: String, fast: Bool = false) -> [String] {
+        let profile = fast ? ["--extractor-args", "youtube:player_client=visionos;player_skip=initial_data;skip=dash,translated_subs"] : []
+        return profile + ["--skip-download", "--dump-single-json", "-f", formatSelection, "--", url]
+    }
+    static func hasFastProfile(_ raw: String) -> Bool {
+        guard let host = URL(string: raw)?.host?.lowercased() else { return false }
+        return host == "youtu.be" || host == "youtube.com" || host.hasSuffix(".youtube.com")
+    }
+    static func candidateStream(_ candidate: Track, expectedDuration: Double?,
+                                read: ([String], TimeInterval) async throws -> [String: Any],
+                                validate: (AudioStream) async throws -> Void) async throws -> AudioStream {
+        let profiles = hasFastProfile(candidate.url) ? [true, false] : [false]
+        for fast in profiles {
+            try Task.checkCancellation()
+            do {
+                let json = try await read(extractionArguments(candidate.url, fast: fast), fast ? 5 : 15)
+                guard durationMatches(json["duration"] as? Double, expectedDuration) else { throw AudioFailure.unavailable }
+                return try await firstPlayable(streams(json, source: candidate), validate: validate)
+            } catch is CancellationError { throw CancellationError() }
+            catch {
+                try Task.checkCancellation()
+                if !fast { throw error }
+            }
+        }
+        throw AudioFailure.unavailable
     }
     static func resolve(_ target: Track, excluding: Set<String> = []) async throws -> AudioStream {
         try Task.checkCancellation()
@@ -37,10 +66,11 @@ enum AudioStreaming {
             let output = try await StreamingProcess.run(["--flat-playlist", "--dump-json", "--", "\(prefix)5:\(query)"], timeout: try remaining(12))
             return Engine.jsonLines(output).compactMap { Engine.track($0, source: service) }
         }, extract: { candidate in
-            let output = try await StreamingProcess.run(extractionArguments(candidate.url), timeout: try remaining(15))
-            guard let json = Engine.jsonLines(output).first else { throw AudioFailure.unavailable }
-            guard durationMatches(json["duration"] as? Double, target.duration) else { throw AudioFailure.unavailable }
-            return try await firstPlayable(streams(json, source: candidate)) { stream in
+            try await candidateStream(candidate, expectedDuration: target.duration, read: { args, cap in
+                let output = try await StreamingProcess.run(args, timeout: try remaining(cap))
+                guard let json = Engine.jsonLines(output).first else { throw AudioFailure.unavailable }
+                return json
+            }) { stream in
                 try await validate(stream, expectedDuration: target.duration ?? stream.source.duration, timeout: try remaining(8))
             }
         })
@@ -187,7 +217,7 @@ actor AudioStreamCache {
 }
 
 /// Process output stays in memory. Cancellation stops yt-dlp instead of leaving a detached extraction running.
-private enum StreamingProcess {
+enum StreamingProcess {
     static func run(_ args: [String], timeout: TimeInterval) async throws -> String {
         guard let binary = Engine.executable("yt-dlp") else { throw MusicError.message("Le moteur audio est absent.") }
         let holder = StreamingProcessHolder()

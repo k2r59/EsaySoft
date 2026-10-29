@@ -11,6 +11,7 @@ struct Track: Identifiable, Codable, Hashable {
     var preview: String?
     var isCatalog: Bool = false
     var creditedArtist: String? = nil
+    var artistCredits: [String]? = nil
     var durationLabel: String {
         guard let duration, duration.isFinite, duration >= 0 else { return "—" }
         return String(format: "%d:%02d", Int(duration) / 60, Int(duration) % 60)
@@ -89,6 +90,60 @@ enum Matching {
         title.replacingOccurrences(of: #"(?i)\s*\(sur (?:les motifs|un thème) de\b[^)]*\)"#, with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
+    static func musicalTitle(_ title: String) -> String {
+        // Remove guest credits, preserving version suffixes and ordinary title words such as "Featuring You".
+        titleForSearch(title).replacingOccurrences(of: #"(?i)\s*[\(\[]\s*(?:feat\.?|ft\.?|featuring)\s+[^\)\]]+[\)\]]"#,
+            with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"(?i)\s+(?:feat\.?|ft\.?|featuring)\s+.+?(?=\s+[-–—]\s+|$)"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    static func guestCreditsInTitle(_ title: String) -> String? {
+        guard let expression = try? NSRegularExpression(pattern: #"(?i)(?:[\(\[]\s*|\s+)(?:feat\.?|ft\.?|featuring)\s+([^\)\]]+)"#),
+              let match = expression.firstMatch(in: title, range: NSRange(title.startIndex..., in: title)),
+              let range = Range(match.range(at: 1), in: title) else { return nil }
+        let value = String(title[range])
+        if let suffix = value.range(of: #"\s+[-–—]\s+"#, options: .regularExpression) { return String(value[..<suffix.lowerBound]) }
+        return value
+    }
+    private static func guestNames(_ text: String, known: [String]) -> Set<String> {
+        var remaining = Recommendations.contentKey(text)
+        var names = Set<String>()
+        for name in Set(known.map(Recommendations.contentKey)).sorted(by: { $0.count > $1.count }) where !name.isEmpty {
+            let pattern = #"(?<!\S)"# + NSRegularExpression.escapedPattern(for: name) + #"(?!\S)"#
+            if remaining.range(of: pattern, options: .regularExpression) != nil {
+                names.insert(name)
+                remaining = remaining.replacingOccurrences(of: pattern, with: " ", options: .regularExpression)
+            }
+        }
+        let rest = remaining.split(separator: " ").filter { $0 != "and" && $0 != "et" }.joined(separator: " ")
+        if !rest.isEmpty { names.insert(rest) }
+        return names
+    }
+    static func requestedArtists(_ track: Track) -> [String] {
+        if let credits = track.artistCredits, !credits.isEmpty { return credits }
+        // Spotify embed separates artists with comma + NBSP. An ordinary comma can belong to an artist name.
+        if track.id.hasPrefix("spotify:") || track.source == "Spotify" {
+            return track.artist.components(separatedBy: ",\u{00a0}").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        }
+        return track.artist.isEmpty ? [] : [track.artist]
+    }
+    static func creditedArtists(_ track: Track, requested: [String]) -> [String]? {
+        if let credits = track.artistCredits, !credits.isEmpty { return credits }
+        guard let text = track.creditedArtist else { return nil }
+        let parts = text.replacingOccurrences(of: #"(?i)\s+(?:feat\.?|ft\.?|featuring)\s+"#, with: "|", options: .regularExpression).components(separatedBy: "|")
+        return parts.enumerated().flatMap { index, part -> [String] in
+            if index > 0 { return guestNames(part, known: Array(requested.dropFirst())).sorted() }
+            if requested.contains(where: { Recommendations.contentKey($0) == Recommendations.contentKey(part) }) { return [part] }
+            return part.components(separatedBy: CharacterSet(charactersIn: ",，"))
+        }.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+    }
+    private static func guestCreditKey(_ value: String) -> String {
+        let compact = value.replacingOccurrences(of: "'", with: "").replacingOccurrences(of: "’", with: "")
+        let key = Recommendations.contentKey(compact)
+        // Secondary-credit spelling differences observed across the same official catalogue recordings.
+        let aliases = ["les sages poetes de la rue": "sages poetes de la rue", "the insomniak": "insomniak"]
+        return aliases[key] ?? key
+    }
     static func score(_ candidate: Track, for target: Track) -> Double {
         func vinylSizes(_ title: String) -> Set<String> {
             let tokens = recordingKey(title).split(separator: " ")
@@ -100,20 +155,34 @@ enum Matching {
         }
         let requestedSizes = vinylSizes(target.title), availableSizes = vinylSizes(candidate.title)
         if !requestedSizes.isEmpty, !availableSizes.isEmpty, requestedSizes.isDisjoint(with: availableSizes) { return 0 }
-        if let credited = candidate.creditedArtist, !target.artist.isEmpty {
-            let names = credited.replacingOccurrences(of: #"(?i)\s+(?:feat\.?|ft\.?|featuring)\s+|\s*&\s*|\s*,\s*"#, with: "|", options: .regularExpression)
-                .split(separator: "|").map { Recommendations.contentKey(String($0)) }
-            let artist = Recommendations.contentKey(target.artist)
-            guard names.contains(artist) || Recommendations.contentKey(credited) == artist else { return 0 }
+        let requested = requestedArtists(target)
+        let listedGuests = Array(requested.dropFirst())
+        let candidateCredits = creditedArtists(candidate, requested: requested)
+        let knownGuests = listedGuests + Array((candidateCredits ?? []).dropFirst())
+        var expectedGuests = Set(listedGuests.map(guestCreditKey))
+        if let titleGuests = guestCreditsInTitle(target.title) {
+            expectedGuests.formUnion(guestNames(titleGuests, known: knownGuests).map(guestCreditKey))
         }
-        let title = words(titleForSearch(target.title)), artist = words(target.artist)
+        if !expectedGuests.isEmpty, let actualGuests = guestCreditsInTitle(candidate.title) {
+            let foundGuests = Set(guestNames(actualGuests, known: knownGuests).map(guestCreditKey))
+            guard foundGuests.isSubset(of: expectedGuests) else { return 0 }
+        }
+        let primary = requested.first ?? target.artist
+        if let credits = candidateCredits, !primary.isEmpty {
+            guard let lead = credits.first, Recommendations.contentKey(lead) == Recommendations.contentKey(primary) else { return 0 }
+            if !expectedGuests.isEmpty, credits.count > 1 {
+                let guests = Set(credits.dropFirst().map(guestCreditKey))
+                guard expectedGuests.isSubset(of: guests) else { return 0 }
+            }
+        }
+        let title = words(musicalTitle(target.title)), artist = words(primary)
         let available = words(candidate.title + " " + candidate.artist)
         guard !title.isEmpty else { return 0 }
         let titleScore = Double(title.intersection(available).count) / Double(title.count)
         let artistScore = artist.isEmpty ? 0 : Double(artist.intersection(available).count) / Double(artist.count)
         var score = titleScore * 0.55 + artistScore * 0.3
         if let a = candidate.duration, let b = target.duration { score += max(0, 1 - abs(a-b) / 20) * 0.15 }
-        let unwanted: Set<String> = ["cover", "karaoke", "remix", "live", "sped", "slowed", "instrumental"]
+        let unwanted: Set<String> = ["cover", "karaoke", "remix", "live", "sped", "slowed", "instrumental", "medley", "extended", "radio"]
         if available.intersection(unwanted) != words(target.title).intersection(unwanted) { score -= 0.35 }
         return score
     }

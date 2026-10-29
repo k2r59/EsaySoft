@@ -66,10 +66,6 @@ struct ContentView: View {
                 sidebar.frame(width: 225)
                 VStack(spacing: 0) {
                     topbar
-                    if let notice = store.notice {
-                        NoticeBanner(title: store.noticeIsWarning ? "Action requise" : "Information", message: notice, warning: store.noticeIsWarning, dismiss: { store.notice = nil })
-                            .padding(.horizontal, 24).padding(.bottom, 12)
-                    }
                     if store.section == "home" { home }
                     else if store.section == "search" { searchContent }
                     else if store.section == "settings" { settings }
@@ -83,6 +79,11 @@ struct ContentView: View {
             playerBar.frame(height: 92)
         }
         .background(Theme.background).tint(Theme.green)
+        .overlay(alignment: .bottom) {
+            NoticeToast(notifications: store.notifications)
+                .padding(.horizontal, 24).padding(.bottom, 108)
+        }
+        .task { await AudioStreaming.warmUpRuntime() }
         .task { await store.checkPlaylistUpdates() }
         .task { await store.refreshLocalBitrates() }
         .onReceive(Timer.publish(every: 900, on: .main, in: .common).autoconnect()) { _ in
@@ -376,42 +377,48 @@ struct ContentView: View {
                 }
                 Spacer(minLength: 0)
             }.padding(.vertical, 12)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    Button { if let first = store.currentPlaylist.map({ store.playlistTracks($0) })?.first ?? store.visibleLocal.first?.track { store.requestPlayback(first) } } label: { Label("Lire", systemImage: "play.fill") }
-                        .buttonStyle(GreenButton()).disabled(store.currentPlaylist.map { store.playlistTracks($0).isEmpty } ?? store.visibleLocal.isEmpty)
-                    if let list = store.currentPlaylist, (list.importedTracks != nil || list.addedTracks != nil) {
-                        Button { store.downloadPlaylist(list) } label: { Image(systemName: "arrow.down.circle").font(.system(size: 20)) }
-                            .buttonStyle(ToolbarButtonStyle()).help("Télécharger les titres manquants").accessibilityLabel("Télécharger les titres manquants")
-                            .disabled(!store.playlistTracks(list).contains { store.downloaded($0) == nil && !store.isQueued($0) })
-                    }
-                    Button { store.exportForMobile() } label: { Label(store.exporting ? "Préparation…" : "Pour Offline Music", systemImage: "iphone.and.arrow.forward") }
-                        .buttonStyle(ToolbarButtonStyle()).disabled(store.exporting || store.visibleLocal.isEmpty)
-                    if let list = store.currentPlaylist {
-                        Button { deletingPlaylist = list } label: { Image(systemName: "trash").font(.system(size: 18)) }
-                            .buttonStyle(ToolbarButtonStyle()).help("Supprimer la playlist").accessibilityLabel("Supprimer la playlist")
-                        Menu {
-                            Button("Renommer") { renamingPlaylist = list }
-                            Button("Choisir une pochette…") { store.chooseArtwork(for: list.id) }
-                            Button("Pochette du premier titre") { store.resetArtwork(for: list.id) }
-                            Divider()
-                            Button("Supprimer la playlist…", role: .destructive) { deletingPlaylist = list }
-                            if let raw = list.sourceURL, let url = URL(string: raw) {
-                                Divider()
-                                Link("Voir la source", destination: url)
-                                Button("Vérifier les modifications") { Task { await store.refreshPlaylist(list.id, apply: false) } }
-                            }
-                        } label: { Image(systemName: "ellipsis").font(.system(size: 20)).frame(width: 44, height: 44) }
-                            .menuStyle(.borderlessButton).fixedSize().help("Options de la playlist")
-                        if list.sourceURL != nil {
-                            Button { Task { await store.refreshPlaylist(list.id, apply: true) } } label: {
-                                Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 18))
-                                    .overlay(alignment: .topTrailing) { if list.hasRemoteChanges == true { Circle().fill(Theme.green).frame(width: 7, height: 7).offset(x: 5, y: -5) } }
-                            }.buttonStyle(ToolbarButtonStyle()).disabled(store.checkingPlaylists.contains(list.id))
-                                .help("Synchroniser avec la playlist originale").accessibilityLabel("Synchroniser la playlist")
+            HStack(spacing: 12) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        Button { if let first = store.currentPlaylist.map({ store.playlistTracks($0) })?.first ?? store.visibleLocal.first?.track { store.requestPlayback(first) } } label: { Label("Lire", systemImage: "play.fill") }
+                            .buttonStyle(GreenButton()).disabled(store.currentPlaylist.map { store.playlistTracks($0).isEmpty } ?? store.visibleLocal.isEmpty)
+                        if let list = store.currentPlaylist, (list.importedTracks != nil || list.addedTracks != nil) {
+                            Button { store.downloadPlaylist(list) } label: { Image(systemName: "arrow.down.circle").font(.system(size: 20)) }
+                                .buttonStyle(ToolbarButtonStyle()).help("Télécharger les titres manquants").accessibilityLabel("Télécharger les titres manquants")
+                                .disabled(!store.playlistTracks(list).contains { store.downloaded($0) == nil && !store.isQueued($0) })
                         }
-                    }
-                }.padding(.vertical, 2)
+                        Button { store.exportForMobile() } label: { Label(store.exporting ? "Préparation…" : "Pour Offline Music", systemImage: "iphone.and.arrow.forward") }
+                            .buttonStyle(ToolbarButtonStyle()).disabled(store.exporting || store.visibleLocal.isEmpty)
+                        if let list = store.currentPlaylist {
+                            Button { deletingPlaylist = list } label: { Image(systemName: "trash").font(.system(size: 18)) }
+                                .buttonStyle(ToolbarButtonStyle()).help("Supprimer la playlist").accessibilityLabel("Supprimer la playlist")
+                            Menu {
+                                Button("Renommer") { renamingPlaylist = list }
+                                Button("Choisir une pochette…") { store.chooseArtwork(for: list.id) }
+                                Button("Pochette du premier titre") { store.resetArtwork(for: list.id) }
+                                Divider()
+                                Button("Supprimer la playlist…", role: .destructive) { deletingPlaylist = list }
+                                if let raw = list.sourceURL, let url = URL(string: raw) {
+                                    Divider()
+                                    Link("Voir la source", destination: url)
+                                    Button("Vérifier les modifications") { Task { await store.refreshPlaylist(list.id, apply: false) } }
+                                }
+                            } label: { Image(systemName: "ellipsis").font(.system(size: 20)).frame(width: 44, height: 44) }
+                                .menuStyle(.borderlessButton).fixedSize().help("Options de la playlist")
+                            if list.sourceURL != nil {
+                                Button { Task { await store.refreshPlaylist(list.id, apply: true) } } label: {
+                                    Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 18))
+                                        .overlay(alignment: .topTrailing) { if list.hasRemoteChanges == true { Circle().fill(Theme.green).frame(width: 7, height: 7).offset(x: 5, y: -5) } }
+                                }.buttonStyle(ToolbarButtonStyle()).disabled(store.checkingPlaylists.contains(list.id))
+                                    .help("Synchroniser avec la playlist originale").accessibilityLabel("Synchroniser la playlist")
+                            }
+                        }
+                    }.padding(.vertical, 2)
+                }
+                if let warning = store.currentPlaylist?.importWarning {
+                    PlaylistWarningButton(message: warning)
+                        .id(store.currentPlaylist?.id)
+                }
             }
             if let playlist = store.currentPlaylist, (playlist.importedTracks != nil || playlist.addedTracks != nil) {
                 ImportedPlaylistView(playlist: playlist).environmentObject(store)
@@ -429,8 +436,6 @@ struct ContentView: View {
                                 TrackPlaybackButtons(track: local.track, compact: true, showPlay: false).environmentObject(store)
                                 LikeButton(track: local.track)
                                 PlaylistAddButton(track: local.track)
-                                Text(local.bitrateLabel).font(.system(size: 12)).monospacedDigit().foregroundStyle(Theme.secondary).help("Débit mesuré dans le fichier, approximatif pour les formats à débit variable")
-                                Text(URL(fileURLWithPath: local.path).pathExtension.uppercased()).font(.system(size: 10, weight: .bold)).foregroundStyle(Theme.secondary)
                                 Menu {
                                     Button("Lire") { store.play(local) }
                                     Menu("Ajouter à une playlist") {

@@ -14,6 +14,8 @@ struct TrackPlayButton: View {
                 else { Image(systemName: playing ? "pause.fill" : "play.fill").font(.system(size: 13, weight: .bold)).foregroundStyle(.black) }
             }.frame(width: 40, height: 44).contentShape(Rectangle())
         }.buttonStyle(.plain).help(action).accessibilityLabel("\(action) · \(track.title)")
+            .onHover { store.preparePlaybackIntent(track, hovering: $0) }
+            .onDisappear { store.preparePlaybackIntent(track, hovering: false) }
     }
 }
 

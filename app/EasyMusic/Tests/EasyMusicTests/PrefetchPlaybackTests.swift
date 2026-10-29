@@ -78,6 +78,67 @@ import AVFoundation
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: store.folder.path), ["local.wav"])
     }
 
+    func testHoverPreparationIsSilentAndTransferredToClick() async throws {
+        let f = try fixture(); defer { cleanup(f) }
+        let track = f.remotes[0]
+        var preparations = 0, foreground = 0, release = false, cancelled = false
+        f.store.streamResolver = { song, _ in foreground += 1; return AudioStream(url: f.audio, source: song) }
+        f.store.streamPrefetchResolver = { song in
+            preparations += 1
+            do { while !release { try await Task.sleep(nanoseconds: 20_000_000) } }
+            catch { cancelled = true; throw error }
+            return AudioStream(url: f.audio, source: song)
+        }
+        f.store.preparePlaybackIntent(track, hovering: true)
+        try await eventually { preparations == 1 }
+        XCTAssertNil(f.store.currentTrack); XCTAssertNil(f.store.player.currentItem)
+        XCTAssertFalse(f.store.isPlaying); XCTAssertNil(f.store.requestedPlayback)
+        f.store.requestPlayback(track)
+        f.store.preparePlaybackIntent(track, hovering: false)
+        release = true
+        try await eventually { f.store.streaming?.id == track.id && f.store.player.currentTime().seconds > 0.1 }
+        XCTAssertEqual(preparations, 1); XCTAssertEqual(foreground, 0); XCTAssertFalse(cancelled)
+        XCTAssertEqual(f.store.library.tracks.map(\.id), [f.local.id])
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: f.store.folder.path), ["local.wav"])
+    }
+
+    func testLeavingHoverCancelsPendingAndRunningPreparation() async throws {
+        let f = try fixture(); defer { cleanup(f) }
+        let track = f.remotes[0]
+        var starts = 0, cancelled = false
+        f.store.streamPrefetchResolver = { song in
+            starts += 1
+            do { try await Task.sleep(nanoseconds: 5_000_000_000) }
+            catch { cancelled = true; throw error }
+            return AudioStream(url: f.audio, source: song)
+        }
+        f.store.preparePlaybackIntent(track, hovering: true)
+        f.store.preparePlaybackIntent(track, hovering: false)
+        try await Task.sleep(nanoseconds: 350_000_000)
+        XCTAssertEqual(starts, 0)
+        f.store.preparePlaybackIntent(track, hovering: true)
+        try await eventually { starts == 1 }
+        f.store.preparePlaybackIntent(track, hovering: false)
+        try await eventually { cancelled }
+        XCTAssertNil(f.store.currentTrack); XCTAssertNil(f.store.player.currentItem)
+        XCTAssertFalse(f.store.isPlaying)
+    }
+
+    func testHoverDoesNotCompeteWithRequestedPlayback() async throws {
+        let f = try fixture(remoteCount: 2); defer { cleanup(f) }
+        var preparations = 0
+        f.store.streamResolver = { song, _ in
+            try await Task.sleep(nanoseconds: 5_000_000_000)
+            return AudioStream(url: f.audio, source: song)
+        }
+        f.store.streamPrefetchResolver = { song in preparations += 1; return AudioStream(url: f.audio, source: song) }
+        f.store.requestPlayback(f.remotes[0])
+        f.store.preparePlaybackIntent(f.remotes[1], hovering: true)
+        try await Task.sleep(nanoseconds: 350_000_000)
+        XCTAssertEqual(preparations, 0)
+        XCTAssertEqual(f.store.requestedPlayback?.id, f.remotes[0].id)
+    }
+
     func testCancellingHandoffCancelsPreparationAndIgnoresLateResult() async throws {
         let f = try fixture(); defer { cleanup(f) }
         let store = f.store

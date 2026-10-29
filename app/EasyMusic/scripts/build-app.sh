@@ -2,17 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p .tools
-VERSION=2026.10.26
-EXPECTED=0f922c15ccc0b83eefa1c8bc9104e434318c4bf16e408e1ee93b7745a6efe0aa
-if [ ! -f .tools/yt-dlp ]; then
-  curl -fL "https://github.com/yt-dlp/yt-dlp/releases/download/$VERSION/yt-dlp_macos" -o .tools/yt-dlp
-fi
-ACTUAL=$(shasum -a 256 .tools/yt-dlp | cut -d ' ' -f 1)
-if [ "$ACTUAL" != "$EXPECTED" ]; then
-  echo 'La somme SHA-256 de yt-dlp ne correspond pas à la version attendue.' >&2
-  exit 1
-fi
-chmod +x .tools/yt-dlp
+python3 scripts/prepare-ytdlp.py
 if [ ! -f .tools/AppIcon.icns ]; then
   mkdir -p .tools/AppIcon.iconset
   swift scripts/make-icon.swift .tools/icon.png
@@ -31,7 +21,7 @@ trap 'rm -rf "$STAGING"' EXIT
 APP="$STAGING/EasyMusic.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/bin" "$APP/Contents/Frameworks"
 cp "$BIN_DIR/EasyMusic" "$APP/Contents/MacOS/EasyMusic"
-cp .tools/yt-dlp "$APP/Contents/Resources/bin/yt-dlp"
+ditto .tools/runtime/yt-dlp-runtime "$APP/Contents/Resources/bin/yt-dlp-runtime"
 cp .tools/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -79,10 +69,11 @@ codesign "${SIGN[@]}" --preserve-metadata=entitlements "$FW/Versions/B/XPCServic
 codesign "${SIGN[@]}" "$FW/Versions/B/Autoupdate"
 codesign "${SIGN[@]}" "$FW/Versions/B/Updater.app"
 codesign "${SIGN[@]}" "$FW"
+python3 scripts/sign-ytdlp.py "$APP/Contents/Resources/bin/yt-dlp-runtime"
 for TOOL in "$APP/Contents/Resources/bin/"*; do
+ [ -f "$TOOL" ] || continue
  case "$(basename "$TOOL")" in
    node) codesign "${SIGN[@]}" --entitlements scripts/node.entitlements "$TOOL" ;;
-   yt-dlp) codesign "${SIGN[@]}" --entitlements scripts/runtime.entitlements "$TOOL" ;;
    *) codesign "${SIGN[@]}" "$TOOL" ;;
  esac
 done

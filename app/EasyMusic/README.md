@@ -13,9 +13,9 @@ Pour reconstruire l’application, installez Xcode ou ses outils de développeme
 open dist/EasyMusic.app
 ```
 
-Le script récupère yt-dlp 2026.10.26 depuis sa publication officielle et vérifie son SHA-256. L’application cible macOS 13 ou version ultérieure et les Mac Intel et Apple Silicon. La signature locale permet les essais sur ce Mac ; la distribution sur d’autres Mac nécessite une signature Developer ID et une notarisation.
+Le script récupère l’archive officielle yt-dlp 2026.10.26 et vérifie son SHA-256. Le moteur est déployé une seule fois dans le paquet pour éviter sa décompression à chaque recherche ou lecture. L’application cible macOS 13 ou version ultérieure et les Mac Intel et Apple Silicon. La signature locale permet les essais sur ce Mac ; la distribution sur d’autres Mac nécessite une signature Developer ID et une notarisation.
 
-FFmpeg est facultatif pour télécharger le format original. Il active la conversion MP3/M4A, les métadonnées et pochettes intégrées lors de ces conversions, ainsi que la lecture locale des fichiers Opus/WebM. Node.js, s’il est installé, sert aux défis JavaScript de YouTube. Le moteur les recherche dans les emplacements Homebrew usuels. Le paquet de distribution 0.6.0 intègre ces deux dépendances. Le script de compilation rapide ne les inclut que si `BUNDLE_RUNTIME=1`.
+FFmpeg est facultatif pour télécharger le format original. Il active la conversion MP3/M4A, les métadonnées et pochettes intégrées lors de ces conversions, ainsi que la lecture locale des fichiers Opus/WebM. Node.js, s’il est installé, sert aux défis JavaScript de YouTube. Le moteur les recherche dans les emplacements Homebrew usuels. Le paquet de distribution 0.6.1 intègre ces deux dépendances. Le script de compilation rapide ne les inclut que si `BUNDLE_RUNTIME=1`.
 
 ## Utiliser EasyMusic
 
@@ -148,3 +148,9 @@ Dans une liste, le bouton lecture se trouve à gauche de la pochette. La pochett
 Le streaming privilégie les flux HLS audio compatibles avec le lecteur natif. La durée et les pistes sont vérifiées sur un lecteur prêt, avant lecture ; un format refusé peut être remplacé par un autre format de la même source. Les fournisseurs sont interrogés en parallèle et la première source vérifiée est retenue. Les adresses de flux sont gardées en mémoire pendant quinze minutes au maximum, sous réserve de leur expiration. Le prochain morceau de la file est préparé pendant la lecture. Une première connexion dépend encore des services externes et peut prendre plusieurs secondes.
 
 Les détails DJ indiquent la provenance des données : catalogue public, métadonnées du fichier ou estimation audio. Le BPM absent ou nul n’est pas affiché comme zéro. La tonalité est présentée avec sa note et son mode ainsi que sa correspondance Camelot. Une analyse peut rester indéterminée, notamment sur un extrait court, une introduction, un morceau peu tonal ou un changement de tonalité. L’analyse d’un titre distant se déclenche explicitement et ne l’ajoute pas à la bibliothèque.
+
+### Réactivité du streaming (0.6.1)
+
+Le moteur audio est amorcé localement au lancement. Pour YouTube, un parcours réduit prépare les flux HLS ; si l’extraction, les formats ou la validation échouent, le parcours complet est conservé en repli. Les contrôles de durée, de version et d’audio seul restent actifs. Un survol prolongé du bouton lecture prépare le titre sans démarrer le son ni créer de fichier musical. Cette préparation est annulée à la sortie du bouton ou reprise par le clic. Une seule préparation anticipée est active, partagée avec le prochain titre de la file.
+
+Les confirmations apparaissent en notification flottante pendant cinq secondes, sans déplacer les listes. Le survol ou le focus sur le bouton de fermeture suspend leur disparition. Les erreurs restent affichées jusqu’à fermeture, même si un autre téléchargement réussit ou si l’on change de page. L’avertissement d’import se consulte par l’icône orange à droite des actions de la playlist, au survol ou au clic.

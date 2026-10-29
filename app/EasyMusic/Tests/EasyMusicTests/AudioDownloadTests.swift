@@ -77,4 +77,33 @@ final class AudioDownloadTests: XCTestCase {
         await lock.acquire("same")
         await lock.release("same")
     }
+    func testOptionalArtworkFailureRetriesAudioAndTagsOnce() async throws {
+        var options: [Bool] = []
+        let result = try await AudioDownload.withOptionalArtwork(include: true) { artwork in
+            options.append(artwork)
+            if artwork { throw AudioFailure.other }
+            return "FILE:/complete-audio.m4a"
+        }
+        XCTAssertEqual(options, [true, false])
+        XCTAssertEqual(result, "FILE:/complete-audio.m4a")
+    }
+    func testArtworkFallbackDoesNotIgnoreDRMNetworkDiskOrCancellation() async {
+        let errors: [Error] = [AudioFailure.protectedAudio, AudioFailure.network, AudioFailure.localFile, CancellationError()]
+        for error in errors {
+            var calls = 0
+            do {
+                _ = try await AudioDownload.withOptionalArtwork(include: true) { _ in calls += 1; throw error }
+                XCTFail("Une erreur audio ne doit pas devenir un succès sans pochette")
+            } catch { XCTAssertEqual(calls, 1) }
+        }
+    }
+    func testArtworkFallbackRemainsBoundedAndIsAbsentForOriginalExport() async {
+        for include in [true, false] {
+            var calls = 0
+            do {
+                _ = try await AudioDownload.withOptionalArtwork(include: include) { _ in calls += 1; throw AudioFailure.other }
+                XCTFail("Échec attendu")
+            } catch { XCTAssertEqual(calls, include ? 2 : 1) }
+        }
+    }
 }

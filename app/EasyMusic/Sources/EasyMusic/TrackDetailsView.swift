@@ -35,7 +35,7 @@ struct TrackDetailsView: View {
                 djDetails
                 TrackPlaybackButtons(track: track, showPlay: false)
                 if let local = store.downloaded(track) {
-                    Label("En local · \(local.bitrateLabel)", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.green).font(.system(size: 13))
+                    Label("En local · \(URL(fileURLWithPath: local.path).pathExtension.uppercased()) · \(local.bitrateLabel)", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.green).font(.system(size: 13))
                 } else {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack { Text("Qualité audio").fontWeight(.semibold); if store.inspecting { ProgressView().controlSize(.small) } }

@@ -14,7 +14,7 @@ extension MusicStore {
         panel.canChooseDirectories = false; panel.prompt = "Choisir la pochette"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do { try setArtwork(for: id, from: url) }
-        catch { notice = "Impossible de lire cette image. Choisissez une image JPEG, PNG ou HEIC valide." }
+        catch { showError("Impossible de lire cette image. Choisissez une image JPEG, PNG ou HEIC valide.") }
     }
     func setArtwork(for id: UUID, from url: URL) throws {
         guard let index = library.playlists.firstIndex(where: { $0.id == id }) else { return }

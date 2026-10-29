@@ -66,9 +66,6 @@ struct ImportedPlaylistView: View {
     let playlist: Playlist
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if let warning = playlist.importWarning {
-                NoticeBanner(title: "Import potentiellement incomplet", message: warning, warning: true)
-            }
             if let error = store.syncErrors[playlist.id] {
                 NoticeBanner(title: "Vérification impossible", message: error, warning: true)
             }
@@ -81,34 +78,30 @@ struct ImportedPlaylistView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Button { store.select(track) } label: { Text(track.title).lineLimit(1) }.buttonStyle(.plain)
                                 Text(track.artist).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
-                                if let error = store.downloadErrors[track.id] {
-                                    Label(error, systemImage: "exclamationmark.triangle.fill")
-                                        .font(.system(size: 13, weight: .medium)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
-                                }
                             }
                             Spacer()
                             TrackPlaybackButtons(track: track, compact: true, showPlay: false).environmentObject(store)
                             LikeButton(track: track)
                             PlaylistAddButton(track: track)
                             if let local = store.downloaded(track) {
-                                Text(local.bitrateLabel).font(.system(size: 12)).monospacedDigit().foregroundStyle(Theme.secondary)
                                 Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.green).help("Disponible hors connexion")
-                                if let local = store.downloaded(track) {
-                                    Menu {
-                                        ForEach(store.library.playlists) { list in
-                                            if list.id != playlist.id {
-                                                Toggle(list.name, isOn: Binding(get: { store.contains(local.track, in: list) }, set: { value in
-                                                    if value { store.add(local, to: list.id) } else { store.remove(local, from: list.id) }
-                                                }))
-                                            }
+                                Menu {
+                                    ForEach(store.library.playlists) { list in
+                                        if list.id != playlist.id {
+                                            Toggle(list.name, isOn: Binding(get: { store.contains(local.track, in: list) }, set: { value in
+                                                if value { store.add(local, to: list.id) } else { store.remove(local, from: list.id) }
+                                            }))
                                         }
-                                    } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).frame(width: 28).help("Ajouter à une autre playlist")
-                                }
+                                    }
+                                } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).frame(width: 28).help("Ajouter à une autre playlist")
                             } else if store.isQueued(track) {
                                 ProgressView().controlSize(.small).help(store.activeDownloads.contains { $0.id == track.id } ? "Téléchargement en cours" : "En attente")
                             } else {
                                 Button { store.enqueue(track) } label: { Image(systemName: store.downloadErrors[track.id] == nil ? "arrow.down.circle" : "arrow.clockwise") }
-                                    .buttonStyle(.plain).help(store.downloadErrors[track.id] == nil ? "Télécharger" : "Réessayer")
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(store.downloadErrors[track.id] == nil ? Theme.secondary : .orange)
+                                    .help(store.downloadErrors[track.id].map { "Réessayer : \($0)" } ?? "Télécharger")
+                                    .accessibilityLabel(store.downloadErrors[track.id] == nil ? "Télécharger \(track.title)" : "Réessayer le téléchargement de \(track.title)")
                             }
                         }.padding(10).background(Theme.card.opacity(0.5)).cornerRadius(6)
                     }

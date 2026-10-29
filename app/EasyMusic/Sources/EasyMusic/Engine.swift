@@ -3,11 +3,18 @@ import CryptoKit
 
 struct Engine {
     static func executable(_ name: String) -> String? {
-        let paths: [String?] = [Bundle.main.resourceURL?.appendingPathComponent("bin/\(name)").path,
+        let nested = name == "yt-dlp" ? "yt-dlp-runtime/yt-dlp_macos" : name
+        let paths: [String?] = [Bundle.main.resourceURL?.appendingPathComponent("bin/\(nested)").path,
+                     Bundle.main.resourceURL?.appendingPathComponent("bin/\(name)").path,
+                     FileManager.default.currentDirectoryPath + "/.tools/runtime/\(nested)",
                      FileManager.default.currentDirectoryPath + "/.tools/runtime/\(name)",
                      FileManager.default.currentDirectoryPath + "/.tools/\(name)",
                      "/opt/homebrew/bin/\(name)", "/usr/local/bin/\(name)", "/usr/bin/\(name)"]
-        return paths.compactMap { $0 }.first { FileManager.default.isExecutableFile(atPath: $0) }
+        return paths.compactMap { $0 }.first { path in
+            var directory: ObjCBool = false
+            return FileManager.default.fileExists(atPath: path, isDirectory: &directory)
+                && !directory.boolValue && FileManager.default.isExecutableFile(atPath: path)
+        }
     }
     static func run(_ args: [String], timeout: TimeInterval = 100,
                     progress: (@Sendable (String) -> Void)? = nil) async throws -> String {
