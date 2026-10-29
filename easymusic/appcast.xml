@@ -6,6 +6,25 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyMusic</title>
         <item>
+            <title>0.5.0</title>
+            <pubDate>Thu, 29 Oct 2026 12:46:39 +0100</pubDate>
+            <sparkle:version>7</sparkle:version>
+            <sparkle:shortVersionString>0.5.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyMusic 0.5.0
+
+- Lecture complète en streaming des titres non téléchargés. Les fichiers déjà présents sont lus localement.
+- Lecture, extrait de 30 secondes et téléchargement sont séparés. Ajouter un titre à une playlist ne le télécharge plus automatiquement.
+- File de lecture commune aux titres locaux et distants, avec suivant, précédent, aléatoire et répétition. Un téléchargement n’interrompt pas l’écoute.
+- Changement automatique de source audio lorsqu’un flux échoue, en conservant les critères de correspondance du titre et de l’artiste.
+- Recherche améliorée pour les requêtes « titre + artiste », les variantes et les homonymes. Les fiches affichent les artistes et albums liés au morceau identifié.
+- Accueil plus cohérent : genres vérifiés, livres audio avec leurs chapitres, classement des ventes France iTunes et recommandations contrôlées.
+- Renommage et suppression depuis la page d’une playlist, avec conservation des fichiers et du lien d’import. Les ajouts manuels survivent à la synchronisation.
+- Correction des transitions entre lecture et extrait, des demandes de lecture annulées, des doublons de téléchargement et des conversions vers un fichier existant.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easymusic-v0.5.0/EasyMusic-0.5.0-universal.dmg" length="134531204" type="application/octet-stream" sparkle:edSignature="9KaaKxQjL843k9y2lMnMkVCUNEzaICV3qJhx0S5rQP5Krb5XmFT3PED4KPIaU4vji66otR1N1aws3+7DcIjLBQ=="/>
+        </item>
+        <item>
             <title>0.4.0</title>
             <pubDate>Thu, 29 Oct 2026 11:01:15 +0100</pubDate>
             <sparkle:version>5</sparkle:version>
@@ -55,6 +74,6 @@ Validation : 43 tests, dont 15 tests réseau ; imports réels sur les trois plat
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: gLSvO/m54cxf1XgfPs6qamOsHmRTnD9FLxsUR7mFD/+Z0tbMKxHK9+FBK5PvPeo91aruxP4u0ZThMFLHk+/IBQ==
-length: 4214
+edSignature: H955QDmZ2zL284NSmcxWDov/2AMO/VRG4vZuACe2JOM2jc8Mty8AaUdqJ0TLgl0+qPi8ZzL2o3D6Cj3rh2WrCQ==
+length: 6151
 -->
