@@ -1,8 +1,34 @@
-<?xml version="1.0" standalone="yes"?><!-- sparkle-sign-warning:
+<?xml version="1.0" standalone="yes"?>
+<!-- sparkle-sign-warning:
 IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
---><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+-->
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <title>EasyMusic</title>
+        <item>
+            <title>0.4.0</title>
+            <pubDate>Thu, 29 Oct 2026 11:01:15 +0100</pubDate>
+            <sparkle:version>5</sparkle:version>
+            <sparkle:shortVersionString>0.4.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyMusic 0.4.0
+
+- Recherche compacte avec meilleur résultat, filtres par type et playlists.
+- Bouton + : rechercher une playlist, en créer une et ajouter un titre à plusieurs listes.
+- Panneau d’informations au clic sur un titre : pochette, artiste, albums disponibles, lecture et qualité audio.
+- Lecture locale sur la pochette et extrait séparé ; débit audio mesuré pour les fichiers locaux.
+- Actions de playlist sur une seule ligne, téléchargement des titres manquants par icône.
+- Renommage des playlists, pochette personnalisée ou celle du premier morceau.
+- Conservation du lien d’import, vérification périodique pendant l’utilisation, pastille de changement et synchronisation manuelle.
+- Messages d’erreur et avertissements d’import plus visibles ; nouvelle fenêtre d’import.
+- Deux téléchargements simultanés, quatre fragments par transfert et suppression d’une extraction préliminaire inutile.
+- En cas d’échec ou de protection d’une source, recherche d’une autre version audio suffisamment proche. Aucun contournement des protections.
+- Bouton de sortie audio harmonisé avec le lecteur.
+
+L’import et la comparaison Spotify restent limités aux titres exposés par la page publique. Les fichiers déjà téléchargés restent conservés lors de la synchronisation.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easymusic-v0.4.0/EasyMusic-0.4.0-universal.dmg" length="134200880" type="application/octet-stream" sparkle:edSignature="oWXSP6NiLMxkvJjqcz3bTCpuiLDSVAz7Qb20CPNmbcGfQ9+5C/nfPBwWHOQwJwjMHmjAClCAcFgEY+plz10NAw=="/>
+        </item>
         <item>
             <title>0.3.0</title>
             <pubDate>Thu, 29 Oct 2026 10:19:26 +0100</pubDate>
@@ -24,10 +50,11 @@ Application universelle Intel et Apple Silicon, macOS 13 minimum. yt-dlp, FFmpeg
 
 Validation : 43 tests, dont 15 tests réseau ; imports réels sur les trois plateformes vérifiés.
 ]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easymusic-v0.3.0/EasyMusic-0.3.0-universal.dmg" length="133649869" type="application/octet-stream" sparkle:edSignature="7RLh7Gt5VgD6sPt4vvavtgjf2JaJxVoylQZjQWFLJe/NHBWmV8MITCeHQknt4gj7WTTOSy0n0McnyKis7nA5Dw=="></enclosure>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easymusic-v0.3.0/EasyMusic-0.3.0-universal.dmg" length="133649869" type="application/octet-stream" sparkle:edSignature="7RLh7Gt5VgD6sPt4vvavtgjf2JaJxVoylQZjQWFLJe/NHBWmV8MITCeHQknt4gj7WTTOSy0n0McnyKis7nA5Dw=="/>
         </item>
     </channel>
-</rss><!-- sparkle-signatures:
-edSignature: /HPma6VfXbNmujJGHMEcJlC4pMoxqq2OoA9kYywbJR3WwRCqRA6exJ5Woz2RBQ6M4A2T8NOyKF68r5XtOEZlCg==
-length: 2201
+</rss>
+<!-- sparkle-signatures:
+edSignature: gLSvO/m54cxf1XgfPs6qamOsHmRTnD9FLxsUR7mFD/+Z0tbMKxHK9+FBK5PvPeo91aruxP4u0ZThMFLHk+/IBQ==
+length: 4214
 -->
