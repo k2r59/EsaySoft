@@ -89,3 +89,18 @@ Après actualisation du binaire QA vers les sources finales (iTunes/Chapitre), l
 **État actuel : 9/10 catégories vérifiées ; publication encore suspendue.** Restent à constater visuellement sur le binaire final : accueil avec attribution iTunes, recherche/filtres, Livres audio → livre → chapitres → Retour, puis fermeture du volet. Les 94 tests automatisés et les trois passes catalogue réussies couvrent déjà leurs données et logique ; ils ne remplacent pas cette dernière observation de l’interface.
 
 Limites à conserver même après validation finale : le score porte sur cette matrice et les échantillons datés, pas sur la disponibilité perpétuelle de toutes les sources. L’export Offline Music a été contrôlé sur Mac, sans appareil iPhone connecté ; aucune synchronisation automatique n’est promise. Le paquet contient les deux architectures, mais il a été exécuté sur Apple Silicon, pas sur un Mac Intel physique. L’installation Sparkle 0.4.0 → 0.4.1 en production ne peut être observée avant publication ; signatures et protections des opérations en cours ont été vérifiées avant diffusion, puis le feed public et les fichiers diffusés devront être vérifiés après celle-ci.
+
+
+### Répétition complète demandée — trois passes globales
+
+Les trois exécutions utilisent les sources produit finales gelées, `EASYMUSIC_NETWORK_TESTS=1` et `EASYMUSIC_RENAUD_TEST=1`. L’agent QA a relu les journaux, contrôlé les résumés de fin et l’absence de cas échoué ou ignoré. Horaires Europe/Paris, le 29 octobre 2026.
+
+| Passe | Début | Fin | Durée | Résultat | Journal |
+|---|---|---|---|---|---|
+| 1 | 11:37:51.161 | 11:39:28.017 | 96,856 s | 94 tests, 0 échec, 0 ignoré | `.tools/qa-full-final.log` |
+| 2 | 11:56:09.039 | 11:57:43.596 | 94,556 s | 94 tests, 0 échec, 0 ignoré | `.tools/qa-full-final-pass2.log` |
+| 3 | 11:57:45.039 | 11:59:18.250 | 93,210 s | 94 tests, 0 échec, 0 ignoré | `.tools/qa-full-final-pass3.log` |
+
+Total : **282 exécutions de tests réussies**. Chaque passe inclut réseau réel et téléchargement du titre Renaud signalé, avec fichier audio lisible d’environ 217,42 secondes et aucune piste vidéo. Des diagnostics macOS CoreData/XPC apparaissent dans les sorties ; ils n’ont entraîné ni assertion échouée ni test ignoré.
+
+**Le score reste 9/10.** Ces répétitions renforcent la preuve automatisée ; elles ne ferment pas l’observation GUI encore manquante. Le contrôle natif échoue toujours avant initialisation côté app-server, également dans la session de l’agent principal. La publication n’est pas autorisée par cet audit tant que la catégorie 1 n’a pas été clôturée par les derniers scénarios visibles listés ci-dessus.
