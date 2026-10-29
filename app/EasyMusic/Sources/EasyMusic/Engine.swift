@@ -57,11 +57,13 @@ struct Engine {
         let url = raw.hasPrefix("http") ? raw : (source == "YouTube" ? "https://www.youtube.com/watch?v=\(id)" : "")
         guard !url.isEmpty else { return nil }
         let thumbs = json["thumbnails"] as? [[String: Any]]
+        let channel = (json["channel"] as? String) ?? (json["uploader"] as? String) ?? ""
+        let creditedArtist = (json["artist"] as? String) ?? (channel.hasSuffix(" - Topic") ? String(channel.dropLast(8)) : nil)
         return Track(id: source + ":" + id, title: title,
                      artist: (json["artist"] as? String) ?? (json["uploader"] as? String) ?? (json["channel"] as? String) ?? source,
                      duration: json["duration"] as? Double,
                      artwork: (json["thumbnail"] as? String) ?? (thumbs?.last?["url"] as? String),
-                     url: url, source: source)
+                     url: url, source: source, creditedArtist: creditedArtist)
     }
     static func search(_ query: String, source: String, count: Int = 8) async throws -> [Track] {
         let prefix = source == "SoundCloud" ? "scsearch" : "ytsearch"

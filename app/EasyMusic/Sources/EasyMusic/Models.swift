@@ -10,6 +10,7 @@ struct Track: Identifiable, Codable, Hashable {
     var source: String
     var preview: String?
     var isCatalog: Bool = false
+    var creditedArtist: String? = nil
     var durationLabel: String {
         guard let duration, duration.isFinite, duration >= 0 else { return "—" }
         return String(format: "%d:%02d", Int(duration) / 60, Int(duration) % 60)
@@ -52,6 +53,13 @@ struct Library: Codable {
     var playlists: [Playlist] = []
     var recentCollections: [CatalogItem]? = nil
     var interests: [MusicInterest]? = nil
+    var trackPreferences: [TrackPreference]? = nil
+}
+struct TrackPreference: Identifiable, Codable {
+    var id = UUID()
+    var track: Track
+    var liked = false
+    var rating: Int? = nil
 }
 enum MusicError: LocalizedError {
     case message(String)
@@ -62,13 +70,19 @@ enum Matching {
     static func sameRecording(_ a: Track, _ b: Track) -> Bool {
         guard !a.artist.isEmpty, !b.artist.isEmpty, let first = a.duration, let second = b.duration,
               first.isFinite, second.isFinite, abs(first - second) <= 2 else { return false }
-        return Recommendations.key(a.title) == Recommendations.key(b.title)
-            && Recommendations.key(a.artist) == Recommendations.key(b.artist)
+        return recordingKey(a.title) == recordingKey(b.title)
+            && Recommendations.contentKey(a.artist) == Recommendations.contentKey(b.artist)
+    }
+
+    static func recordingKey(_ title: String) -> String {
+        // Providers spell the same vinyl edit as 7 Inch, 7" or 7''. Keep every version word.
+        let canonical = title.replacingOccurrences(of: #"(?i)\b(7|12)\s*(?:''|[\"″”“])"#, with: "$1 inch ", options: .regularExpression)
+            .replacingOccurrences(of: #"(?i)\b(7|12)\s*inch\b"#, with: "$1 inch", options: .regularExpression)
+        return Recommendations.contentKey(canonical)
     }
 
     static func words(_ text: String) -> Set<String> {
-        Set(text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "fr_FR"))
-            .components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty })
+        Set(recordingKey(text).split(separator: " ").map(String.init))
     }
     static func titleForSearch(_ title: String) -> String {
         // Attribution text is not part of the recording name. Keep version markers such as live/remix.
@@ -76,6 +90,22 @@ enum Matching {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
     static func score(_ candidate: Track, for target: Track) -> Double {
+        func vinylSizes(_ title: String) -> Set<String> {
+            let tokens = recordingKey(title).split(separator: " ")
+            var sizes = Set<String>()
+            for index in tokens.indices where index > 0 && tokens[index] == "inch" {
+                if tokens[index - 1] == "7" || tokens[index - 1] == "12" { sizes.insert(String(tokens[index - 1])) }
+            }
+            return sizes
+        }
+        let requestedSizes = vinylSizes(target.title), availableSizes = vinylSizes(candidate.title)
+        if !requestedSizes.isEmpty, !availableSizes.isEmpty, requestedSizes.isDisjoint(with: availableSizes) { return 0 }
+        if let credited = candidate.creditedArtist, !target.artist.isEmpty {
+            let names = credited.replacingOccurrences(of: #"(?i)\s+(?:feat\.?|ft\.?|featuring)\s+|\s*&\s*|\s*,\s*"#, with: "|", options: .regularExpression)
+                .split(separator: "|").map { Recommendations.contentKey(String($0)) }
+            let artist = Recommendations.contentKey(target.artist)
+            guard names.contains(artist) || Recommendations.contentKey(credited) == artist else { return 0 }
+        }
         let title = words(titleForSearch(target.title)), artist = words(target.artist)
         let available = words(candidate.title + " " + candidate.artist)
         guard !title.isEmpty else { return 0 }
@@ -84,7 +114,7 @@ enum Matching {
         var score = titleScore * 0.55 + artistScore * 0.3
         if let a = candidate.duration, let b = target.duration { score += max(0, 1 - abs(a-b) / 20) * 0.15 }
         let unwanted: Set<String> = ["cover", "karaoke", "remix", "live", "sped", "slowed", "instrumental"]
-        if !available.intersection(unwanted).subtracting(words(target.title)).isEmpty { score -= 0.35 }
+        if available.intersection(unwanted) != words(target.title).intersection(unwanted) { score -= 0.35 }
         return score
     }
 }

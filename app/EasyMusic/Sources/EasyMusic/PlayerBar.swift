@@ -5,7 +5,6 @@ import AVKit
 struct SpotifyPlayerBar: View {
     @EnvironmentObject var store: MusicStore
     @State private var showQueue = false
-    @State private var expanded = false
     @State private var seeking = false
     @State private var seekPosition = 0.0
     var track: Track? { store.requestedPlayback ?? store.currentTrack }
@@ -13,12 +12,14 @@ struct SpotifyPlayerBar: View {
         GeometryReader { geometry in
             HStack(spacing: 16) {
                 HStack(spacing: 12) {
-                    Button { expanded.toggle() } label: { Art(url: track?.artwork, size: 56) }.buttonStyle(.plain).disabled(track == nil).help("Afficher le morceau")
+                    Button { if let track { store.select(track) } } label: { Art(url: track?.artwork, size: 56) }.buttonStyle(.plain).disabled(track == nil).help("Afficher les détails")
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(track?.title ?? "Aucun titre en lecture").font(.system(size: 12, weight: .medium)).lineLimit(1)
+                        Button { if let track { store.select(track) } } label: { Text(track?.title ?? "Aucun titre en lecture").font(.system(size: 12, weight: .medium)).lineLimit(1) }
+                            .buttonStyle(.plain).disabled(track == nil).help("Afficher les détails")
                         Text(store.requestedPlayback != nil ? "Connexion…" : store.isBuffering ? "Chargement…" : track?.artist ?? "").font(.system(size: 11)).foregroundStyle(Theme.secondary).lineLimit(1)
                     }
                     if let track {
+                        LikeButton(track: track)
                         Button { if store.downloaded(track) == nil { store.enqueue(track) } else { store.section = "library" } } label: {
                             Image(systemName: store.downloaded(track) == nil ? "arrow.down.circle" : "checkmark.circle.fill")
                                 .foregroundStyle(store.downloaded(track) == nil ? Theme.secondary : Theme.green)
@@ -57,15 +58,6 @@ struct SpotifyPlayerBar: View {
                 }.frame(width: geometry.size.width * 0.25, alignment: .trailing)
             }.padding(.horizontal, 16).frame(height: geometry.size.height)
         }.background(.black)
-        .sheet(isPresented: $expanded) {
-            VStack(spacing: 20) {
-                Art(url: track?.artwork, size: 300)
-                Text(track?.title ?? "").font(.title2.bold()).multilineTextAlignment(.center)
-                Text(store.requestedPlayback != nil ? "Connexion…" : store.isBuffering ? "Chargement…" : track?.artist ?? "").foregroundStyle(Theme.secondary)
-                Button(store.requestedPlayback != nil ? "Annuler" : store.isPlaying ? "Pause" : "Lire") { store.togglePlayback() }.buttonStyle(GreenButton())
-                Button("Fermer") { expanded = false }.keyboardShortcut(.cancelAction)
-            }.padding(30).frame(width: 380)
-        }
     }
     func control(_ icon: String, label: String, active: Bool = false, disabled: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {

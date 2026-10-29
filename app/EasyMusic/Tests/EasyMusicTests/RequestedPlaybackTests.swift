@@ -99,6 +99,56 @@ import AVFoundation
         store.requestPlayback(song)
         XCTAssertFalse(store.isPlaying); XCTAssertEqual(resolutions, 0)
     }
+    func testLocalRecordingIsReusedAcrossProvidersAndVersionPunctuation() async throws {
+        let (store, root, audio) = try fixture()
+        defer { store.player.pause(); try? FileManager.default.removeItem(at: root) }
+        let spotify = Track(id: "spotify:one", title: "Soushkin - 7 Inch Edit", artist: "Dream Your Dream", duration: 231.426,
+                            url: "https://www.youtube.com/watch?v=FTCGdQOCuAw", source: "YouTube", isCatalog: true)
+        var deezer = spotify; deezer.id = "deezer:two"; deezer.url = "https://www.deezer.com/track/118313368"; deezer.source = "Deezer"
+        deezer.title = "Soushkin (7 Inch Edit)"; deezer.duration = 231
+        let local = LocalTrack(track: spotify, path: audio.path); store.library.tracks = [local]
+        store.streamResolver = { _, _ in XCTFail("La copie locale doit être reconnue"); throw AudioFailure.network }
+        XCTAssertEqual(store.downloaded(deezer)?.id, local.id)
+        store.requestPlayback(deezer)
+        try await eventually { store.playing?.id == local.id && store.isPlaying }
+        var quoted = deezer; quoted.title = "Soushkin (7'' Edit)"
+        XCTAssertTrue(Matching.sameRecording(spotify, quoted))
+        quoted.title = "Soushkin (Original Remastered Mix)"
+        XCTAssertFalse(Matching.sameRecording(spotify, quoted))
+        quoted.title = "Soushkin (7 Inch Edit Remix)"
+        XCTAssertFalse(Matching.sameRecording(spotify, quoted))
+        quoted.title = "Soushkin (7 Inch Edit)"; quoted.artist = "Other Artist"
+        XCTAssertFalse(Matching.sameRecording(spotify, quoted))
+    }
+    func testNextRemoteTrackIsPreparedWhileCurrentLocalTrackKeepsPlaying() async throws {
+        guard ProcessInfo.processInfo.environment["EASYMUSIC_NETWORK_TESTS"] == "1" else { throw XCTSkip("Réseau désactivé") }
+        let (store, root, audio) = try fixture(observe: true)
+        defer { store.cancelRequestedPlayback(); try? FileManager.default.removeItem(at: root) }
+        store.player.isMuted = true
+        let first = LocalTrack(track: track("local-before-stream"), path: audio.path)
+        let next = Track(id: "prefetch-soushkin", title: "Soushkin (7 Inch Edit)", artist: "Dream Your Dream", duration: 231,
+                         url: "https://www.deezer.com/track/118313368", source: "Deezer", isCatalog: true)
+        let playlist = Playlist(name: "Préparation suivante", trackIDs: [first.id], importedTracks: [first.track, next])
+        store.library.tracks = [first]; store.library.playlists = [playlist]; store.section = playlist.id.uuidString
+        store.requestPlayback(first.track)
+        let deadline = Date().addingTimeInterval(25)
+        var prepared = false
+        while Date() < deadline {
+            if await AudioStreamCache.shared.value(for: next) != nil { prepared = true; break }
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        XCTAssertTrue(prepared); XCTAssertEqual(store.playing?.id, first.id); XCTAssertTrue(store.isPlaying)
+        XCTAssertNil(store.streaming); XCTAssertNil(store.notice)
+        let start = Date(); store.next()
+        while (store.streaming?.id != next.id || store.player.currentTime().seconds < 0.2) && Date().timeIntervalSince(start) < 5 {
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        XCTAssertEqual(store.streaming?.id, next.id); XCTAssertGreaterThan(store.player.currentTime().seconds, 0.1)
+        XCTAssertLessThan(Date().timeIntervalSince(start), 3)
+        XCTAssertEqual(store.library.tracks.count, 1); XCTAssertTrue(store.activeDownloads.isEmpty)
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: store.folder.path).isEmpty)
+        print("STREAM_QUEUE prochain titre préparé, lecture en \(Date().timeIntervalSince(start))s, aucun téléchargement")
+    }
     func testExplicitDownloadDuringStreamingDoesNotReplacePlayerItem() async throws {
         let (store, root, audio) = try fixture()
         defer { store.player.pause(); try? FileManager.default.removeItem(at: root) }

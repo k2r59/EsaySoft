@@ -52,27 +52,29 @@ struct SearchEntry: Identifiable {
 }
 struct SearchResultsView: View {
     @EnvironmentObject var store: MusicStore
+    var tracks: [Track]? = nil
     var entries: [SearchEntry] {
+        if let tracks { return tracks.map { SearchEntry(track: $0, collection: nil) } }
         if store.openedCollection != nil { return store.visibleResults.map { SearchEntry(track: $0, collection: nil) } + store.catalogItems.map { SearchEntry(track: nil, collection: $0) } }
         return SearchEntry.ranked(tracks: store.visibleResults, collections: store.catalogItems, query: store.query)
     }
     var body: some View {
         LazyVStack(spacing: 6) {
             ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-                row(entry, featured: index == 0 && store.openedCollection == nil)
+                row(entry, featured: index == 0 && store.openedCollection == nil && tracks == nil)
             }
         }
     }
     private func row(_ entry: SearchEntry, featured: Bool) -> some View {
-        HStack(spacing: 16) {
-            if let track = entry.track { PlayableArtwork(track: track, size: featured ? 76 : 56) }
+        HStack(spacing: 12) {
+            if let track = entry.track { TrackPlayButton(track: track) }
             Button {
                 if let track = entry.track { store.select(track) }
                 else if let collection = entry.collection { store.openCollection(collection) }
             } label: {
                 HStack(spacing: 16) {
-                    if entry.track == nil { Art(url: entry.artwork, size: featured ? 76 : 56)
-                        .clipShape(RoundedRectangle(cornerRadius: entry.type == "Artiste" ? 38 : 4)) }
+                    Art(url: entry.artwork, size: featured ? 76 : 56)
+                        .clipShape(RoundedRectangle(cornerRadius: entry.type == "Artiste" ? 38 : 4))
                     VStack(alignment: .leading, spacing: 6) {
                         Text(entry.title).font(.system(size: featured ? 23 : 14, weight: featured ? .bold : .medium)).lineLimit(1)
                         Text(entry.subtitle.isEmpty ? entry.type : entry.subtitle).font(.system(size: 12)).foregroundStyle(Theme.secondary).lineLimit(1)
@@ -84,6 +86,7 @@ struct SearchResultsView: View {
                 .padding(.horizontal, 5).padding(.vertical, 3).background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 3))
             if let track = entry.track {
                 TrackPlaybackButtons(track: track, compact: true, showPlay: false)
+                LikeButton(track: track)
                 if store.downloaded(track) != nil {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.green).help("Déjà téléchargé")
                 } else {

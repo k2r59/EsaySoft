@@ -4,7 +4,7 @@ Première ébauche d’une application macOS native en SwiftUI. Recherchez un mo
 
 ## Lancer l’application
 
-Ouvrez `dist/EasyMusic-0.5.0.app` pour la version complète, ou utilisez son installateur DMG.
+Ouvrez `/Applications/EasyMusic.app` pour la version complète, ou utilisez son installateur DMG.
 
 Pour reconstruire l’application, installez Xcode ou ses outils de développement, puis exécutez depuis ce dossier :
 
@@ -15,7 +15,7 @@ open dist/EasyMusic.app
 
 Le script récupère yt-dlp 2026.10.26 depuis sa publication officielle et vérifie son SHA-256. L’application cible macOS 13 ou version ultérieure et les Mac Intel et Apple Silicon. La signature locale permet les essais sur ce Mac ; la distribution sur d’autres Mac nécessite une signature Developer ID et une notarisation.
 
-FFmpeg est facultatif pour télécharger le format original. Il active la conversion MP3/M4A, les métadonnées et pochettes intégrées lors de ces conversions, ainsi que la lecture locale des fichiers Opus/WebM. Node.js, s’il est installé, sert aux défis JavaScript de YouTube. Le moteur les recherche dans les emplacements Homebrew usuels. Le paquet de distribution 0.5.0 intègre ces deux dépendances. Le script de compilation rapide ne les inclut que si `BUNDLE_RUNTIME=1`.
+FFmpeg est facultatif pour télécharger le format original. Il active la conversion MP3/M4A, les métadonnées et pochettes intégrées lors de ces conversions, ainsi que la lecture locale des fichiers Opus/WebM. Node.js, s’il est installé, sert aux défis JavaScript de YouTube. Le moteur les recherche dans les emplacements Homebrew usuels. Le paquet de distribution 0.6.0 intègre ces deux dépendances. Le script de compilation rapide ne les inclut que si `BUNDLE_RUNTIME=1`.
 
 ## Utiliser EasyMusic
 
@@ -140,3 +140,11 @@ L’accueil peut utiliser le classement des ventes France du [flux public iTunes
 Le bouton lecture d’un titre distant résout un flux audio complet, sans téléchargement dans la bibliothèque. Une seconde pression annule la connexion. Choisir un autre titre ou un extrait remplace la demande précédente. La file de lecture peut mélanger des titres locaux et distants. Si un flux échoue, une autre source correspondant au même enregistrement est essayée ; les contenus protégés ne sont pas déverrouillés. La première connexion peut prendre quelques secondes selon la source et le réseau.
 
 Le classement des recherches combine les termes du titre et de l’artiste. Les homonymes de même nom sont départagés par les abonnés publics du catalogue lorsque cette donnée est disponible. Les fiches utilisent l’identifiant du morceau ou une correspondance titre/artiste non ambiguë pour afficher l’artiste et ses albums ; une relation incertaine est omise.
+
+### Lecture et préférences (0.6.0)
+
+Dans une liste, le bouton lecture se trouve à gauche de la pochette. La pochette et le titre ouvrent les détails. Le cœur ajoute le morceau à **Titres aimés** sans le télécharger. Les détails permettent de lui attribuer de une à cinq étoiles ; cliquer à nouveau sur la note sélectionnée l’efface. Favoris et notes sont indépendants et conservés dans la bibliothèque locale.
+
+Le streaming privilégie les flux HLS audio compatibles avec le lecteur natif. La durée et les pistes sont vérifiées sur un lecteur prêt, avant lecture ; un format refusé peut être remplacé par un autre format de la même source. Les fournisseurs sont interrogés en parallèle et la première source vérifiée est retenue. Les adresses de flux sont gardées en mémoire pendant quinze minutes au maximum, sous réserve de leur expiration. Le prochain morceau de la file est préparé pendant la lecture. Une première connexion dépend encore des services externes et peut prendre plusieurs secondes.
+
+Les détails DJ indiquent la provenance des données : catalogue public, métadonnées du fichier ou estimation audio. Le BPM absent ou nul n’est pas affiché comme zéro. La tonalité est présentée avec sa note et son mode ainsi que sa correspondance Camelot. Une analyse peut rester indéterminée, notamment sur un extrait court, une introduction, un morceau peu tonal ou un changement de tonalité. L’analyse d’un titre distant se déclenche explicitement et ne l’ajoute pas à la bibliothèque.

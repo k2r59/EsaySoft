@@ -51,6 +51,8 @@ import AppKit
     var currentTrack: Track? { streaming ?? playing?.track ?? previewing }
     var hasFullPlayback: Bool { requestedPlayback != nil || streaming != nil || playing != nil }
     private var playbackTask: Task<Void, Never>?
+    private var streamPrefetchTask: Task<AudioStream?, Never>?
+    private var streamPrefetchTarget: Track?
     private var bufferTimeout: Task<Void, Never>?
     private var itemObservation: NSKeyValueObservation?
     private var controlObservation: NSKeyValueObservation?
@@ -90,6 +92,7 @@ import AppKit
     let storage: URL
     var downloadWorker: ((Track, String, String, URL) async throws -> (Track, String))?
     var streamResolver: ((Track, Set<String>) async throws -> AudioStream)?
+    var streamPrefetchResolver: ((Track) async throws -> AudioStream)?
     private var queueFormats: [String: String] = [:]
     private var queueExports: [String: String] = [:]
     var canConvert: Bool { Engine.executable("ffmpeg") != nil }
@@ -401,6 +404,7 @@ import AppKit
     func preparePlaybackQueue(for track: Track) {
         let candidates: [Track]
         if let playlist = currentPlaylist { candidates = playlistTracks(playlist) }
+        else if section == "liked" { candidates = likedTracks }
         else if section == "search", results.contains(where: { matchesRecording($0, track) }) { candidates = visibleResults }
         else if section == "home", discoveries.contains(where: { matchesRecording($0, track) }) { candidates = discoveries }
         else { candidates = library.tracks.map(\.track) }
@@ -411,21 +415,26 @@ import AppKit
         playbackQueue = shuffle ? [track] + queue.filter { !matchesRecording($0, track) }.shuffled() : queue
     }
     func requestPlayback(_ track: Track, keepQueue: Bool = false) {
+        if notice?.hasPrefix("Lecture en ligne impossible") == true { notice = nil }
         if let requestedPlayback, matchesRecording(requestedPlayback, track) { cancelRequestedPlayback(); return }
         if previewing == nil, let currentTrack, matchesRecording(currentTrack, track), player.currentItem != nil {
             togglePlayback(); return
         }
         if let local = downloaded(track) { play(local, keepQueue: keepQueue); return }
         if !keepQueue { preparePlaybackQueue(for: track) }
+        let preparation = streamPrefetchTarget.map { matchesRecording($0, track) } == true ? streamPrefetchTask : nil
+        if preparation != nil { streamPrefetchTask = nil; streamPrefetchTarget = nil }
         resetPlaybackRequest()
         playing = nil; previewing = nil; streaming = nil
         player.pause(); player.replaceCurrentItem(with: nil); isPlaying = false
         position = 0; playerDuration = track.duration ?? 0
         requestedPlayback = track; isBuffering = true
-        resolveStream(track, id: playbackID, resumeAt: 0)
+        resolveStream(track, id: playbackID, resumeAt: 0, preparation: preparation)
     }
     private func resetPlaybackRequest() {
         playbackTask?.cancel(); playbackTask = nil
+        streamPrefetchTask?.cancel(); streamPrefetchTask = nil
+        streamPrefetchTarget = nil
         bufferTimeout?.cancel(); bufferTimeout = nil
         itemObservation = nil; playbackID = UUID()
         requestedPlayback = nil; previewLoadingID = nil; isBuffering = false
@@ -437,12 +446,18 @@ import AppKit
         playing = nil; streaming = nil; previewing = nil; isPlaying = false
         position = 0; playerDuration = 0
     }
-    private func resolveStream(_ track: Track, id: UUID, resumeAt: Double) {
+    private func resolveStream(_ track: Track, id: UUID, resumeAt: Double, preparation: Task<AudioStream?, Never>? = nil) {
         let excluded = attemptedStreams
         playbackTask = Task {
             do {
+                let prepared: AudioStream?
+                if let preparation {
+                    prepared = await withTaskCancellationHandler { await preparation.value } onCancel: { preparation.cancel() }
+                    try Task.checkCancellation()
+                } else { prepared = nil }
                 let stream: AudioStream
-                if let streamResolver { stream = try await streamResolver(track, excluded) }
+                if let prepared { stream = prepared }
+                else if let streamResolver { stream = try await streamResolver(track, excluded) }
                 else { stream = try await AudioStreaming.resolve(track, excluding: excluded) }
                 try Task.checkCancellation()
                 guard playbackID == id else { return }
@@ -489,12 +504,32 @@ import AppKit
                     else if item.status == .readyToPlay {
                         self.requestedPlayback = nil
                         if resumeAt > 0 { self.seek(resumeAt) }
+                        self.prepareNextStream()
                     }
                 }
             }
         } else { requestedPlayback = nil }
         isPlaying = true; player.play()
         updateBuffering()
+    }
+    private func prepareNextStream() {
+        streamPrefetchTask?.cancel(); streamPrefetchTask = nil
+        streamPrefetchTarget = nil
+        guard observesPlayback, streamResolver == nil || streamPrefetchResolver != nil, previewing == nil, let currentTrack,
+              let index = playbackQueue.firstIndex(where: { matchesRecording($0, currentTrack) }),
+              index + 1 < playbackQueue.count else { return }
+        let next = playbackQueue[index + 1]
+        guard downloaded(next) == nil else { return }
+        streamPrefetchTarget = next
+        let resolver = streamPrefetchResolver
+        // Only resolve metadata and prepare the audio stream. Never add media to the library.
+        streamPrefetchTask = Task(priority: .utility) {
+            do {
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+                if let resolver { return try await resolver(next) }
+                return try await AudioStreaming.resolve(next)
+            } catch { return nil }
+        }
     }
     private func updateBuffering() {
         isBuffering = isPlaying && player.timeControlStatus == .waitingToPlayAtSpecifiedRate
@@ -610,7 +645,7 @@ import AppKit
     }
     func seek(_ time: Double) {
         guard time.isFinite else { return }
-        player.seek(to: CMTime(seconds: max(0, min(time, playerDuration > 0 ? playerDuration : time)), preferredTimescale: 600))
+        player.seek(to: CMTime(seconds: max(0, min(time, playerDuration > 0 ? playerDuration : time)), preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
     }
     func toggleShuffle() {
         shuffle.toggle()
@@ -618,6 +653,7 @@ import AppKit
             orderedPlaybackQueue = playbackQueue
             if let track = requestedPlayback ?? currentTrack { playbackQueue = [track] + playbackQueue.filter { !matchesRecording($0, track) }.shuffled() }
         } else if !orderedPlaybackQueue.isEmpty { playbackQueue = orderedPlaybackQueue }
+        prepareNextStream()
     }
     func toggleMute() {
         if volume > 0 { unmutedVolume = volume; volume = 0 } else { volume = max(0.01, unmutedVolume) }

@@ -76,7 +76,8 @@ struct ImportedPlaylistView: View {
                 LazyVStack(spacing: 4) {
                     ForEach(store.playlistTracks(playlist)) { track in
                         HStack(spacing: 12) {
-                            PlayableArtwork(track: track, size: 40)
+                            TrackPlayButton(track: track)
+                            TrackArtworkButton(track: track, size: 40)
                             VStack(alignment: .leading, spacing: 4) {
                                 Button { store.select(track) } label: { Text(track.title).lineLimit(1) }.buttonStyle(.plain)
                                 Text(track.artist).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
@@ -87,6 +88,7 @@ struct ImportedPlaylistView: View {
                             }
                             Spacer()
                             TrackPlaybackButtons(track: track, compact: true, showPlay: false).environmentObject(store)
+                            LikeButton(track: track)
                             PlaylistAddButton(track: track)
                             if let local = store.downloaded(track) {
                                 Text(local.bitrateLabel).font(.system(size: 12)).monospacedDigit().foregroundStyle(Theme.secondary)

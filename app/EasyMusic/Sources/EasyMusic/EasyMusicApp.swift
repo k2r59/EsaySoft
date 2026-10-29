@@ -73,6 +73,7 @@ struct ContentView: View {
                     if store.section == "home" { home }
                     else if store.section == "search" { searchContent }
                     else if store.section == "settings" { settings }
+                    else if store.section == "liked" { LikedTracksView() }
                     else { libraryContent }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -131,6 +132,7 @@ struct ContentView: View {
                     .font(.system(size: 13)).padding(.horizontal, 16).padding(.vertical, 8)
             }.buttonStyle(.plain).disabled(store.importingPlaylist)
             nav("Tous les titres", icon: "arrow.down.circle.fill", section: "library")
+            nav("Titres aimés", icon: "heart.fill", section: "liked")
             ScrollView {
                 VStack(spacing: 4) {
                     ForEach(store.library.playlists) { list in
@@ -211,7 +213,7 @@ struct ContentView: View {
                                 PlayableArtwork(track: featured, size: 172).environmentObject(store)
                                 VStack(alignment: .leading, spacing: 12) {
                                     Text(featured.artist).font(.system(size: 12)).foregroundStyle(Theme.secondary)
-                                    Text(featured.title).font(.system(size: 25, weight: .bold)).lineLimit(3)
+                                    Button { store.select(featured) } label: { Text(featured.title).font(.system(size: 25, weight: .bold)).lineLimit(3) }.buttonStyle(.plain)
                                     HStack(spacing: 16) {
                                         TrackPlaybackButtons(track: featured, compact: true, showPlay: false).environmentObject(store)
                                         downloadControl(featured)
@@ -249,7 +251,7 @@ struct ContentView: View {
                                 ForEach(store.discoveries) { track in
                                     VStack(alignment: .leading, spacing: 10) {
                                         PlayableArtwork(track: track, size: 154).environmentObject(store)
-                                        Button { store.showHomeTrack(track) } label: { Text(track.title).font(.system(size: 14, weight: .semibold)).lineLimit(1) }.buttonStyle(.plain)
+                                        Button { store.select(track) } label: { Text(track.title).font(.system(size: 14, weight: .semibold)).lineLimit(1) }.buttonStyle(.plain)
                                         HStack {
                                             Text(track.artist).font(.system(size: 12)).foregroundStyle(Theme.secondary).lineLimit(1)
                                             Spacer(minLength: 0)
@@ -313,6 +315,7 @@ struct ContentView: View {
     }
     func trackRow(_ track: Track) -> some View {
         HStack(spacing: 12) {
+            TrackPlayButton(track: track)
             Button { store.select(track) } label: {
                 HStack(spacing: 12) {
                     Art(url: track.artwork)
@@ -322,7 +325,7 @@ struct ContentView: View {
                     }; Spacer(minLength: 0)
                 }
             }.buttonStyle(.plain)
-            TrackPlaybackButtons(track: track).environmentObject(store)
+            TrackPlaybackButtons(track: track, showPlay: false).environmentObject(store)
             Text(track.durationLabel).font(.system(size: 12)).monospacedDigit().foregroundStyle(Theme.secondary)
             downloadControl(track)
         }.padding(9).background(store.selected?.id == track.id ? Color(white: 0.22) : Theme.card.opacity(0.35)).cornerRadius(6)
@@ -419,10 +422,12 @@ struct ContentView: View {
                     LazyVStack(spacing: 4) {
                         ForEach(store.visibleLocal) { local in
                             HStack(spacing: 12) {
-                                PlayableArtwork(track: local.track)
+                                TrackPlayButton(track: local.track)
+                                TrackArtworkButton(track: local.track)
                                 VStack(alignment: .leading, spacing: 5) { Button { store.select(local.track) } label: { Text(local.track.title).font(.system(size: 14, weight: .medium)).lineLimit(1) }.buttonStyle(.plain); Text(local.track.artist).font(.system(size: 12)).foregroundStyle(Theme.secondary).lineLimit(1) }
                                 Spacer()
                                 TrackPlaybackButtons(track: local.track, compact: true, showPlay: false).environmentObject(store)
+                                LikeButton(track: local.track)
                                 PlaylistAddButton(track: local.track)
                                 Text(local.bitrateLabel).font(.system(size: 12)).monospacedDigit().foregroundStyle(Theme.secondary).help("Débit mesuré dans le fichier, approximatif pour les formats à débit variable")
                                 Text(URL(fileURLWithPath: local.path).pathExtension.uppercased()).font(.system(size: 10, weight: .bold)).foregroundStyle(Theme.secondary)
@@ -459,9 +464,11 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         HStack { Text("Enregistrer dans"); Spacer(); Button("Choisir un dossier…") { store.chooseFolder() } }
                         Text(store.folder.path).font(.caption).foregroundStyle(Theme.secondary).textSelection(.enabled)
-                        Picker("Format de sortie", selection: $store.exportFormat) {
-                            Text("Original — qualité préservée").tag("original")
-                            if store.canConvert { Text("MP3 — compatibilité maximale").tag("mp3"); Text("M4A — appareils Apple").tag("m4a") }
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Format de sortie").fontWeight(.semibold)
+                            MusicSelect(title: "Format de sortie", selection: $store.exportFormat,
+                                        options: [SelectOption(id: "original", title: "Original · qualité préservée")] +
+                                        (store.canConvert ? [SelectOption(id: "mp3", title: "MP3 · compatibilité maximale"), SelectOption(id: "m4a", title: "M4A · appareils Apple")] : []))
                         }
                         Text(store.canConvert ? "Conversion et métadonnées disponibles avec FFmpeg. Convertir n’améliore pas la qualité de la source." : "Le format original est disponible. Installez FFmpeg pour activer MP3, M4A et l’intégration des pochettes.").font(.caption).foregroundStyle(Theme.secondary)
                     }.padding(12)
