@@ -1,0 +1,33 @@
+<?xml version="1.0" standalone="yes"?><!-- sparkle-sign-warning:
+IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
+--><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>EasyMusic</title>
+        <item>
+            <title>0.3.0</title>
+            <pubDate>Thu, 29 Oct 2026 10:19:26 +0100</pubDate>
+            <sparkle:version>4</sparkle:version>
+            <sparkle:shortVersionString>0.3.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyMusic 0.3.0
+
+- Import de playlists publiques Spotify, Deezer et YouTube Music depuis un lien.
+- Playlist locale persistante, ordre conservé, titres déjà présents réutilisés et téléchargement des titres manquants.
+- Échecs visibles par titre et possibilité de réessayer.
+- Accueil généraliste qui s’adapte aux recherches et aux écoutes.
+- Lecteur avec file, répétition, lecture aléatoire, volume et sortie audio.
+- Mises à jour Sparkle signées, distribuées sur le dépôt EsaySoft.
+
+Spotify : l’import utilise la page publique, dont la liste peut être limitée. L’exhaustivité n’est pas garantie et un avertissement apparaît dans la playlist. Les fichiers audio sont recherchés sur les sources accessibles, pas téléchargés depuis Spotify. Les playlists privées et les liens courts ne sont pas pris en charge.
+
+Application universelle Intel et Apple Silicon, macOS 13 minimum. yt-dlp, FFmpeg, FFprobe et Node.js inclus.
+
+Validation : 43 tests, dont 15 tests réseau ; imports réels sur les trois plateformes vérifiés.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easymusic-v0.3.0/EasyMusic-0.3.0-universal.dmg" length="133649869" type="application/octet-stream" sparkle:edSignature="7RLh7Gt5VgD6sPt4vvavtgjf2JaJxVoylQZjQWFLJe/NHBWmV8MITCeHQknt4gj7WTTOSy0n0McnyKis7nA5Dw=="></enclosure>
+        </item>
+    </channel>
+</rss><!-- sparkle-signatures:
+edSignature: /HPma6VfXbNmujJGHMEcJlC4pMoxqq2OoA9kYywbJR3WwRCqRA6exJ5Woz2RBQ6M4A2T8NOyKF68r5XtOEZlCg==
+length: 2201
+-->
