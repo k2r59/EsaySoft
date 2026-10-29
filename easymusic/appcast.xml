@@ -6,6 +6,25 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyMusic</title>
         <item>
+            <title>0.6.0</title>
+            <pubDate>Thu, 29 Oct 2026 14:18:45 +0100</pubDate>
+            <sparkle:version>8</sparkle:version>
+            <sparkle:shortVersionString>0.6.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyMusic 0.6.0
+
+- Correction du streaming sur les titres YouTube dont la durée était mal interprétée, notamment Soushkin, Belgium Rave et Ma Benz.
+- Relances accélérées grâce au cache des flux et à la préparation du prochain titre. Une source lente ne bloque plus l’autre.
+- Meilleure reconnaissance des fichiers déjà téléchargés entre Spotify, Deezer et YouTube.
+- Dans les listes, lecture à gauche de la pochette ; clic sur le titre ou la pochette pour ouvrir les détails.
+- Cœur « J’aime » et rubrique Titres aimés, sans téléchargement automatique.
+- Notes personnelles de 1 à 5 étoiles, conservées après redémarrage.
+- Informations DJ : BPM, tonalité et notation Camelot. Les estimations audio sont identifiées ; les valeurs incertaines restent inconnues.
+- Menus de qualité audio et de format de sortie assortis à l’interface sombre.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easymusic-v0.6.0/EasyMusic-0.6.0-universal.dmg" length="134838151" type="application/octet-stream" sparkle:edSignature="j8Tm3U6R6OJNdYiNrTB9suRfiaJ697fAJJRLRXMHx6ngObOXm8D+NWZuZo/BQyf+tEQ9gu3iCWwOg0JUlGPZAQ=="/>
+        </item>
+        <item>
             <title>0.5.0</title>
             <pubDate>Thu, 29 Oct 2026 12:46:39 +0100</pubDate>
             <sparkle:version>7</sparkle:version>
@@ -48,32 +67,9 @@ L’import et la comparaison Spotify restent limités aux titres exposés par la
 ]]></description>
             <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easymusic-v0.4.0/EasyMusic-0.4.0-universal.dmg" length="134200880" type="application/octet-stream" sparkle:edSignature="oWXSP6NiLMxkvJjqcz3bTCpuiLDSVAz7Qb20CPNmbcGfQ9+5C/nfPBwWHOQwJwjMHmjAClCAcFgEY+plz10NAw=="/>
         </item>
-        <item>
-            <title>0.3.0</title>
-            <pubDate>Thu, 29 Oct 2026 10:19:26 +0100</pubDate>
-            <sparkle:version>4</sparkle:version>
-            <sparkle:shortVersionString>0.3.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# EasyMusic 0.3.0
-
-- Import de playlists publiques Spotify, Deezer et YouTube Music depuis un lien.
-- Playlist locale persistante, ordre conservé, titres déjà présents réutilisés et téléchargement des titres manquants.
-- Échecs visibles par titre et possibilité de réessayer.
-- Accueil généraliste qui s’adapte aux recherches et aux écoutes.
-- Lecteur avec file, répétition, lecture aléatoire, volume et sortie audio.
-- Mises à jour Sparkle signées, distribuées sur le dépôt EsaySoft.
-
-Spotify : l’import utilise la page publique, dont la liste peut être limitée. L’exhaustivité n’est pas garantie et un avertissement apparaît dans la playlist. Les fichiers audio sont recherchés sur les sources accessibles, pas téléchargés depuis Spotify. Les playlists privées et les liens courts ne sont pas pris en charge.
-
-Application universelle Intel et Apple Silicon, macOS 13 minimum. yt-dlp, FFmpeg, FFprobe et Node.js inclus.
-
-Validation : 43 tests, dont 15 tests réseau ; imports réels sur les trois plateformes vérifiés.
-]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easymusic-v0.3.0/EasyMusic-0.3.0-universal.dmg" length="133649869" type="application/octet-stream" sparkle:edSignature="7RLh7Gt5VgD6sPt4vvavtgjf2JaJxVoylQZjQWFLJe/NHBWmV8MITCeHQknt4gj7WTTOSy0n0McnyKis7nA5Dw=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: H955QDmZ2zL284NSmcxWDov/2AMO/VRG4vZuACe2JOM2jc8Mty8AaUdqJ0TLgl0+qPi8ZzL2o3D6Cj3rh2WrCQ==
-length: 6151
+edSignature: TThZNxPQ9SIIzI5549FtmBlZHSdU80FhZkMKoRQN6hCkNo0PVz3J9q0RpGYFWwBGGAeTZQL0K4/VjtMIG3E2Dg==
+length: 5970
 -->
