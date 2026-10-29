@@ -239,17 +239,68 @@ actor BWTestTransport: BWTransport {
         let body = try JSONSerialization.jsonObject(with:send.httpBody!) as! [String:Any]
         XCTAssertEqual(body["authType"] as? Int, 0); XCTAssertEqual(body["emails"] as? String,"alice@example.com"); XCTAssertTrue(model.publicOnly)
     }
+    func testCreatedLinksArePersistedAndQueuedExactlyOnceInBothModes() async throws {
+        try await unlock()
+        for quick in [false, true] {
+            for recording in [false, true] {
+                history.stackRecording = false
+                let original = try await clip("Original \(quick) \(recording)")
+                history.stackRecording = recording; model.publicOnly = quick
+                let before = history.clips.count, queued = history.stack
+                model.share(original); try await settle()
+                if !quick { model.create(); try await settle() }
+                XCTAssertNil(model.error)
+                let send = try XCTUnwrap(model.sends.first)
+                let saved = try XCTUnwrap(history.clips.first)
+                XCTAssertEqual(history.clips.count, before + 1)
+                XCTAssertEqual(history.stack, queued + [saved.id])
+                XCTAssertNotEqual(saved.id, original.id); XCTAssertEqual(saved.kind, .link)
+                XCTAssertEqual(saved.source, "Bitwarden"); XCTAssertFalse(saved.pinned)
+                let full = try await history.fullClip(saved)
+                XCTAssertEqual(full.text, send.link.absoluteString)
+                XCTAssertFalse(try XCTUnwrap(send.link.fragment).isEmpty)
+                XCTAssertEqual(full.payload.representations[0].first { $0.type == NSPasteboard.PasteboardType.string.rawValue }?.data, Data(send.link.absoluteString.utf8))
+                XCTAssertTrue(full.payload.representations[0].contains { $0.type == "org.nspasteboard.ConcealedType" })
+                let source = try await history.fullClip(original)
+                XCTAssertEqual(source.text, original.text)
+                model.recopy(send)
+                XCTAssertEqual(history.clips.count, before + 1)
+                XCTAssertEqual(history.stack, queued + [saved.id])
+            }
+        }
+    }
+    func testClipboardFailureStillKeepsCreatedLinkInHistoryAndStack() async throws {
+        try await unlock(); model.publicOnly = true; model.copyLink = { _ in false }
+        model.share(try await clip()); try await settle()
+        XCTAssertNil(model.error); XCTAssertFalse(model.copied); XCTAssertNotNil(model.created)
+        let saved = try XCTUnwrap(history.clips.first)
+        XCTAssertEqual(saved.kind, .link); XCTAssertEqual(history.stack, [saved.id])
+        XCTAssertEqual(saved.text, model.created?.link.absoluteString)
+    }
+    func testLocalSaveFailureKeepsRemoteSendAndReportsItWithoutAnotherUpload() async throws {
+        try await unlock(); model.publicOnly = true
+        let original = try await clip(); history.fault = true
+        model.share(original); try await settle()
+        XCTAssertTrue(model.copied); XCTAssertNotNil(model.created)
+        XCTAssertTrue(model.error?.contains("ajout à la pile") == true)
+        XCTAssertEqual(model.sends.count, 1); XCTAssertTrue(history.stack.isEmpty)
+        XCTAssertEqual(history.clips.map(\.id), [original.id])
+        let requests = await transport.snapshot()
+        XCTAssertEqual(requests.filter { $0.httpMethod == "POST" && $0.url?.path == "/sends" }.count, 1)
+    }
     func testDisableDuringRequestNeverCopiesAndRemovesCredentials() async throws {
         try await unlock(); model.publicOnly = true; var copies = 0; model.copyLink = { _ in copies += 1; return true }
         await transport.configure(delaySend:true); model.share(try await clip())
         try await Task.sleep(for:.milliseconds(60)); model.setEnabled(false); try await Task.sleep(for:.milliseconds(100))
         XCTAssertFalse(model.unlocked); XCTAssertFalse(model.enabled); XCTAssertEqual(copies,0); XCTAssertEqual(model.account,"")
+        XCTAssertTrue(history.stack.isEmpty); XCTAssertFalse(history.clips.contains { $0.source == "Bitwarden" })
         let counts = await store.counts(); XCTAssertEqual(counts[2],1)
     }
     func testFailedFileUploadDoesNotCopyAndDeletesReservation() async throws {
         try await unlock(); model.publicOnly = true; await transport.configure(uploadFails:true)
         let item = try await clip(String(repeating:"long text ",count:90)); var copies = 0; model.copyLink = { _ in copies += 1;return true }
         model.share(item); try await settle(); XCTAssertEqual(copies,0); XCTAssertNotNil(model.error)
+        XCTAssertTrue(history.stack.isEmpty); XCTAssertFalse(history.clips.contains { $0.source == "Bitwarden" })
         let requests = await transport.snapshot(); XCTAssertTrue(requests.contains { $0.httpMethod == "DELETE" })
         XCTAssertTrue(requests.contains { $0.httpMethod == "PUT" })
     }

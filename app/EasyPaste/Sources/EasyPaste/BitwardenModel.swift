@@ -210,8 +210,21 @@ import SwiftUI
         }
         created = send; copied = copyLink(send.link)
         if copied { history?.sounds.play(.copy) }
-        status = copied ? "Lien copié" : "Lien créé · copie impossible"
         sends.insert(send, at: 0)
+        do {
+            guard let history else { throw CocoaError(.fileWriteUnknown) }
+            _ = try await history.saveBitwardenLink(send)
+        } catch {
+            // The remote Send already exists: retain it and its copied link, never upload again here.
+            try check(ticket)
+            self.error = "Lien créé, mais l’ajout à la pile a échoué. Le lien reste disponible dans Bitwarden."
+            status = copied ? "Lien copié · ajout à la pile impossible" : "Lien créé · copie et ajout à la pile impossibles"
+            notify?(status)
+            temporary = nil; self.options.password = ""
+            return
+        }
+        try check(ticket)
+        status = copied ? "Lien copié" : "Lien créé · copie impossible"
         if copied { notify?("Lien copié · \(options.days) jours") }
         if quick && copied { dismiss?(); quickFeedback?("Lien copié · 7 jours"); self.content = nil; created = nil }
         temporary = nil; self.options.password = ""

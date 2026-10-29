@@ -571,6 +571,20 @@ extension History {
         }.value
         return try await insertCapture(clip)
     }
+    /// Explicit user-created Sends bypass clipboard collection, which correctly ignores concealed data.
+    /// Keep the marker when recopying the saved link so it cannot be collected a second time.
+    func saveBitwardenLink(_ send: BWSend) async throws -> Clip {
+        let text = send.link.absoluteString
+        let payload = ClipPayload(representations: [[
+            .init(type: NSPasteboard.PasteboardType.string.rawValue, data: Data(text.utf8)),
+            .init(type: "org.nspasteboard.ConcealedType", data: Data())
+        ]])
+        let clip = Clip(title: send.name, text: text, source: "Bitwarden", sourceID: "com.bitwarden.desktop", kind: .link, fingerprint: Clip.fingerprint(payload), payload: payload)
+        let saved = try await insertCapture(clip)
+        // insertCapture already queues when stack recording is enabled.
+        if !stack.contains(saved.id) { stack.append(saved.id) }
+        return saved
+    }
     func saveOCR(_ text: String, sourceURL: String? = nil) async throws -> Clip {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw CaptureFailure.message("Aucun texte détecté. Essaie une zone plus nette ou plus grande.") }
         let payload = ClipPayload(representations: [[.init(type: NSPasteboard.PasteboardType.string.rawValue, data: Data(text.utf8))]])

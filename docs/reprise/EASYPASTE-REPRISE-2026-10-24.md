@@ -831,3 +831,22 @@ Complément : le contour décoratif du modificateur `Surface` est explicitement 
 Validation finale : **309 tests Release, zéro échec, 39,61 s**, puis compilation universelle arm64/x86_64. Installation signée au chemin habituel, SHA-256 du binaire : `7193b05250419e9127394705752361d4b5fc5dcf753c482eaf954943097dcb05`. Bundle de préparation dans `/Users/k2r59/Library/Caches/EasyPaste-local-install/switches/EasyPaste.app`, sauvegarde de la version précédente dans `before-switches.zip`. Version privée toujours 0.3.8 (25), incluant aussi les enregistrements sans remplacement de la section 23.
 
 Après le dernier relancement, les six transitions réelles via actions Accessibilité ont réussi : Microphone on/off, Webcam on/off, Son de l’ordinateur on/off. Panneau vidéo laissé ouvert avec les trois options sur off, pour l’essai de l’utilisateur. Aucun enregistrement lancé, aucune permission modifiée, aucune publication OTA.
+
+
+## 25. Liens Bitwarden dans la pile, 29 octobre 2026
+
+Hervé signale que les liens créés avec Bitwarden ne rejoignent pas la pile. Le flux `BitwardenModel.upload` écrivait seulement le lien dans le presse-papiers, avec le marqueur `org.nspasteboard.ConcealedType`. Le collecteur ignore ce marqueur par conception, donc aucune carte ne rejoignait l’historique ni la pile.
+
+Le correctif ajoute explicitement chaque nouveau lien après réussite de l’envoi :
+
+- `History.saveBitwardenLink` enregistre une nouvelle carte de type lien dans le coffre chiffré, puis l’ajoute à la pile. Le texte contient l’URL complète avec son fragment de déchiffrement. La source est Bitwarden, le titre est celui du Send. L’original partagé reste intact.
+- La pile reçoit exactement une occurrence, que son enregistrement automatique soit activé ou non. Le mode rapide et le formulaire avec options suivent le même chemin. Recopier un Send existant ne crée pas une nouvelle carte.
+- La copie immédiate du lien dans le presse-papiers reste active. Le marqueur de confidentialité reste présent dans le contenu enregistré pour éviter une seconde collecte lors d’une recopie.
+- Si la copie dans le presse-papiers échoue, l’historique et la pile conservent tout de même le lien créé. Si l’écriture locale échoue, le panneau conserve le Send et affiche l’erreur. Il ne déclenche aucun nouvel envoi vers Bitwarden.
+- Un échec de transfert ou une désactivation pendant l’envoi ne crée aucune carte Bitwarden.
+
+Validation : 19 tests d’intégration Bitwarden passent avec un transport réseau simulé. Ils couvrent les deux modes, l’enregistrement de pile activé ou non, les doublons, la relecture du contenu sauvegardé, l’intégrité de l’original, les erreurs de copie et de stockage. La suite complète compte **312 tests Release sans échec**, en 37,84 s. Aucun partage réel n’a été créé sur le compte de l’utilisateur pendant ces essais.
+
+Compilation universelle arm64/x86_64 réussie. Bundle privé signé et vérifié dans `/Users/k2r59/Library/Caches/EasyPaste-local-install/bitwarden-stack/EasyPaste.app`, version 0.3.8 (25). SHA-256 du binaire : `64059fa01bee3c129ab9665788164328e7efb8a99ec1ca9b078f2d32cfd67f38`.
+
+Installation en attente : CUA ne retrouve plus la fenêtre après l’ouverture du menu Quitter, et le processus reste actif. Demande envoyée à Hervé pour qu’il quitte EasyPaste proprement. Ne pas annoncer le correctif installé avant le remplacement vérifié. Aucune publication OTA, aucun nouveau tag ni installateur public.
