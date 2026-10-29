@@ -12,7 +12,6 @@ extension MusicStore {
             else {
                 if library.playlists[index].addedTracks == nil { library.playlists[index].addedTracks = [] }
                 library.playlists[index].addedTracks?.append(track)
-                enqueue(track)
             }
         } else {
             library.playlists[index].addedTracks?.removeAll { $0.id == track.id || Matching.sameRecording($0, track) }

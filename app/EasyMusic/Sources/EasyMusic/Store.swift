@@ -42,15 +42,27 @@ import AppKit
     var activeTitle: String? { activeDownloads.first?.track.title }
     var activeID: String? { activeDownloads.first?.id }
     @Published var requestedPlayback: Track?
-    private var orderedPlaybackQueue: [LocalTrack] = []
+    private var orderedPlaybackQueue: [Track] = []
     @Published var previewLoadingID: String?
     @Published var pending: [Track] = []
     @Published var playing: LocalTrack?
+    @Published var streaming: Track?
+    @Published var isBuffering = false
+    var currentTrack: Track? { streaming ?? playing?.track ?? previewing }
+    var hasFullPlayback: Bool { requestedPlayback != nil || streaming != nil || playing != nil }
+    private var playbackTask: Task<Void, Never>?
+    private var bufferTimeout: Task<Void, Never>?
+    private var itemObservation: NSKeyValueObservation?
+    private var controlObservation: NSKeyValueObservation?
+    private var attemptedStreams = Set<String>()
+    private var streamRecoveryCount = 0
+    private var streamSource: Track?
+    private let observesPlayback: Bool
     @Published var previewing: Track?
     @Published var isPlaying = false
     @Published var shuffle = false
     @Published var repeatMode = 0
-    @Published var playbackQueue: [LocalTrack] = []
+    @Published var playbackQueue: [Track] = []
     private var unmutedVolume: Float = 0.8
     @Published var position: Double = 0
     @Published var playerDuration: Double = 0
@@ -77,6 +89,7 @@ import AppKit
     var checkedBitrates = Set<UUID>()
     let storage: URL
     var downloadWorker: ((Track, String, String, URL) async throws -> (Track, String))?
+    var streamResolver: ((Track, Set<String>) async throws -> AudioStream)?
     private var queueFormats: [String: String] = [:]
     private var queueExports: [String: String] = [:]
     var canConvert: Bool { Engine.executable("ffmpeg") != nil }
@@ -92,6 +105,7 @@ import AppKit
         return library.tracks
     }
     init(storageURL: URL? = nil, downloadFolder: URL? = nil, observePlayback: Bool = true) {
+        observesPlayback = observePlayback
         let fm = FileManager.default
         let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("EasyMusic", isDirectory: true)
         storage = storageURL ?? appSupport.appendingPathComponent("library.json")
@@ -103,25 +117,15 @@ import AppKit
         } catch { notice = "La bibliothèque n’a pas pu être chargée : \(error.localizedDescription)" }
         player.volume = volume
         guard observePlayback else { return }
-        observer = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main) { [weak self] time in
+        endObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: nil, queue: .main) { [weak self] notification in
+            guard let item = notification.object as? AVPlayerItem else { return }
             Task { @MainActor in
-                guard let self else { return }
-                let tick = Date()
-                let elapsed = tick.timeIntervalSince(self.lastListeningTick)
-                self.lastListeningTick = tick
-                if self.player.timeControlStatus == .playing { self.accountForListening(seconds: min(1, max(0, elapsed))) }
-                self.position = time.seconds.isFinite ? time.seconds : 0
-                let duration = self.player.currentItem?.duration.seconds ?? 0
-                self.playerDuration = duration.isFinite ? (self.previewing != nil ? min(30, duration) : duration) : 0
-                if self.previewing != nil && self.position >= 30 { self.player.pause(); self.isPlaying = false }
-                if self.player.currentItem?.status == .failed {
-                    self.notice = "Lecture impossible pour ce format. Le fichier reste accessible dans le Finder."
-                    self.isPlaying = false
-                }
+                guard let self, self.player.currentItem === item else { return }
+                self.playbackEnded()
             }
         }
-        endObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.playbackEnded() }
+        controlObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] _, _ in
+            Task { @MainActor in self?.updateBuffering() }
         }
     }
     func loadDiscoveries(force: Bool = false) async {
@@ -154,7 +158,7 @@ import AppKit
         interestsRevision += 1; save()
     }
     func accountForListening(seconds: Double) {
-        guard !listeningRecorded, seconds.isFinite, seconds > 0, let track = playing?.track ?? previewing else { return }
+        guard !listeningRecorded, seconds.isFinite, seconds > 0, let track = currentTrack else { return }
         listeningSeconds += seconds
         guard listeningSeconds >= 10 else { return }
         listeningRecorded = true
@@ -379,12 +383,8 @@ import AppKit
             let bitrate = downloadWorker == nil ? await AudioMetadata.bitrate(URL(fileURLWithPath: path)) : nil
             if !library.tracks.contains(where: { $0.path == path }) { library.tracks.insert(LocalTrack(track: saved, path: path, bitrateKbps: bitrate), at: 0) }
             save(); notice = "« \(requested.title) » est dans votre bibliothèque."
-            if let wanted = requestedPlayback, matchesRecording(wanted, requested), let local = downloaded(wanted) {
-                requestedPlayback = nil; play(local)
-            }
         } catch {
             downloadErrors[requested.id] = error.localizedDescription; notice = error.localizedDescription
-            if let wanted = requestedPlayback, matchesRecording(wanted, requested) { requestedPlayback = nil }
         }
     }
     @discardableResult func createPlaylist(_ name: String, navigate: Bool = true) -> UUID? {
@@ -398,38 +398,140 @@ import AppKit
     func matchesRecording(_ a: Track, _ b: Track) -> Bool {
         a.id == b.id || a.url == b.url || Matching.sameRecording(a, b)
     }
-    func requestPlayback(_ track: Track) {
-        if let local = downloaded(track) {
-            requestedPlayback = nil
-            if playing?.id == local.id { togglePlayback() } else { play(local) }
-            return
-        }
+    func preparePlaybackQueue(for track: Track) {
+        let candidates: [Track]
+        if let playlist = currentPlaylist { candidates = playlistTracks(playlist) }
+        else if section == "search", results.contains(where: { matchesRecording($0, track) }) { candidates = visibleResults }
+        else if section == "home", discoveries.contains(where: { matchesRecording($0, track) }) { candidates = discoveries }
+        else { candidates = library.tracks.map(\.track) }
+        var seen = Set<String>()
+        var queue = candidates.filter { seen.insert($0.id).inserted }
+        if !queue.contains(where: { matchesRecording($0, track) }) { queue = [track] }
+        orderedPlaybackQueue = queue
+        playbackQueue = shuffle ? [track] + queue.filter { !matchesRecording($0, track) }.shuffled() : queue
+    }
+    func requestPlayback(_ track: Track, keepQueue: Bool = false) {
         if let requestedPlayback, matchesRecording(requestedPlayback, track) { cancelRequestedPlayback(); return }
-        requestedPlayback = track; playbackID = UUID(); previewLoadingID = nil
-        player.pause(); player.replaceCurrentItem(with: nil); isPlaying = false
-        playing = nil; previewing = nil; position = 0; playerDuration = 0
-        notice = "Préparation de « \(track.title) »… La lecture démarrera automatiquement."
-        if let index = pending.firstIndex(where: { matchesRecording($0, track) }) {
-            let queued = pending.remove(at: index); pending.insert(queued, at: 0)
+        if previewing == nil, let currentTrack, matchesRecording(currentTrack, track), player.currentItem != nil {
+            togglePlayback(); return
         }
-        enqueue(track)
+        if let local = downloaded(track) { play(local, keepQueue: keepQueue); return }
+        if !keepQueue { preparePlaybackQueue(for: track) }
+        resetPlaybackRequest()
+        playing = nil; previewing = nil; streaming = nil
+        player.pause(); player.replaceCurrentItem(with: nil); isPlaying = false
+        position = 0; playerDuration = track.duration ?? 0
+        requestedPlayback = track; isBuffering = true
+        resolveStream(track, id: playbackID, resumeAt: 0)
+    }
+    private func resetPlaybackRequest() {
+        playbackTask?.cancel(); playbackTask = nil
+        bufferTimeout?.cancel(); bufferTimeout = nil
+        itemObservation = nil; playbackID = UUID()
+        requestedPlayback = nil; previewLoadingID = nil; isBuffering = false
+        attemptedStreams = []; streamSource = nil; streamRecoveryCount = 0
     }
     func cancelRequestedPlayback() {
-        requestedPlayback = nil
-        if notice?.hasPrefix("Préparation de «") == true { notice = nil }
+        resetPlaybackRequest()
+        player.pause(); player.replaceCurrentItem(with: nil)
+        playing = nil; streaming = nil; previewing = nil; isPlaying = false
+        position = 0; playerDuration = 0
+    }
+    private func resolveStream(_ track: Track, id: UUID, resumeAt: Double) {
+        let excluded = attemptedStreams
+        playbackTask = Task {
+            do {
+                let stream: AudioStream
+                if let streamResolver { stream = try await streamResolver(track, excluded) }
+                else { stream = try await AudioStreaming.resolve(track, excluding: excluded) }
+                try Task.checkCancellation()
+                guard playbackID == id else { return }
+                streamSource = stream.source
+                streaming = track; playing = nil; previewing = nil
+                listeningSeconds = 0; listeningRecorded = false; lastListeningTick = Date()
+                let item = AVPlayerItem(asset: stream.makeAsset())
+                item.preferredForwardBufferDuration = 3
+                installPlayerItem(item, resumeAt: resumeAt)
+            } catch {
+                guard playbackID == id, !Task.isCancelled else { return }
+                requestedPlayback = nil; streaming = nil; isBuffering = false; isPlaying = false
+                notice = "Lecture en ligne impossible pour « \(track.title) ». \(error.localizedDescription)"
+            }
+        }
+    }
+    private func observePosition(of item: AVPlayerItem) {
+        if let observer { player.removeTimeObserver(observer) }
+        observer = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main) { [weak self, weak item] _ in
+            Task { @MainActor in
+                guard let self, let item, self.player.currentItem === item else { return }
+                let time = self.player.currentTime()
+                let tick = Date()
+                let elapsed = tick.timeIntervalSince(self.lastListeningTick)
+                self.lastListeningTick = tick
+                if self.player.timeControlStatus == .playing { self.accountForListening(seconds: min(1, max(0, elapsed))) }
+                self.position = time.seconds.isFinite ? time.seconds : 0
+                let duration = self.player.currentItem?.duration.seconds ?? 0
+                self.playerDuration = duration.isFinite && duration > 0 ? (self.previewing != nil ? min(30, duration) : duration) : (self.previewing != nil ? 30 : self.currentTrack?.duration ?? 0)
+                if self.previewing != nil && self.position >= 30 { self.player.pause(); self.isPlaying = false }
+
+            }
+        }
+    }
+    private func installPlayerItem(_ item: AVPlayerItem, resumeAt: Double = 0) {
+        itemObservation = nil
+        player.replaceCurrentItem(with: item)
+        if observesPlayback {
+            observePosition(of: item)
+            itemObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
+                Task { @MainActor in
+                    guard let self, self.player.currentItem === item else { return }
+                    if item.status == .failed { self.playbackFailed(item) }
+                    else if item.status == .readyToPlay {
+                        self.requestedPlayback = nil
+                        if resumeAt > 0 { self.seek(resumeAt) }
+                    }
+                }
+            }
+        } else { requestedPlayback = nil }
+        isPlaying = true; player.play()
+        updateBuffering()
+    }
+    private func updateBuffering() {
+        isBuffering = isPlaying && player.timeControlStatus == .waitingToPlayAtSpecifiedRate
+        bufferTimeout?.cancel(); bufferTimeout = nil
+        guard isBuffering, let item = player.currentItem else { return }
+        bufferTimeout = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: 25_000_000_000) } catch { return }
+            guard let self, self.player.currentItem === item, self.isBuffering else { return }
+            self.playbackFailed(item)
+        }
+    }
+    func playbackFailed(_ item: AVPlayerItem) {
+        guard player.currentItem === item else { return }
+        itemObservation = nil; bufferTimeout?.cancel(); bufferTimeout = nil
+        player.pause(); player.replaceCurrentItem(with: nil); isPlaying = false; isBuffering = false
+        guard let track = streaming, let source = streamSource else {
+            notice = previewing != nil ? "Extrait indisponible. Réessayez dans un instant." : "Lecture impossible pour ce format. Le fichier reste accessible dans le Finder."
+            return
+        }
+        attemptedStreams.insert(source.url)
+        streamRecoveryCount += 1
+        if streamRecoveryCount <= 2 {
+            requestedPlayback = track; isBuffering = true
+            resolveStream(track, id: playbackID, resumeAt: position)
+        } else {
+            requestedPlayback = nil; streaming = nil
+            notice = "Lecture en ligne impossible : aucune autre source audio accessible pour « \(track.title) ». Réessayez dans un instant."
+        }
     }
     func play(_ track: LocalTrack, keepQueue: Bool = false) {
-        requestedPlayback = nil
-        if !keepQueue {
-            let candidates = visibleLocal.contains(where: { $0.id == track.id }) ? visibleLocal : library.tracks
-            orderedPlaybackQueue = candidates
-            playbackQueue = shuffle ? [track] + candidates.filter { $0.id != track.id }.shuffled() : candidates
-        }
         guard FileManager.default.fileExists(atPath: track.path) else { notice = "Ce fichier a été déplacé ou supprimé : \(track.path)"; return }
-        let id = UUID(); playbackID = id; previewLoadingID = nil
-        player.pause(); isPlaying = false
-        playing = track; previewing = nil
-        Task {
+        if !keepQueue { preparePlaybackQueue(for: track.track) }
+        resetPlaybackRequest()
+        let id = playbackID
+        player.pause(); player.replaceCurrentItem(with: nil); isPlaying = false
+        playing = track; streaming = nil; previewing = nil; position = 0; playerDuration = track.track.duration ?? 0
+        playbackTask = Task {
             do {
                 var url = URL(fileURLWithPath: track.path)
                 if ["webm", "opus", "ogg"].contains(url.pathExtension.lowercased()) {
@@ -437,15 +539,17 @@ import AppKit
                     try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
                     let decoded = cache.appendingPathComponent(track.id.uuidString + ".wav")
                     if !FileManager.default.fileExists(atPath: decoded.path) {
-                        notice = "Préparation de la lecture… Le fichier original est conservé."
+                        requestedPlayback = track.track; isBuffering = true
                         try await Engine.convert(url, to: decoded, title: track.track.title, artist: track.track.artist, lossless: true)
                     }
                     url = decoded
                 }
-                guard playbackID == id else { return }
+                guard playbackID == id, !Task.isCancelled else { return }
                 listeningSeconds = 0; listeningRecorded = false; lastListeningTick = Date()
-                player.replaceCurrentItem(with: AVPlayerItem(url: url)); player.play(); isPlaying = true
-            } catch { if playbackID == id { notice = error.localizedDescription } }
+                installPlayerItem(AVPlayerItem(url: url))
+            } catch {
+                if playbackID == id, !Task.isCancelled { requestedPlayback = nil; isBuffering = false; notice = error.localizedDescription }
+            }
         }
     }
     func exportForMobile() {
@@ -470,11 +574,12 @@ import AppKit
     }
     func isQueued(_ track: Track) -> Bool { activeDownloads.contains { matchesRecording($0.track, track) } || pending.contains { matchesRecording($0, track) } }
     func preview(_ track: Track) {
-        requestedPlayback = nil
         if previewing?.id == track.id && isPlaying { player.pause(); isPlaying = false; return }
-        let id = UUID(); playbackID = id
-        player.pause(); isPlaying = false; previewLoadingID = track.id
-        Task {
+        resetPlaybackRequest()
+        let id = playbackID
+        player.pause(); player.replaceCurrentItem(with: nil); isPlaying = false; previewLoadingID = track.id
+        streaming = nil; playing = nil; previewing = nil
+        playbackTask = Task {
             do {
                 let url: URL
                 if let local = downloaded(track) {
@@ -490,42 +595,50 @@ import AppKit
                 } else if let raw = track.preview, let candidate = URL(string: raw), !raw.isEmpty { url = candidate }
                 else if !track.isCatalog { url = try await Engine.previewClip(track) }
                 else { throw MusicError.message("Aucun extrait disponible pour ce titre.") }
-                guard playbackID == id else { return }
-                playing = nil; previewing = track; previewLoadingID = nil; position = 0
+                guard playbackID == id, !Task.isCancelled else { return }
+                playing = nil; streaming = nil; previewing = track; previewLoadingID = nil; position = 0
                 listeningSeconds = 0; listeningRecorded = false; lastListeningTick = Date()
-                player.replaceCurrentItem(with: AVPlayerItem(url: url)); player.play(); isPlaying = true
-            } catch { if playbackID == id { previewLoadingID = nil; notice = error.localizedDescription } }
+                installPlayerItem(AVPlayerItem(url: url))
+            } catch { if playbackID == id, !Task.isCancelled { previewLoadingID = nil; notice = error.localizedDescription } }
         }
     }
     func togglePlayback() {
         if requestedPlayback != nil { cancelRequestedPlayback(); return }
         guard player.currentItem != nil else { return }
         if isPlaying { player.pause() } else { if (previewing != nil && position >= 30) || (position >= playerDuration && playerDuration > 0) { seek(0) }; player.play() }
-        isPlaying.toggle()
+        isPlaying.toggle(); updateBuffering()
     }
-    func seek(_ time: Double) { player.seek(to: CMTime(seconds: time, preferredTimescale: 600)) }
+    func seek(_ time: Double) {
+        guard time.isFinite else { return }
+        player.seek(to: CMTime(seconds: max(0, min(time, playerDuration > 0 ? playerDuration : time)), preferredTimescale: 600))
+    }
     func toggleShuffle() {
         shuffle.toggle()
         if shuffle {
             orderedPlaybackQueue = playbackQueue
-            if let playing { playbackQueue = [playing] + playbackQueue.filter { $0.id != playing.id }.shuffled() }
+            if let track = requestedPlayback ?? currentTrack { playbackQueue = [track] + playbackQueue.filter { !matchesRecording($0, track) }.shuffled() }
         } else if !orderedPlaybackQueue.isEmpty { playbackQueue = orderedPlaybackQueue }
     }
     func toggleMute() {
         if volume > 0 { unmutedVolume = volume; volume = 0 } else { volume = max(0.01, unmutedVolume) }
     }
     func playbackEnded() {
-        guard playing != nil else { isPlaying = false; return }
+        guard playing != nil || streaming != nil else { isPlaying = false; return }
         if repeatMode == 2 { seek(0); player.play(); isPlaying = true }
         else { next() }
     }
     func next(_ offset: Int = 1) {
         if offset < 0 && position > 3 { seek(0); return }
-        guard let playing, let index = playbackQueue.firstIndex(where: { $0.id == playing.id }),
+        guard let track = requestedPlayback ?? currentTrack, let index = playbackQueue.firstIndex(where: { matchesRecording($0, track) }),
               let nextIndex = PlaybackOrder.nextIndex(index, count: playbackQueue.count, offset: offset, repeats: repeatMode == 1) else {
-            isPlaying = false; player.pause(); return
+            if requestedPlayback != nil { cancelRequestedPlayback() }
+            else { isPlaying = false; player.pause() }
+            return
         }
-        play(playbackQueue[nextIndex], keepQueue: true)
+        let nextTrack = playbackQueue[nextIndex]
+        // Repeat on a one-track queue must restart rather than toggle pause.
+        if let currentTrack, matchesRecording(currentTrack, nextTrack), requestedPlayback == nil { seek(0); player.play(); isPlaying = true }
+        else { requestPlayback(nextTrack, keepQueue: true) }
     }
 }
 enum PlaybackOrder {

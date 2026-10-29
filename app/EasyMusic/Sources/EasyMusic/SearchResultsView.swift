@@ -13,13 +13,41 @@ struct SearchEntry: Identifiable {
     }
     static func ranked(tracks: [Track], collections: [CatalogItem], query: String) -> [SearchEntry] {
         let values = tracks.map { SearchEntry(track: $0, collection: nil) } + collections.map { SearchEntry(track: nil, collection: $0) }
-        func normalized(_ s: String) -> String { s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current).trimmingCharacters(in: .whitespacesAndNewlines) }
-        let q = normalized(query)
-        func score(_ entry: SearchEntry) -> Int {
-            let title = normalized(entry.title)
-            return (title == q ? 100 : title.hasPrefix(q) ? 60 : title.contains(q) ? 40 : 0) + (normalized(entry.subtitle).contains(q) ? 10 : 0) + (entry.track?.isCatalog == true ? 2 : 0)
+        func normalized(_ s: String) -> String {
+            s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "fr_FR"))
+                .components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }.joined(separator: " ")
         }
-        return values.sorted { score($0) == score($1) ? $0.id < $1.id : score($0) > score($1) }
+        let q = normalized(query)
+        guard !q.isEmpty else { return values }
+        let queryWords = Matching.words(q)
+        let variants: Set<String> = ["live", "remix", "cover", "karaoke", "acoustic", "acoustique", "instrumental", "sped", "slowed", "radio", "extended"]
+        func containsPhrase(_ text: String, _ phrase: String) -> Bool {
+            !phrase.isEmpty && (" " + text + " ").contains(" " + phrase + " ")
+        }
+        func score(_ entry: SearchEntry) -> Double {
+            let title = normalized(Matching.titleForSearch(entry.title)), artist = normalized(entry.subtitle)
+            let available = Matching.words(title + " " + artist)
+            // A title followed by an artist is one query: both fields must contribute.
+            var score = Double(queryWords.intersection(available).count) / Double(queryWords.count) * 1_000
+            if title == q { score += 180 }
+            else if containsPhrase(q, title) { score += 90 }
+            else if containsPhrase(title, q) { score += 30 }
+            // Complete credited names distinguish Renaud from Renaud Capuçon.
+            if containsPhrase(q, artist) { score += 100 }
+            if artist == q { score += 60 }
+            let unrequestedVariants = Matching.words(title).intersection(variants).subtracting(queryWords)
+            score -= Double(unrequestedVariants.count) * 80
+            return score + (entry.track?.isCatalog == true ? 2 : 0)
+        }
+        // Keep provider relevance for indistinguishable names instead of ordering by database ID.
+        let scored: [(entry: SearchEntry, offset: Int, relevance: Double)] = values.enumerated().map {
+            (entry: $0.element, offset: $0.offset, relevance: score($0.element))
+        }
+        let sorted = scored.sorted { first, second in
+            if first.relevance == second.relevance { return first.offset < second.offset }
+            return first.relevance > second.relevance
+        }
+        return sorted.map { $0.entry }
     }
 }
 struct SearchResultsView: View {

@@ -43,7 +43,7 @@ import XCTest
         store.library.playlists = [list]; store.section = list.id.uuidString
         store.play(locals[0])
         store.toggleShuffle(); store.toggleShuffle()
-        XCTAssertEqual(store.playbackQueue.map(\.id), locals.map(\.id), "Désactiver aléatoire doit restaurer l’ordre de la playlist")
+        XCTAssertEqual(store.playbackQueue.map(\.id), locals.map { $0.track.id }, "Désactiver aléatoire doit restaurer l’ordre de la playlist")
     }
     func testConversionNeverDeletesPreexistingOutput() async throws {
         guard Engine.executable("ffmpeg") != nil else { throw XCTSkip("FFmpeg requis") }
@@ -97,6 +97,25 @@ import XCTest
         catch { XCTAssertTrue(error.localizedDescription.contains("1/2")) }
         XCTAssertEqual(try Data(contentsOf: first), bytes)
         XCTAssertEqual(store.library.tracks.count, 2)
+    }
+    func testRemotePlaylistMembershipDoesNotDownloadOrCreateLocalAudio() throws {
+        let (store, root) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let song = track("remote")
+        let first = try XCTUnwrap(store.createPlaylist("One", navigate: false))
+        let second = try XCTUnwrap(store.createPlaylist("Two", navigate: false))
+        store.setMembership(song, in: first, included: true)
+        store.setMembership(song, in: second, included: true)
+        store.setMembership(song, in: first, included: true)
+        XCTAssertTrue(store.library.tracks.isEmpty)
+        XCTAssertTrue(store.pending.isEmpty); XCTAssertTrue(store.activeDownloads.isEmpty)
+        XCTAssertTrue(store.library.playlists.allSatisfy { store.contains(song, in: $0) })
+        XCTAssertEqual(store.library.playlists[0].addedTracks?.count, 1)
+        let restored = MusicStore(storageURL: store.storage, downloadFolder: root, observePlayback: false)
+        XCTAssertTrue(restored.library.tracks.isEmpty)
+        XCTAssertTrue(restored.library.playlists.allSatisfy { restored.contains(song, in: $0) })
+        store.setMembership(song, in: first, included: false)
+        XCTAssertFalse(store.contains(song, in: store.library.playlists[0]))
+        XCTAssertTrue(store.contains(song, in: store.library.playlists[1]))
     }
     func testMuteRestoresPreviousVolume() throws {
         let (store, root) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }

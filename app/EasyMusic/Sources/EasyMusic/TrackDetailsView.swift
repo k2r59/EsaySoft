@@ -57,14 +57,10 @@ struct TrackDetailsView: View {
             .task(id: track.id) {
                 artists = []; albums = []; loading = true
                 defer { loading = false }
-                let found = (try? await Catalog.search(track.artist, mode: .artists)) ?? []
+                let related = try? await Catalog.relations(for: track)
                 guard !Task.isCancelled else { return }
-                artists = Array(found.filter { $0.name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current) == track.artist.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current) }.prefix(1))
-                if let artist = artists.first {
-                    let rows = try? await Catalog.rows("artist/\(artist.key)/albums", query: [URLQueryItem(name: "limit", value: "4")])
-                    guard !Task.isCancelled else { return }
-                    albums = Catalog.items(rows ?? [], kind: "album")
-                }
+                artists = related.map { [$0.artist] } ?? []
+                albums = related?.albums ?? []
             }
     }
     private func detailLink(_ item: CatalogItem) -> some View {

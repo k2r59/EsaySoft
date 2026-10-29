@@ -6,7 +6,7 @@ struct PlayableArtwork: View {
     var size: CGFloat = 56
     @State private var hovered = false
     var local: LocalTrack? { store.downloaded(track) }
-    var playing: Bool { local != nil && store.playing?.id == local?.id && store.isPlaying }
+    var playing: Bool { store.previewing == nil && store.currentTrack.map { store.matchesRecording($0, track) } == true && store.isPlaying }
     var body: some View {
         Button { store.requestPlayback(track) } label: {
             Art(url: track.artwork, size: size)
@@ -20,7 +20,7 @@ struct PlayableArtwork: View {
                         .background(Theme.green, in: Circle()) }
                 }.clipShape(RoundedRectangle(cornerRadius: size > 100 ? 8 : 4))
         }.buttonStyle(.plain).onHover { hovered = $0 }
-            .help(store.requestedPlayback?.id == track.id ? "Annuler la lecture automatique" : playing ? "Mettre en pause" : "Lire le titre")
+            .help(store.requestedPlayback?.id == track.id ? "Annuler la lecture" : playing ? "Mettre en pause" : "Lire le titre")
             .accessibilityLabel(playing ? "Mettre \(track.title) en pause" : "Lire \(track.title)")
     }
 }

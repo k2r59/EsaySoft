@@ -79,7 +79,7 @@ enum PublicCharts {
                 let session = URLSession(configuration: configuration)
                 defer { session.invalidateAndCancel() }
                 var request = URLRequest(url: iTunesFrance); request.timeoutInterval = 8
-                request.setValue("EasyMusic/0.4.1 (macOS)", forHTTPHeaderField: "User-Agent")
+                request.setValue("EasyMusic/0.5.0 (macOS)", forHTTPHeaderField: "User-Agent")
                 let (data, response) = try await session.data(for: request)
                 guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { throw failure }
                 return try parse(data)

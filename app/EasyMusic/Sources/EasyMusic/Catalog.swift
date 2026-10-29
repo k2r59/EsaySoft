@@ -48,7 +48,26 @@ enum Catalog {
             return genres.filter { normalizeGenre($0.name).contains(normalized) || normalized.contains(normalizeGenre($0.name)) }
         }
         let kind = mode == .albums ? "album" : mode == .playlists ? "playlist" : "artist"
-        return items(try await rows("search/" + kind, query: [URLQueryItem(name: "q", value: term), URLQueryItem(name: "limit", value: "24")]), kind: kind)
+        let results = try await rows("search/" + kind, query: [URLQueryItem(name: "q", value: term), URLQueryItem(name: "limit", value: "24")])
+        return items(kind == "artist" ? rankArtistHomonyms(results) : results, kind: kind)
+    }
+    static func rankArtistHomonyms(_ rows: [[String: Any]]) -> [[String: Any]] {
+        func name(_ row: [String: Any]) -> String {
+            (row["name"] as? String ?? "").folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "fr_FR"))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        var result = rows
+        let groups = Dictionary(grouping: rows.indices, by: { name(rows[$0]) })
+        for (name, positions) in groups where !name.isEmpty && positions.count > 1 {
+            // Missing fan counts are not popularity evidence: leave that group untouched.
+            guard positions.allSatisfy({ rows[$0]["nb_fan"] as? Int != nil }) else { continue }
+            let ranked = positions.sorted {
+                let first = rows[$0]["nb_fan"] as! Int, second = rows[$1]["nb_fan"] as! Int
+                return first == second ? $0 < $1 : first > second
+            }
+            for (position, source) in zip(positions, ranked) { result[position] = rows[source] }
+        }
+        return result
     }
     static func normalizeGenre(_ raw: String) -> String {
         let normalized = raw.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "fr_FR"))

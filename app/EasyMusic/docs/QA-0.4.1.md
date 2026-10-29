@@ -104,3 +104,9 @@ Les trois exécutions utilisent les sources produit finales gelées, `EASYMUSIC_
 Total : **282 exécutions de tests réussies**. Chaque passe inclut réseau réel et téléchargement du titre Renaud signalé, avec fichier audio lisible d’environ 217,42 secondes et aucune piste vidéo. Des diagnostics macOS CoreData/XPC apparaissent dans les sorties ; ils n’ont entraîné ni assertion échouée ni test ignoré.
 
 **Le score reste 9/10.** Ces répétitions renforcent la preuve automatisée ; elles ne ferment pas l’observation GUI encore manquante. Le contrôle natif échoue toujours avant initialisation côté app-server, également dans la session de l’agent principal. La publication n’est pas autorisée par cet audit tant que la catégorie 1 n’a pas été clôturée par les derniers scénarios visibles listés ci-dessus.
+
+### Reprise UI puis extension du périmètre
+
+La liaison CUA a été rétablie. Sur `EasyMusicQA-Final.app`, l’accueil affiche bien « Top ventes France · iTunes ». Le parcours `Livres audio` → `Trop la classe ! (Histoires)` montre des entrées de livres audio puis leurs pistes étiquetées « Chapitre » ; Retour restaure la liste Livres audio. La fermeture de la fiche titre a été constatée. Le contrôle des filtres restait en cours lorsqu’une nouvelle demande a arrêté cette passe : lecture en streaming des titres non téléchargés, avant publication.
+
+**L’audit précédent n’autorise pas la publication de cette nouvelle implémentation.** Le score9/10 est l’état historique de la version précédente, pas une note attribuée à la version streaming. Le nouveau plan est détaillé dans `docs/QA-STREAMING-0.5.0.md` ; tests et binaire à refaire après intégration.

@@ -8,7 +8,7 @@ import AppKit
         WindowGroup {
             ContentView().environmentObject(store).environmentObject(updates).preferredColorScheme(.dark)
                 .frame(minWidth: 1060, minHeight: 720)
-                .onAppear { NSApp.setActivationPolicy(.regular); NSApp.activate(ignoringOtherApps: true); updates.busy = { store.activeTitle != nil || !store.pending.isEmpty || store.exporting || store.importingPlaylist || store.isPlaying || store.previewLoadingID != nil }; updates.start() }
+                .onAppear { NSApp.setActivationPolicy(.regular); NSApp.activate(ignoringOtherApps: true); updates.busy = { store.activeTitle != nil || !store.pending.isEmpty || store.exporting || store.importingPlaylist || store.isPlaying || store.requestedPlayback != nil || store.previewLoadingID != nil }; updates.start() }
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1360, height: 860)
@@ -208,14 +208,12 @@ struct ContentView: View {
                         VStack(alignment: .leading, spacing: 18) {
                             Text("À la une").font(.system(size: 23, weight: .bold))
                             HStack(spacing: 16) {
-                                Art(url: featured.artwork, size: 172)
+                                PlayableArtwork(track: featured, size: 172).environmentObject(store)
                                 VStack(alignment: .leading, spacing: 12) {
                                     Text(featured.artist).font(.system(size: 12)).foregroundStyle(Theme.secondary)
                                     Text(featured.title).font(.system(size: 25, weight: .bold)).lineLimit(3)
                                     HStack(spacing: 16) {
-                                        Button { store.preview(featured) } label: {
-                                            Image(systemName: store.previewing?.id == featured.id && store.isPlaying ? "pause.fill" : "play.fill").foregroundStyle(.black).frame(width: 34, height: 34).background(.white, in: Circle())
-                                        }.buttonStyle(.plain).help("Écouter un extrait")
+                                        TrackPlaybackButtons(track: featured, compact: true, showPlay: false).environmentObject(store)
                                         downloadControl(featured)
                                     }
                                 }.frame(maxWidth: .infinity, alignment: .leading)
@@ -250,12 +248,12 @@ struct ContentView: View {
                             HStack(alignment: .top, spacing: 18) {
                                 ForEach(store.discoveries) { track in
                                     VStack(alignment: .leading, spacing: 10) {
-                                        Button { store.showHomeTrack(track) } label: { Art(url: track.artwork, size: 154) }.buttonStyle(.plain)
-                                        Text(track.title).font(.system(size: 14, weight: .semibold)).lineLimit(1)
+                                        PlayableArtwork(track: track, size: 154).environmentObject(store)
+                                        Button { store.showHomeTrack(track) } label: { Text(track.title).font(.system(size: 14, weight: .semibold)).lineLimit(1) }.buttonStyle(.plain)
                                         HStack {
                                             Text(track.artist).font(.system(size: 12)).foregroundStyle(Theme.secondary).lineLimit(1)
                                             Spacer(minLength: 0)
-                                            Button { store.preview(track) } label: { Image(systemName: store.previewing?.id == track.id && store.isPlaying ? "pause.fill" : "play.fill") }.buttonStyle(.plain).help("Écouter un extrait")
+                                            TrackPlaybackButtons(track: track, compact: true, showPlay: false).environmentObject(store)
                                         }
                                     }.frame(width: 154)
                                 }
@@ -377,8 +375,8 @@ struct ContentView: View {
             }.padding(.vertical, 12)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    Button { if let first = store.visibleLocal.first { store.play(first) } } label: { Label("Lire", systemImage: "play.fill") }
-                        .buttonStyle(GreenButton()).disabled(store.visibleLocal.isEmpty)
+                    Button { if let first = store.currentPlaylist.map({ store.playlistTracks($0) })?.first ?? store.visibleLocal.first?.track { store.requestPlayback(first) } } label: { Label("Lire", systemImage: "play.fill") }
+                        .buttonStyle(GreenButton()).disabled(store.currentPlaylist.map { store.playlistTracks($0).isEmpty } ?? store.visibleLocal.isEmpty)
                     if let list = store.currentPlaylist, (list.importedTracks != nil || list.addedTracks != nil) {
                         Button { store.downloadPlaylist(list) } label: { Image(systemName: "arrow.down.circle").font(.system(size: 20)) }
                             .buttonStyle(ToolbarButtonStyle()).help("Télécharger les titres manquants").accessibilityLabel("Télécharger les titres manquants")

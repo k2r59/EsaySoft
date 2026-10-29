@@ -1,6 +1,6 @@
 {
-  "version": "0.4.1",
-  "build": "6",
+  "version": "0.5.0",
+  "build": "7",
   "feed": "https://k2r59.github.io/EsaySoft/easymusic/appcast.xml",
   "publicKey": "J9OeT0cg51nDsipifHKKyO9Xx9IlchrBvDDDQBJsPZQ=",
   "keychainAccount": "local.easymusic.app"

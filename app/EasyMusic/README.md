@@ -1,10 +1,10 @@
 # EasyMusic
 
-Première ébauche d’une application macOS native en SwiftUI. Recherchez un morceau, téléchargez son audio et organisez vos fichiers dans des playlists locales. L’interface reprend les repères de Spotify, avec une identité EasyMusic.
+Première ébauche d’une application macOS native en SwiftUI. Recherchez un morceau, écoutez-le en streaming ou téléchargez son audio, puis organisez vos titres dans des playlists. L’interface reprend les repères de Spotify, avec une identité EasyMusic.
 
 ## Lancer l’application
 
-Ouvrez `dist/EasyMusic-0.4.0.app` pour la version complète, ou utilisez son installateur DMG.
+Ouvrez `dist/EasyMusic-0.5.0.app` pour la version complète, ou utilisez son installateur DMG.
 
 Pour reconstruire l’application, installez Xcode ou ses outils de développement, puis exécutez depuis ce dossier :
 
@@ -15,7 +15,7 @@ open dist/EasyMusic.app
 
 Le script récupère yt-dlp 2026.10.26 depuis sa publication officielle et vérifie son SHA-256. L’application cible macOS 13 ou version ultérieure et les Mac Intel et Apple Silicon. La signature locale permet les essais sur ce Mac ; la distribution sur d’autres Mac nécessite une signature Developer ID et une notarisation.
 
-FFmpeg est facultatif pour télécharger le format original. Il active la conversion MP3/M4A, les métadonnées et pochettes intégrées lors de ces conversions, ainsi que la lecture locale des fichiers Opus/WebM. Node.js, s’il est installé, sert aux défis JavaScript de YouTube. Le moteur les recherche dans les emplacements Homebrew usuels. Le paquet de distribution 0.4.0 intègre ces deux dépendances. Le script de compilation rapide ne les inclut que si `BUNDLE_RUNTIME=1`.
+FFmpeg est facultatif pour télécharger le format original. Il active la conversion MP3/M4A, les métadonnées et pochettes intégrées lors de ces conversions, ainsi que la lecture locale des fichiers Opus/WebM. Node.js, s’il est installé, sert aux défis JavaScript de YouTube. Le moteur les recherche dans les emplacements Homebrew usuels. Le paquet de distribution 0.5.0 intègre ces deux dépendances. Le script de compilation rapide ne les inclut que si `BUNDLE_RUNTIME=1`.
 
 ## Utiliser EasyMusic
 
@@ -24,7 +24,7 @@ FFmpeg est facultatif pour télécharger le format original. Il active la conver
 3. Retrouvez le fichier dans **Tous les titres**.
 4. Créez une playlist avec le bouton **+**, puis ajoutez les titres avec leur menu **•••**. Cochez plusieurs playlists pour conserver le même titre dans chacune.
 
-Les boutons Lire et Extrait distinguent le fichier local complet et la pré-écoute. Pour YouTube et SoundCloud, FFmpeg prépare un extrait de 30 secondes en cache. Sans FFmpeg, EasyMusic tente la lecture directe du flux, dont la compatibilité dépend du format. Une coche remplace le bouton de téléchargement quand le fichier existe déjà ; le bouton + ouvre un sélecteur de playlists. Si le fichier a été supprimé du disque, le téléchargement redevient disponible.
+Le bouton Lire utilise le fichier local lorsqu’il existe, sinon un flux audio complet compatible avec macOS. Aucun fichier musical ni entrée de bibliothèque n’est créé par cette lecture en ligne. Le bouton Extrait reste limité à 30 secondes. Pour YouTube et SoundCloud, FFmpeg prépare un extrait de 30 secondes en cache. Sans FFmpeg, EasyMusic tente la lecture directe du flux, dont la compatibilité dépend du format. Une coche remplace le bouton de téléchargement quand le fichier existe déjà ; le bouton + ouvre un sélecteur de playlists. Si le fichier a été supprimé du disque, le téléchargement redevient disponible.
 
 Cliquez sur un résultat pour consulter les qualités disponibles. Choisissez le format de sortie et le dossier de destination dans **Sources et réglages**. Une conversion ne peut pas améliorer la qualité du fichier source.
 
@@ -88,7 +88,7 @@ Téléchargez uniquement les contenus que vous êtes autorisé à conserver.
 
 ## Distribution et mises à jour
 
-La version 0.4.0 dispose d’un lecteur à trois zones avec file de lecture, répétition, lecture aléatoire, volume et choix de sortie audio.
+La version 0.5.0 dispose d’un lecteur à trois zones avec file de lecture, répétition, lecture aléatoire, volume et choix de sortie audio.
 
 Le paquet universel embarque yt-dlp, Node.js, FFmpeg et FFprobe : aucune installation Homebrew n’est nécessaire chez le destinataire. La compilation des dépendances est reproductible avec `scripts/build-dependencies.sh`. Les sources FFmpeg/LAME et les licences sont jointes à l’archive source.
 
@@ -121,9 +121,9 @@ Cliquez sur **Importer une playlist** dans la barre latérale, puis collez un li
 **Télécharger les titres manquants** remplit la file de téléchargement. Les fichiers déjà reconnus sont réutilisés, les doublons de liens sont retirés et l’ordre des titres importés est conservé. Les échecs restent visibles pendant la session et peuvent être réessayés. Les listes importées persistent après redémarrage, mais la file de téléchargement n’est pas relancée automatiquement. Un nouvel import du même lien actualise la playlist existante. Les liens courts doivent être remplacés par leur lien complet.
 
 
-## Playlists et détails (0.4.0)
+## Playlists et détails (0.5.0)
 
-Le bouton + ouvre un sélecteur avec recherche, création et sélection multiple. Ajouter un morceau distant lance son téléchargement une seule fois ; les autres playlists réutilisent le fichier. Retirer un morceau d’une playlist ne supprime pas le fichier.
+Le bouton + ouvre un sélecteur avec recherche, création et sélection multiple. Ajouter un morceau distant conserve sa référence sans le télécharger ; il peut être écouté en streaming dans la playlist. La flèche de téléchargement permet de le rendre disponible hors connexion. Retirer un morceau d’une playlist ne supprime pas le fichier.
 
 Le menu de la playlist permet de la renommer et de choisir sa pochette. Par défaut, elle reprend celle du premier titre. Le lien d’origine reste enregistré. Pendant l’utilisation, les listes importées sont vérifiées au plus toutes les quinze minutes ; une pastille signale les changements. Le bouton de synchronisation actualise les titres exposés par la source tout en conservant le nom local et la pochette.
 
@@ -131,10 +131,12 @@ Cliquez sur un titre pour ouvrir ses détails à droite. Les albums sont affich�
 
 Dans une playlist, cliquez sur son titre ou le crayon pour la renommer. Le bouton corbeille de la barre d’actions supprime uniquement la playlist d’EasyMusic après confirmation : les fichiers audio et la liste sur le service d’origine restent conservés.
 
-### Cohérence de l’accueil et lecture (0.4.1)
+### Cohérence de l’accueil et lecture (0.5.0)
 
 Les catégories ouvrent des albums dont le genre primaire ou secondaire correspond au choix, au lieu d’une liste d’artistes parfois générique. Les livres audio ouvrent leurs chapitres. Les recommandations de playlists sont vérifiées sur le titre et un échantillon du contenu ; les propositions sans lien vérifiable sont écartées.
 
 L’accueil peut utiliser le classement des ventes France du [flux public iTunes](https://itunes.apple.com/fr/rss/topsongs/limit=50/json) : seuls les titres retrouvés avec une identité cohérente dans Deezer sont affichés, avec attribution du classement. Si ce flux ne répond pas, l’interface indique le classement Deezer utilisé. Aucun compte payant ni clé API ne sont nécessaires à ces lectures publiques. Les réponses Deezer sont mises en cache et les requêtes cadencées.
 
-Le bouton lecture d’un titre distant démarre sa préparation et lance le fichier complet automatiquement. Une seconde pression annule cette lecture automatique, sans supprimer le téléchargement. Choisir un autre titre ou un extrait remplace la demande de lecture précédente.
+Le bouton lecture d’un titre distant résout un flux audio complet, sans téléchargement dans la bibliothèque. Une seconde pression annule la connexion. Choisir un autre titre ou un extrait remplace la demande précédente. La file de lecture peut mélanger des titres locaux et distants. Si un flux échoue, une autre source correspondant au même enregistrement est essayée ; les contenus protégés ne sont pas déverrouillés. La première connexion peut prendre quelques secondes selon la source et le réseau.
+
+Le classement des recherches combine les termes du titre et de l’artiste. Les homonymes de même nom sont départagés par les abonnés publics du catalogue lorsque cette donnée est disponible. Les fiches utilisent l’identifiant du morceau ou une correspondance titre/artiste non ambiguë pour afficher l’artiste et ses albums ; une relation incertaine est omise.

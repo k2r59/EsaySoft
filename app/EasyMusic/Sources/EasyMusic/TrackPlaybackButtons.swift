@@ -9,7 +9,7 @@ struct TrackPlaybackButtons: View {
         HStack(spacing: 14) {
             if showPlay { Button {
                 store.requestPlayback(track)
-            } label: { Label(store.playing?.track.id == track.id && store.isPlaying ? "Pause" : "Lire", systemImage: store.playing?.track.id == track.id && store.isPlaying ? "pause.fill" : "play.fill") }
+            } label: { Label(store.previewing == nil && store.currentTrack?.id == track.id && store.isPlaying ? "Pause" : "Lire", systemImage: store.previewing == nil && store.currentTrack?.id == track.id && store.isPlaying ? "pause.fill" : "play.fill") }
                 .help("Lire le titre complet") }
             Button { store.preview(track) } label: {
                 if store.previewLoadingID == track.id { ProgressView().controlSize(.small) }
