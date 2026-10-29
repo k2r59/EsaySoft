@@ -1,6 +1,13 @@
 import Foundation
 
 extension MusicStore {
+    func deletePlaylist(_ id: UUID) {
+        guard library.playlists.contains(where: { $0.id == id }) else { return }
+        library.playlists.removeAll { $0.id == id }
+        syncErrors[id] = nil
+        if section == id.uuidString { section = "library" }
+        save()
+    }
     func renamePlaylist(_ id: UUID, to name: String) {
         let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty, let index = library.playlists.firstIndex(where: { $0.id == id }) else { return }

@@ -128,3 +128,5 @@ Le bouton + ouvre un sélecteur avec recherche, création et sélection multiple
 Le menu de la playlist permet de la renommer et de choisir sa pochette. Par défaut, elle reprend celle du premier titre. Le lien d’origine reste enregistré. Pendant l’utilisation, les listes importées sont vérifiées au plus toutes les quinze minutes ; une pastille signale les changements. Le bouton de synchronisation actualise les titres exposés par la source tout en conservant le nom local et la pochette.
 
 Cliquez sur un titre pour ouvrir ses détails à droite. Les albums sont affichés lorsque l’artiste est identifié exactement dans le catalogue public. Aucun nombre d’auditeurs ni biographie ne sont inventés. Le débit local est mesuré avec ffprobe ; il est approximatif pour les fichiers à débit variable.
+
+Dans une playlist, cliquez sur son titre ou le crayon pour la renommer. Le bouton corbeille de la barre d’actions supprime uniquement la playlist d’EasyMusic après confirmation : les fichiers audio et la liste sur le service d’origine restent conservés.

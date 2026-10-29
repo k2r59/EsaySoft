@@ -55,7 +55,7 @@ struct ContentView: View {
     @EnvironmentObject var updates: AppUpdates
     @State private var importPlaylist = false
     @State private var renamingPlaylist: Playlist?
-    @State private var renamedValue = ""
+    @State private var deletingPlaylist: Playlist?
     @State private var newPlaylist = false
     @State private var playlistName = ""
     @State private var playlistTrack: LocalTrack?
@@ -91,16 +91,13 @@ struct ContentView: View {
             Task { await store.checkPlaylistUpdates() }
         }
         .sheet(item: $renamingPlaylist) { playlist in
-            VStack(alignment: .leading, spacing: 20) {
-                Text("Renommer la playlist").font(.title2.bold())
-                TextField("Nom", text: $renamedValue).textFieldStyle(.roundedBorder)
-                HStack {
-                    Button("Annuler") { renamingPlaylist = nil }
-                    Spacer()
-                    Button("Enregistrer") { store.renamePlaylist(playlist.id, to: renamedValue); renamingPlaylist = nil }
-                        .buttonStyle(GreenButton()).disabled(renamedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }.padding(28).frame(width: 400)
+            RenamePlaylistSheet(playlist: playlist).environmentObject(store)
+        }
+        .alert("Supprimer cette playlist ?", isPresented: Binding(get: { deletingPlaylist != nil }, set: { if !$0 { deletingPlaylist = nil } }), presenting: deletingPlaylist) { playlist in
+            Button("Annuler", role: .cancel) { deletingPlaylist = nil }
+            Button("Supprimer", role: .destructive) { store.deletePlaylist(playlist.id); deletingPlaylist = nil }
+        } message: { playlist in
+            Text("« \(playlist.name) » sera supprimée d’EasyMusic. Vos fichiers audio et la playlist d’origine sont conservés.")
         }
         .sheet(isPresented: $importPlaylist) { ImportPlaylistSheet().environmentObject(store) }
         .sheet(isPresented: $newPlaylist) {
@@ -150,13 +147,15 @@ struct ContentView: View {
                                 }
                             }.padding(8).background(store.section == list.id.uuidString ? Theme.card : .clear).cornerRadius(6)
                         }.buttonStyle(.plain).contextMenu {
-                            Button("Renommer") { renamedValue = list.name; renamingPlaylist = list }
+                            Button("Renommer") { renamingPlaylist = list }
                             Button("Choisir une pochette…") { store.chooseArtwork(for: list.id) }
                             if list.artworkPath != nil { Button("Pochette du premier titre") { store.resetArtwork(for: list.id) } }
                             if list.sourceURL != nil {
                                 Button("Vérifier les changements") { Task { await store.refreshPlaylist(list.id, apply: false) } }
                                 Button("Synchroniser") { Task { await store.refreshPlaylist(list.id, apply: true) } }
                             }
+                            Divider()
+                            Button("Supprimer la playlist…", role: .destructive) { deletingPlaylist = list }
                         }
                     }
                     if store.library.playlists.isEmpty {
@@ -363,7 +362,14 @@ struct ContentView: View {
                 }
                 VStack(alignment: .leading, spacing: 10) {
                     Text(store.currentPlaylist == nil ? "BIBLIOTHÈQUE LOCALE" : "PLAYLIST").font(.system(size: 11, weight: .bold)).tracking(1.4)
-                    Text(store.currentPlaylist?.name ?? "Tous vos titres").font(.system(size: 38, weight: .heavy)).lineLimit(2)
+                    if let list = store.currentPlaylist {
+                        Button { renamingPlaylist = list } label: {
+                            HStack(spacing: 12) {
+                                Text(list.name).font(.system(size: 38, weight: .heavy)).lineLimit(2)
+                                Image(systemName: "pencil").font(.system(size: 19)).foregroundStyle(Theme.secondary)
+                            }
+                        }.buttonStyle(.plain).help("Renommer la playlist").accessibilityLabel("Renommer \(list.name)")
+                    } else { Text("Tous vos titres").font(.system(size: 38, weight: .heavy)).lineLimit(2) }
                     Text(store.currentPlaylist?.importedTracks != nil ? "\(store.currentPlaylist?.importedTracks?.count ?? 0) titres · \(store.visibleLocal.count) en local" : "\(store.visibleLocal.count) titres · Disponibles hors connexion").font(.system(size: 13)).foregroundStyle(Theme.secondary)
                 }
                 Spacer(minLength: 0)
@@ -380,10 +386,14 @@ struct ContentView: View {
                     Button { store.exportForMobile() } label: { Label(store.exporting ? "Préparation…" : "Pour Offline Music", systemImage: "iphone.and.arrow.forward") }
                         .buttonStyle(ToolbarButtonStyle()).disabled(store.exporting || store.visibleLocal.isEmpty)
                     if let list = store.currentPlaylist {
+                        Button { deletingPlaylist = list } label: { Image(systemName: "trash").font(.system(size: 18)) }
+                            .buttonStyle(ToolbarButtonStyle()).help("Supprimer la playlist").accessibilityLabel("Supprimer la playlist")
                         Menu {
-                            Button("Renommer") { renamedValue = list.name; renamingPlaylist = list }
+                            Button("Renommer") { renamingPlaylist = list }
                             Button("Choisir une pochette…") { store.chooseArtwork(for: list.id) }
                             Button("Pochette du premier titre") { store.resetArtwork(for: list.id) }
+                            Divider()
+                            Button("Supprimer la playlist…", role: .destructive) { deletingPlaylist = list }
                             if let raw = list.sourceURL, let url = URL(string: raw) {
                                 Divider()
                                 Link("Voir la source", destination: url)
