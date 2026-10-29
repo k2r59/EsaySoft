@@ -69,6 +69,7 @@ struct Engine {
         return jsonLines(output).compactMap { track($0, source: source) }
     }
     static func request(_ url: URL, session: URLSession = .shared) async throws -> Data {
+        if url.host == "api.deezer.com" { return try await DeezerClient.shared.request(url, session: session) }
         var request = URLRequest(url: url); request.timeoutInterval = 20
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {

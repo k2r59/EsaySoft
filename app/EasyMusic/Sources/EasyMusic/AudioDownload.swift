@@ -43,7 +43,7 @@ enum AudioDownload {
         for service in services {
             status(lastFailure == nil ? "Recherche audio sur \(service)…" : "Autre source audio : \(service)…")
             let candidates: [Track]
-            do { candidates = try await search(target.artist + " " + target.title, service) }
+            do { candidates = try await search(target.artist + " " + Matching.titleForSearch(target.title), service) }
             catch { lastFailure = error; continue }
             let ranked = candidates.filter { !$0.isCatalog && Matching.score($0, for: target) >= 0.85 }
                 .sorted { Matching.score($0, for: target) > Matching.score($1, for: target) }

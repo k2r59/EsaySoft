@@ -95,7 +95,7 @@ struct ImportedPlaylistView: View {
                                     Menu {
                                         ForEach(store.library.playlists) { list in
                                             if list.id != playlist.id {
-                                                Toggle(list.name, isOn: Binding(get: { list.trackIDs.contains(local.id) }, set: { value in
+                                                Toggle(list.name, isOn: Binding(get: { store.contains(local.track, in: list) }, set: { value in
                                                     if value { store.add(local, to: list.id) } else { store.remove(local, from: list.id) }
                                                 }))
                                             }

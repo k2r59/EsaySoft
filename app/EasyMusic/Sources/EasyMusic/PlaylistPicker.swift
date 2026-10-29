@@ -10,11 +10,12 @@ extension MusicStore {
             guard !contains(track, in: library.playlists[index]) else { return }
             if let local = downloaded(track) { library.playlists[index].trackIDs.append(local.id) }
             else {
-                if library.playlists[index].importedTracks == nil { library.playlists[index].importedTracks = [] }
-                library.playlists[index].importedTracks?.append(track)
+                if library.playlists[index].addedTracks == nil { library.playlists[index].addedTracks = [] }
+                library.playlists[index].addedTracks?.append(track)
                 enqueue(track)
             }
         } else {
+            library.playlists[index].addedTracks?.removeAll { $0.id == track.id || Matching.sameRecording($0, track) }
             library.playlists[index].importedTracks?.removeAll { $0.id == track.id || Matching.sameRecording($0, track) }
             let ids = Set(library.tracks.filter { $0.track.id == track.id || Matching.sameRecording($0.track, track) }.map(\.id))
             library.playlists[index].trackIDs.removeAll { ids.contains($0) }

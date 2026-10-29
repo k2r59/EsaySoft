@@ -8,11 +8,9 @@ struct TrackPlaybackButtons: View {
     var body: some View {
         HStack(spacing: 14) {
             if showPlay { Button {
-                if let local = store.downloaded(track) {
-                    if store.playing?.id == local.id { store.togglePlayback() } else { store.play(local) }
-                }
+                store.requestPlayback(track)
             } label: { Label(store.playing?.track.id == track.id && store.isPlaying ? "Pause" : "Lire", systemImage: store.playing?.track.id == track.id && store.isPlaying ? "pause.fill" : "play.fill") }
-                .disabled(store.downloaded(track) == nil).help("Lire le fichier local complet") }
+                .help("Lire le titre complet") }
             Button { store.preview(track) } label: {
                 if store.previewLoadingID == track.id { ProgressView().controlSize(.small) }
                 else { Label(store.previewing?.id == track.id && store.isPlaying ? "Arrêter" : "Extrait", systemImage: "waveform") }

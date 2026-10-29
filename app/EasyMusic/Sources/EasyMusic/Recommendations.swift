@@ -13,6 +13,38 @@ enum Recommendations {
         term.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "fr_FR"))
             .split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
     }
+    static func contentKey(_ value: String) -> String {
+        key(value).components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }.joined(separator: " ")
+    }
+    static func genreID(_ query: String) -> Int? {
+        let values: [String: Int] = ["pop": 132, "rap": 116, "hip hop": 116, "rap hip hop": 116, "rock": 152,
+            "chanson francaise": 52, "variete francaise": 52, "electro": 106, "electronic": 106, "electronique": 106,
+            "jazz": 129, "soul": 169, "soul funk": 169, "latino": 197, "livres audio": 457, "audiobook": 457,
+            "dance": 113, "r b": 165, "rnb": 165, "alternative": 85, "folk": 466, "reggae": 144,
+            "country": 84, "classique": 98, "classical": 98, "films jeux video": 173, "metal": 464,
+            "blues": 153, "jeunesse": 95, "musique africaine": 2, "musique arabe": 12, "musique asiatique": 16,
+            "musique bresilienne": 75, "musique indienne": 81]
+        return values[contentKey(query)]
+    }
+    static func titleMatches(_ title: String, query: String) -> Bool {
+        let words = Set(contentKey(title).split(separator: " ").map(String.init))
+        var required = Set(contentKey(query).split(separator: " ").map(String.init))
+        if genreID(query) == 52 { return words.contains("chanson") || words.contains("chansons") || (words.contains("variete") && words.contains("francaise")) }
+        if genreID(query) == 106 { return !words.intersection(["electro", "electronic", "electronique", "edm"]).isEmpty }
+        if genreID(query) == 116 { return words.contains("rap") || (words.contains("hip") && words.contains("hop")) }
+        required.subtract(["the", "de", "des", "la", "le", "les", "a", "and", "et"])
+        return !required.isEmpty && required.isSubset(of: words)
+    }
+    /// A name appearing only in a playlist's title or creator is not evidence of its contents.
+    static func contentMatches(_ tracks: [[String: Any]], query: String) -> Bool {
+        let wanted = contentKey(query)
+        guard !wanted.isEmpty, !tracks.isEmpty else { return false }
+        let matching = tracks.filter { row in
+            let artist = row["artist"] as? [String: Any]
+            return contentKey(artist?["name"] as? String ?? "") == wanted || contentKey(row["title"] as? String ?? "") == wanted
+        }.count
+        return matching >= Int(ceil(Double(tracks.count) * 0.6))
+    }
     static func score(_ item: MusicInterest, now: Date) -> Double {
         item.weight * pow(0.5, max(0, now.timeIntervalSince(item.updatedAt)) / (30 * 86400))
     }

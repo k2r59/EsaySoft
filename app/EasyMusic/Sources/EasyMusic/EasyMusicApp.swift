@@ -139,7 +139,7 @@ struct ContentView: View {
                                 PlaylistArtwork(playlist: list).environmentObject(store)
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(list.name).font(.system(size: 14, weight: .semibold)).lineLimit(1)
-                                    Text("Playlist · \(list.importedTracks?.count ?? list.trackIDs.count) titres").font(.system(size: 12)).foregroundStyle(Theme.secondary)
+                                    Text("Playlist · \(store.playlistTracks(list).count) titres").font(.system(size: 12)).foregroundStyle(Theme.secondary)
                                 }; Spacer(minLength: 0)
                                 if list.hasRemoteChanges == true {
                                     Circle().fill(Theme.green).frame(width: 9, height: 9)
@@ -222,7 +222,7 @@ struct ContentView: View {
                             }
                         }.frame(maxWidth: .infinity, alignment: .leading)
                         VStack(alignment: .leading, spacing: 18) {
-                            Text("Mix à découvrir").font(.system(size: 23, weight: .bold))
+                            Text("À découvrir").font(.system(size: 23, weight: .bold))
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(alignment: .top, spacing: 18) { ForEach(store.homeMixes) { collectionCard($0) } }
                             }
@@ -245,7 +245,7 @@ struct ContentView: View {
                 }
                 if !store.discoveries.isEmpty {
                     VStack(alignment: .leading, spacing: 18) {
-                        HStack { Text("Hits du moment").font(.system(size: 23, weight: .bold)); Spacer(); Text("Deezer").font(.system(size: 11)).foregroundStyle(Theme.secondary) }
+                        HStack { Text("Hits du moment").font(.system(size: 23, weight: .bold)); Spacer(); Text(store.homeChartsSource).font(.system(size: 11)).foregroundStyle(Theme.secondary) }
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(alignment: .top, spacing: 18) {
                                 ForEach(store.discoveries) { track in
@@ -265,7 +265,7 @@ struct ContentView: View {
                 }
                 if !store.homeGenres.isEmpty {
                     VStack(alignment: .leading, spacing: 18) {
-                        Text("Genres").font(.system(size: 23, weight: .bold))
+                        Text("Parcourir").font(.system(size: 23, weight: .bold))
                         ScrollView(.horizontal, showsIndicators: false) { HStack(alignment: .top, spacing: 18) { ForEach(store.homeGenres) { collectionCard($0) } } }
                     }
                 }
@@ -288,7 +288,7 @@ struct ContentView: View {
     }
     var searchContent: some View {
         VStack(alignment: .leading, spacing: 18) {
-            ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 8) {
+            if store.openedCollection == nil { ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 8) {
                 ForEach(SearchMode.allCases) { mode in
                     Button { store.changeMode(mode) } label: {
                         Text(mode.rawValue).font(.system(size: 12, weight: .medium)).padding(.horizontal, 14).padding(.vertical, 9)
@@ -296,8 +296,9 @@ struct ContentView: View {
                     }.buttonStyle(.plain)
                 }
                 Spacer(minLength: 0)
-            } }
+            } } }
             HStack {
+                if store.openedCollection != nil { Button { store.backFromCollection() } label: { Image(systemName: "chevron.left").frame(width: 32, height: 32) }.buttonStyle(.plain).help("Retour").accessibilityLabel("Retour à la sélection précédente") }
                 Text(store.collectionTitle ?? (store.searched ? "Résultats" : "Rechercher")).font(.system(size: 24, weight: .bold)).lineLimit(2)
                 Spacer()
                 if store.searching { ProgressView().controlSize(.small) }
@@ -306,7 +307,7 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     SearchResultsView()
                     if store.visibleResults.isEmpty && store.catalogItems.isEmpty {
-                        empty(icon: store.searching ? "waveform" : "magnifyingglass", title: store.searching ? "Recherche…" : store.searched ? "Aucun résultat" : "Un titre, un artiste ou un lien", subtitle: "").frame(minHeight: 280)
+                        empty(icon: store.searching ? "waveform" : "magnifyingglass", title: store.searching ? "Recherche…" : store.openedCollection?.kind == "genre" ? "Aucun résultat vérifié dans cette catégorie" : store.searched ? "Aucun résultat" : "Un titre, un artiste ou un lien", subtitle: "").frame(minHeight: 280)
                     }
                 }
             }
@@ -344,7 +345,7 @@ struct ContentView: View {
     func playlistMenu(_ local: LocalTrack) -> some View {
         Menu("Ajouter aux playlists") {
             ForEach(store.library.playlists) { list in
-                Toggle(list.name, isOn: Binding(get: { list.trackIDs.contains(local.id) }, set: { value in if value { store.add(local, to: list.id) } else { store.remove(local, from: list.id) } }))
+                Toggle(list.name, isOn: Binding(get: { store.contains(local.track, in: list) }, set: { value in if value { store.add(local, to: list.id) } else { store.remove(local, from: list.id) } }))
             }
             Divider()
             Button("Nouvelle playlist…") { playlistTrack = local; newPlaylist = true }
@@ -370,7 +371,7 @@ struct ContentView: View {
                             }
                         }.buttonStyle(.plain).help("Renommer la playlist").accessibilityLabel("Renommer \(list.name)")
                     } else { Text("Tous vos titres").font(.system(size: 38, weight: .heavy)).lineLimit(2) }
-                    Text(store.currentPlaylist?.importedTracks != nil ? "\(store.currentPlaylist?.importedTracks?.count ?? 0) titres · \(store.visibleLocal.count) en local" : "\(store.visibleLocal.count) titres · Disponibles hors connexion").font(.system(size: 13)).foregroundStyle(Theme.secondary)
+                    Text((store.currentPlaylist?.importedTracks != nil || store.currentPlaylist?.addedTracks != nil) ? "\(store.currentPlaylist.map { store.playlistTracks($0).count } ?? 0) titres · \(store.visibleLocal.count) en local" : "\(store.visibleLocal.count) titres · Disponibles hors connexion").font(.system(size: 13)).foregroundStyle(Theme.secondary)
                 }
                 Spacer(minLength: 0)
             }.padding(.vertical, 12)
@@ -378,7 +379,7 @@ struct ContentView: View {
                 HStack(spacing: 12) {
                     Button { if let first = store.visibleLocal.first { store.play(first) } } label: { Label("Lire", systemImage: "play.fill") }
                         .buttonStyle(GreenButton()).disabled(store.visibleLocal.isEmpty)
-                    if let list = store.currentPlaylist, list.importedTracks != nil {
+                    if let list = store.currentPlaylist, (list.importedTracks != nil || list.addedTracks != nil) {
                         Button { store.downloadPlaylist(list) } label: { Image(systemName: "arrow.down.circle").font(.system(size: 20)) }
                             .buttonStyle(ToolbarButtonStyle()).help("Télécharger les titres manquants").accessibilityLabel("Télécharger les titres manquants")
                             .disabled(!store.playlistTracks(list).contains { store.downloaded($0) == nil && !store.isQueued($0) })
@@ -411,7 +412,7 @@ struct ContentView: View {
                     }
                 }.padding(.vertical, 2)
             }
-            if let playlist = store.currentPlaylist, playlist.importedTracks != nil {
+            if let playlist = store.currentPlaylist, (playlist.importedTracks != nil || playlist.addedTracks != nil) {
                 ImportedPlaylistView(playlist: playlist).environmentObject(store)
             } else if store.visibleLocal.isEmpty {
                 empty(icon: "music.note.list", title: "Aucun titre", subtitle: store.currentPlaylist == nil ? "Les titres téléchargés apparaîtront ici." : "Ajoutez des titres depuis votre bibliothèque avec le menu •••.")
@@ -431,7 +432,7 @@ struct ContentView: View {
                                     Button("Lire") { store.play(local) }
                                     Menu("Ajouter à une playlist") {
                                         ForEach(store.library.playlists) { list in
-                                            Toggle(list.name, isOn: Binding(get: { list.trackIDs.contains(local.id) }, set: { value in if value { store.add(local, to: list.id) } else { store.remove(local, from: list.id) } }))
+                                            Toggle(list.name, isOn: Binding(get: { store.contains(local.track, in: list) }, set: { value in if value { store.add(local, to: list.id) } else { store.remove(local, from: list.id) } }))
                                         }
                                     }.disabled(store.library.playlists.isEmpty)
                                     if let list = store.currentPlaylist { Button("Retirer de cette playlist") { store.remove(local, from: list.id) } }

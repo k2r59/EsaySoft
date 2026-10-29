@@ -9,7 +9,7 @@ struct SearchEntry: Identifiable {
     var artwork: String? { track?.artwork ?? collection?.artwork }
     var type: String {
         guard let kind = collection?.kind else { return "Titre" }
-        return ["album": "Album", "artist": "Artiste", "genre": "Style", "playlist": "Playlist"][kind] ?? "Sélection"
+        return ["audiobook": "Livre audio", "album": "Album", "artist": "Artiste", "genre": "Style", "playlist": "Playlist"][kind] ?? "Sélection"
     }
     static func ranked(tracks: [Track], collections: [CatalogItem], query: String) -> [SearchEntry] {
         let values = tracks.map { SearchEntry(track: $0, collection: nil) } + collections.map { SearchEntry(track: nil, collection: $0) }
@@ -52,7 +52,7 @@ struct SearchResultsView: View {
                     Spacer(minLength: 0)
                 }.contentShape(Rectangle())
             }.buttonStyle(.plain)
-            Text(entry.type).font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.secondary)
+            Text(entry.track != nil && store.openedCollection?.kind == "audiobook" ? "Chapitre" : entry.type).font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.secondary)
                 .padding(.horizontal, 5).padding(.vertical, 3).background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 3))
             if let track = entry.track {
                 TrackPlaybackButtons(track: track, compact: true, showPlay: false)

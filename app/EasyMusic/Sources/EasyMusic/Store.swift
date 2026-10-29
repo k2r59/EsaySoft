@@ -10,6 +10,7 @@ import AppKit
     @Published var openedCollection: CatalogItem?
     @Published var results: [Track] = []
     @Published var discoveries: [Track] = []
+    @Published var homeChartsSource = "Classement Deezer"
     @Published var homeMixes: [CatalogItem] = []
     @Published var personalMixes: [CatalogItem] = []
     private var interestsRevision = 0
@@ -28,7 +29,7 @@ import AppKit
     @Published var notice: String?
     var noticeIsWarning: Bool {
         let text = notice?.lowercased() ?? ""
-        return ["impossible", "aucune version", "protégé", "indisponible", "erreur", "dépassé", "plusieurs versions"].contains { text.contains($0) }
+        return ["impossible", "aucune version", "protégé", "indisponible", "erreur", "dépassé", "plusieurs versions", "ne répond", "trop de demandes", "trop de temps"].contains { text.contains($0) }
     }
     @Published var selected: Track?
     @Published var formats: [AudioFormat] = []
@@ -40,6 +41,8 @@ import AppKit
     @Published var activeDownloads: [ActiveDownload] = []
     var activeTitle: String? { activeDownloads.first?.track.title }
     var activeID: String? { activeDownloads.first?.id }
+    @Published var requestedPlayback: Track?
+    private var orderedPlaybackQueue: [LocalTrack] = []
     @Published var previewLoadingID: String?
     @Published var pending: [Track] = []
     @Published var playing: LocalTrack?
@@ -59,6 +62,16 @@ import AppKit
     let player = AVPlayer()
     private var observer: Any?
     private var endObserver: NSObjectProtocol?
+    private struct CollectionPage {
+        let section: String
+        let query: String
+        let mode: SearchMode
+        let results: [Track]
+        let items: [CatalogItem]
+        let collection: CatalogItem?
+        let title: String?
+    }
+    private var collectionHistory: [CollectionPage] = []
     private var searchID = UUID()
     private var inspectID = UUID()
     var checkedBitrates = Set<UUID>()
@@ -72,7 +85,7 @@ import AppKit
     var visibleLocal: [LocalTrack] {
         if let list = currentPlaylist {
             var seen = Set<UUID>()
-            let imported = (list.importedTracks ?? []).compactMap { downloaded($0) }
+            let imported = ((list.importedTracks ?? []) + (list.addedTracks ?? [])).compactMap { downloaded($0) }
             let local = list.trackIDs.compactMap { id in library.tracks.first { $0.id == id } }
             return (imported + local).filter { seen.insert($0.id).inserted }
         }
@@ -116,13 +129,14 @@ import AppKit
         let revision = interestsRevision
         let terms = Recommendations.queries(library.interests ?? [])
         homeLoading = true
-        async let hits = try? Catalog.charts()
+        async let hits = Catalog.homeCharts()
         async let mixes = Catalog.homeMixes()
         async let personal = Catalog.homeMixes(queries: terms, limit: 2)
         async let genres = try? Catalog.search("", mode: .genres)
-        discoveries = await hits ?? []
-        homeMixes = await mixes
+        let chart = await hits
+        discoveries = chart.tracks; homeChartsSource = chart.source
         homeGenres = await genres ?? []
+        homeMixes = await mixes
         let personalized = await personal
         if revision == interestsRevision {
             personalMixes = personalized
@@ -170,6 +184,7 @@ import AppKit
         if (try? PlaylistImport.source(text)) != nil {
             Task { await importPlaylist(text) }; return
         }
+        collectionHistory = []
         let id = UUID(); searchID = id
         section = "search"; searching = true; searched = true; results = []; catalogItems = []; collectionTitle = nil; openedCollection = nil
         selected = nil; inspectID = UUID(); inspecting = false; notice = nil; sourceFilter = "Tout"
@@ -241,6 +256,8 @@ import AppKit
         if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || mode == .genres { search() }
     }
     func openCollection(_ item: CatalogItem) {
+        if section != "search" { collectionHistory = [] }
+        collectionHistory.append(CollectionPage(section: section, query: query, mode: searchMode, results: results, items: catalogItems, collection: openedCollection, title: collectionTitle))
         let id = UUID(); searchID = id; section = "search"; searching = true; searched = true; notice = nil
         var recent = library.recentCollections ?? []
         recent.removeAll { $0.id == item.id }; recent.insert(item, at: 0)
@@ -249,7 +266,7 @@ import AppKit
         Task {
             do {
                 if item.kind == "genre" {
-                    let items = try await Catalog.artists(in: item)
+                    let items = try await Catalog.albums(in: item)
                     if searchID == id { catalogItems = items; if !items.isEmpty { rememberInterest(item.name, weight: 1) } }
                 } else {
                     let tracks = try await Catalog.tracks(in: item)
@@ -258,6 +275,12 @@ import AppKit
             } catch { if searchID == id { notice = error.localizedDescription } }
             if searchID == id { searching = false }
         }
+    }
+    func backFromCollection() {
+        searchID = UUID(); inspectID = UUID(); searching = false; inspecting = false; selected = nil
+        guard let previous = collectionHistory.popLast() else { section = "home"; openedCollection = nil; return }
+        section = previous.section; query = previous.query; searchMode = previous.mode
+        results = previous.results; catalogItems = previous.items; openedCollection = previous.collection; collectionTitle = previous.title
     }
     func select(_ track: Track) {
         selected = track; formats = []; selectedFormat = "best"
@@ -296,10 +319,10 @@ import AppKit
     }
     func playlistTracks(_ playlist: Playlist) -> [Track] {
         var seen = Set<String>()
-        return ((playlist.importedTracks ?? []) + playlist.trackIDs.compactMap { id in library.tracks.first { $0.id == id }?.track }).filter { seen.insert($0.id).inserted }
+        return ((playlist.importedTracks ?? []) + (playlist.addedTracks ?? []) + playlist.trackIDs.compactMap { id in library.tracks.first { $0.id == id }?.track }).filter { seen.insert($0.id).inserted }
     }
     func downloadPlaylist(_ playlist: Playlist) {
-        for track in playlist.importedTracks ?? [] where downloaded(track) == nil { enqueue(track) }
+        for track in playlistTracks(playlist) where downloaded(track) == nil { enqueue(track) }
     }
     func enqueue(_ track: Track) {
         guard !isQueued(track) else { return }
@@ -339,9 +362,10 @@ import AppKit
                 search: { query, service in try await Engine.search(query, source: service, count: 5) },
                 transfer: { [weak self] source, format in
                     self?.updateDownload(requested.id, progress: 0, phase: "Téléchargement audio depuis \(source.source)…")
+                    let owner = self
                     return try await AudioDownload.transfer(source, format: format, folder: destination, export: export) { value in
-                        Task { @MainActor [weak self] in
-                            self?.updateDownload(requested.id, progress: value, phase: value >= 1 ? "Finalisation du fichier…" : nil)
+                        Task { @MainActor in
+                            owner?.updateDownload(requested.id, progress: value, phase: value >= 1 ? "Finalisation du fichier…" : nil)
                         }
                     }
                 }, status: { [weak self] phase in
@@ -355,8 +379,12 @@ import AppKit
             let bitrate = downloadWorker == nil ? await AudioMetadata.bitrate(URL(fileURLWithPath: path)) : nil
             if !library.tracks.contains(where: { $0.path == path }) { library.tracks.insert(LocalTrack(track: saved, path: path, bitrateKbps: bitrate), at: 0) }
             save(); notice = "« \(requested.title) » est dans votre bibliothèque."
+            if let wanted = requestedPlayback, matchesRecording(wanted, requested), let local = downloaded(wanted) {
+                requestedPlayback = nil; play(local)
+            }
         } catch {
             downloadErrors[requested.id] = error.localizedDescription; notice = error.localizedDescription
+            if let wanted = requestedPlayback, matchesRecording(wanted, requested) { requestedPlayback = nil }
         }
     }
     @discardableResult func createPlaylist(_ name: String, navigate: Bool = true) -> UUID? {
@@ -365,17 +393,36 @@ import AppKit
         let playlist = Playlist(name: String(clean.prefix(160))); library.playlists.append(playlist)
         if navigate { section = playlist.id.uuidString }; save(); return playlist.id
     }
-    func add(_ track: LocalTrack, to id: UUID) {
-        guard let index = library.playlists.firstIndex(where: { $0.id == id }), !library.playlists[index].trackIDs.contains(track.id) else { return }
-        library.playlists[index].trackIDs.append(track.id); save()
+    func add(_ track: LocalTrack, to id: UUID) { setMembership(track.track, in: id, included: true) }
+    func remove(_ track: LocalTrack, from id: UUID) { setMembership(track.track, in: id, included: false) }
+    func matchesRecording(_ a: Track, _ b: Track) -> Bool {
+        a.id == b.id || a.url == b.url || Matching.sameRecording(a, b)
     }
-    func remove(_ track: LocalTrack, from id: UUID) {
-        guard let index = library.playlists.firstIndex(where: { $0.id == id }) else { return }
-        library.playlists[index].trackIDs.removeAll { $0 == track.id }; save()
+    func requestPlayback(_ track: Track) {
+        if let local = downloaded(track) {
+            requestedPlayback = nil
+            if playing?.id == local.id { togglePlayback() } else { play(local) }
+            return
+        }
+        if let requestedPlayback, matchesRecording(requestedPlayback, track) { cancelRequestedPlayback(); return }
+        requestedPlayback = track; playbackID = UUID(); previewLoadingID = nil
+        player.pause(); player.replaceCurrentItem(with: nil); isPlaying = false
+        playing = nil; previewing = nil; position = 0; playerDuration = 0
+        notice = "Préparation de « \(track.title) »… La lecture démarrera automatiquement."
+        if let index = pending.firstIndex(where: { matchesRecording($0, track) }) {
+            let queued = pending.remove(at: index); pending.insert(queued, at: 0)
+        }
+        enqueue(track)
+    }
+    func cancelRequestedPlayback() {
+        requestedPlayback = nil
+        if notice?.hasPrefix("Préparation de «") == true { notice = nil }
     }
     func play(_ track: LocalTrack, keepQueue: Bool = false) {
+        requestedPlayback = nil
         if !keepQueue {
             let candidates = visibleLocal.contains(where: { $0.id == track.id }) ? visibleLocal : library.tracks
+            orderedPlaybackQueue = candidates
             playbackQueue = shuffle ? [track] + candidates.filter { $0.id != track.id }.shuffled() : candidates
         }
         guard FileManager.default.fileExists(atPath: track.path) else { notice = "Ce fichier a été déplacé ou supprimé : \(track.path)"; return }
@@ -421,8 +468,9 @@ import AppKit
     func downloaded(_ track: Track) -> LocalTrack? {
         library.tracks.first { ($0.track.id == track.id || $0.track.url == track.url || Matching.sameRecording($0.track, track)) && FileManager.default.fileExists(atPath: $0.path) }
     }
-    func isQueued(_ track: Track) -> Bool { activeDownloads.contains { $0.id == track.id } || pending.contains { $0.id == track.id } }
+    func isQueued(_ track: Track) -> Bool { activeDownloads.contains { matchesRecording($0.track, track) } || pending.contains { matchesRecording($0, track) } }
     func preview(_ track: Track) {
+        requestedPlayback = nil
         if previewing?.id == track.id && isPlaying { player.pause(); isPlaying = false; return }
         let id = UUID(); playbackID = id
         player.pause(); isPlaying = false; previewLoadingID = track.id
@@ -450,6 +498,7 @@ import AppKit
         }
     }
     func togglePlayback() {
+        if requestedPlayback != nil { cancelRequestedPlayback(); return }
         guard player.currentItem != nil else { return }
         if isPlaying { player.pause() } else { if (previewing != nil && position >= 30) || (position >= playerDuration && playerDuration > 0) { seek(0) }; player.play() }
         isPlaying.toggle()
@@ -457,10 +506,10 @@ import AppKit
     func seek(_ time: Double) { player.seek(to: CMTime(seconds: time, preferredTimescale: 600)) }
     func toggleShuffle() {
         shuffle.toggle()
-        if shuffle, let playing { playbackQueue = [playing] + playbackQueue.filter { $0.id != playing.id }.shuffled() }
-        else if !shuffle { playbackQueue.sort { a, b in
-            (library.tracks.firstIndex { $0.id == a.id } ?? 0) < (library.tracks.firstIndex { $0.id == b.id } ?? 0)
-        } }
+        if shuffle {
+            orderedPlaybackQueue = playbackQueue
+            if let playing { playbackQueue = [playing] + playbackQueue.filter { $0.id != playing.id }.shuffled() }
+        } else if !orderedPlaybackQueue.isEmpty { playbackQueue = orderedPlaybackQueue }
     }
     func toggleMute() {
         if volume > 0 { unmutedVolume = volume; volume = 0 } else { volume = max(0.01, unmutedVolume) }

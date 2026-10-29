@@ -5,12 +5,16 @@ extension Engine {
     static func convert(_ input: URL, to output: URL, title: String, artist: String, lossless: Bool = false) async throws {
         guard let ffmpeg = executable("ffmpeg") else { throw MusicError.message("FFmpeg est nécessaire pour préparer ce format. Choisissez MP3 ou M4A au téléchargement, ou installez FFmpeg.") }
         try await Task.detached {
+            guard !FileManager.default.fileExists(atPath: output.path) else { throw MusicError.message("Le fichier de destination existe déjà. Il est conservé.") }
+            let temporary = output.deletingLastPathComponent().appendingPathComponent(".conversion-" + UUID().uuidString).appendingPathExtension(output.pathExtension)
+            defer { try? FileManager.default.removeItem(at: temporary) }
             let process = Process()
+            defer { if process.isRunning { process.terminate() } }
             process.executableURL = URL(fileURLWithPath: ffmpeg)
             process.arguments = ["-hide_banner", "-loglevel", "error", "-nostdin", "-n", "-i", input.path, "-map", "0:a:0", "-vn",
                                  "-c:a", lossless ? "pcm_s16le" : "libmp3lame"]
                 + (lossless ? [] : ["-q:a", "0"])
-                + ["-metadata", "title=\(title)", "-metadata", "artist=\(artist)", output.path]
+                + ["-metadata", "title=\(title)", "-metadata", "artist=\(artist)", temporary.path]
             process.standardOutput = FileHandle.nullDevice
             process.standardError = FileHandle.nullDevice
             try process.run()
@@ -20,9 +24,9 @@ extension Engine {
                 try await Task.sleep(nanoseconds: 200_000_000)
             }
             guard process.terminationStatus == 0 else {
-                try? FileManager.default.removeItem(at: output)
                 throw MusicError.message("Impossible de convertir \(input.lastPathComponent). Le fichier original est conservé.")
             }
+            try FileManager.default.moveItem(at: temporary, to: output)
         }.value
     }
 }

@@ -130,3 +130,11 @@ Le menu de la playlist permet de la renommer et de choisir sa pochette. Par déf
 Cliquez sur un titre pour ouvrir ses détails à droite. Les albums sont affichés lorsque l’artiste est identifié exactement dans le catalogue public. Aucun nombre d’auditeurs ni biographie ne sont inventés. Le débit local est mesuré avec ffprobe ; il est approximatif pour les fichiers à débit variable.
 
 Dans une playlist, cliquez sur son titre ou le crayon pour la renommer. Le bouton corbeille de la barre d’actions supprime uniquement la playlist d’EasyMusic après confirmation : les fichiers audio et la liste sur le service d’origine restent conservés.
+
+### Cohérence de l’accueil et lecture (0.4.1)
+
+Les catégories ouvrent des albums dont le genre primaire ou secondaire correspond au choix, au lieu d’une liste d’artistes parfois générique. Les livres audio ouvrent leurs chapitres. Les recommandations de playlists sont vérifiées sur le titre et un échantillon du contenu ; les propositions sans lien vérifiable sont écartées.
+
+L’accueil peut utiliser le classement des ventes France du [flux public iTunes](https://itunes.apple.com/fr/rss/topsongs/limit=50/json) : seuls les titres retrouvés avec une identité cohérente dans Deezer sont affichés, avec attribution du classement. Si ce flux ne répond pas, l’interface indique le classement Deezer utilisé. Aucun compte payant ni clé API ne sont nécessaires à ces lectures publiques. Les réponses Deezer sont mises en cache et les requêtes cadencées.
+
+Le bouton lecture d’un titre distant démarre sa préparation et lance le fichier complet automatiquement. Une seconde pression annule cette lecture automatique, sans supprimer le téléchargement. Choisir un autre titre ou un extrait remplace la demande de lecture précédente.

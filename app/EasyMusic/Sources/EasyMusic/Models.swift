@@ -45,6 +45,7 @@ struct Playlist: Identifiable, Codable {
     var hasRemoteChanges: Bool? = nil
     var lastSyncCheck: Date? = nil
     var artworkPath: String? = nil
+    var addedTracks: [Track]? = nil
 }
 struct Library: Codable {
     var tracks: [LocalTrack] = []
@@ -69,8 +70,13 @@ enum Matching {
         Set(text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "fr_FR"))
             .components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty })
     }
+    static func titleForSearch(_ title: String) -> String {
+        // Attribution text is not part of the recording name. Keep version markers such as live/remix.
+        title.replacingOccurrences(of: #"(?i)\s*\(sur (?:les motifs|un thème) de\b[^)]*\)"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
     static func score(_ candidate: Track, for target: Track) -> Double {
-        let title = words(target.title), artist = words(target.artist)
+        let title = words(titleForSearch(target.title)), artist = words(target.artist)
         let available = words(candidate.title + " " + candidate.artist)
         guard !title.isEmpty else { return 0 }
         let titleScore = Double(title.intersection(available).count) / Double(title.count)

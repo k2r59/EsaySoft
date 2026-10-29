@@ -8,7 +8,7 @@ struct SpotifyPlayerBar: View {
     @State private var expanded = false
     @State private var seeking = false
     @State private var seekPosition = 0.0
-    var track: Track? { store.playing?.track ?? store.previewing }
+    var track: Track? { store.requestedPlayback ?? store.playing?.track ?? store.previewing }
     var body: some View {
         GeometryReader { geometry in
             HStack(spacing: 16) {
@@ -16,7 +16,7 @@ struct SpotifyPlayerBar: View {
                     Button { expanded.toggle() } label: { Art(url: track?.artwork, size: 56) }.buttonStyle(.plain).disabled(track == nil).help("Afficher le morceau")
                     VStack(alignment: .leading, spacing: 5) {
                         Text(track?.title ?? "Aucun titre en lecture").font(.system(size: 12, weight: .medium)).lineLimit(1)
-                        Text(track?.artist ?? "").font(.system(size: 11)).foregroundStyle(Theme.secondary).lineLimit(1)
+                        Text(store.requestedPlayback != nil ? "Préparation de la lecture…" : track?.artist ?? "").font(.system(size: 11)).foregroundStyle(Theme.secondary).lineLimit(1)
                     }
                     if let track {
                         Button { if store.downloaded(track) == nil { store.enqueue(track) } else { store.section = "library" } } label: {
@@ -31,9 +31,10 @@ struct SpotifyPlayerBar: View {
                         control("shuffle", label: "Lecture aléatoire", active: store.shuffle, disabled: store.playing == nil) { store.toggleShuffle() }
                         control("backward.end.fill", label: "Précédent", disabled: store.playing == nil) { store.next(-1) }
                         Button { store.togglePlayback() } label: {
-                            Image(systemName: store.isPlaying ? "pause.fill" : "play.fill").font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.black).frame(width: 32, height: 32).background(.white, in: Circle())
-                        }.buttonStyle(.plain).disabled(store.player.currentItem == nil).accessibilityLabel(store.isPlaying ? "Pause" : "Lire")
+                            if store.requestedPlayback != nil { ProgressView().controlSize(.small).frame(width: 32, height: 32) }
+                            else { Image(systemName: store.isPlaying ? "pause.fill" : "play.fill").font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.black).frame(width: 32, height: 32).background(.white, in: Circle()) }
+                        }.buttonStyle(.plain).disabled(store.player.currentItem == nil && store.requestedPlayback == nil).accessibilityLabel(store.requestedPlayback != nil ? "Annuler la lecture automatique" : store.isPlaying ? "Pause" : "Lire")
                         control("forward.end.fill", label: "Suivant", disabled: store.playing == nil) { store.next() }
                         control(store.repeatMode == 2 ? "repeat.1" : "repeat", label: ["Répétition désactivée", "Répéter la file", "Répéter ce titre"][store.repeatMode], active: store.repeatMode != 0, disabled: store.playing == nil) { store.repeatMode = (store.repeatMode + 1) % 3 }
                     }
@@ -60,7 +61,7 @@ struct SpotifyPlayerBar: View {
             VStack(spacing: 20) {
                 Art(url: track?.artwork, size: 300)
                 Text(track?.title ?? "").font(.title2.bold()).multilineTextAlignment(.center)
-                Text(track?.artist ?? "").foregroundStyle(Theme.secondary)
+                Text(store.requestedPlayback != nil ? "Préparation de la lecture…" : track?.artist ?? "").foregroundStyle(Theme.secondary)
                 Button(store.isPlaying ? "Pause" : "Lire") { store.togglePlayback() }.buttonStyle(GreenButton())
                 Button("Fermer") { expanded = false }.keyboardShortcut(.cancelAction)
             }.padding(30).frame(width: 380)
