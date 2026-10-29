@@ -850,3 +850,30 @@ Validation : 19 tests d’intégration Bitwarden passent avec un transport rése
 Compilation universelle arm64/x86_64 réussie. Bundle privé signé et vérifié dans `/Users/k2r59/Library/Caches/EasyPaste-local-install/bitwarden-stack/EasyPaste.app`, version 0.3.8 (25). SHA-256 du binaire : `64059fa01bee3c129ab9665788164328e7efb8a99ec1ca9b078f2d32cfd67f38`.
 
 Installation locale terminée après confirmation de fermeture par Hervé. Absence du processus vérifiée avant remplacement, sauvegarde dans `/Users/k2r59/Library/Caches/EasyPaste-local-install/bitwarden-stack/before-bitwarden-stack.zip`, puis remplacement au chemin habituel `/Applications/EasyPaste.app`. Signature stricte et empreinte du binaire installé vérifiées. Relancement confirmé par le processus EasyPaste. CUA renvoie une erreur ScreenCaptureKit -3811 pendant l’observation : aucune validation visuelle supplémentaire ni création de Send réel revendiquée. Aucune publication OTA, aucun nouveau tag ni installateur public.
+
+
+## 26. Publication EasyPaste 0.3.9, 29 octobre 2026
+
+Hervé a autorisé la publication après installation privée du correctif Bitwarden. La release **0.3.9, build 26** regroupe les sections 23 à 25 : enregistrement systématique d’une copie, interrupteurs lisibles et liens Bitwarden ajoutés à l’historique et à la pile.
+
+- Commit source publié : `9dc9c74bcf2352684bfc45e69f9d68d91c109429`, branche `codex/reprise-easypaste-2026-10-24`, tag `easypaste-v0.3.9`.
+- Notes : `app/EasyPaste/docs/RELEASE-0.3.9.md`. Validation et limites : `app/EasyPaste/QA-0.3.9.md`. Les 312 tests Release ont passé sur les mêmes sources fonctionnelles avant modification du numéro de version.
+- Construction et archives sur SSD interne : `/Users/k2r59/Library/Caches/EasyPaste-release-0.3.9/app/EasyPaste`. Le cache de compilation reste `/Users/k2r59/Library/Caches/EasyPaste-build`. Archives copiées dans le dist ignoré du dépôt, bundle relié par lien symbolique pour le script de publication.
+- Signature Developer ID et compilation universelle arm64/x86_64 vérifiées. Identifiant `app.easypaste.mac` et clé publique Sparkle inchangés.
+- Notarisation Apple acceptée : `837e9f3d-5568-4715-9e2e-9ab476a3f82f`. Tickets attachés au DMG et au bundle ; contrôles Gatekeeper acceptés pour les deux.
+- Le script `publish-update.py` a créé la release en brouillon, téléchargé ses quatre fichiers et comparé leurs empreintes avant publication et avancement du flux. Vérifications Ed25519 du DMG et du flux réussies.
+- GitHub Pages indique `built` sur `baae879b5b6b64b7238e45dc8e626fb85b4dca9b`. Le flux public téléchargé est identique au flux signé local, première entrée 0.3.9 (26), signature revalidée. SHA-256 du flux : `602d844fe7221d58c294aba3712cf6d66823962bdfe27fa273f543dc8bd98396`.
+
+Empreintes des archives :
+
+```text
+a01f289917c7cdad55ae930996001471decc565b29931bfc4306a370c01383e5  EasyPaste-0.3.9-universal.dmg
+5fbd7aee5e079abf757d3a7684fdf0ae9baada86946bc439f2ca6323459e2f2f  EasyPaste-0.3.9-universal.zip
+dacfb4d351aa65c113c9f3a90e23c4ddc97264e2ab9e529461ad5b0d91ba998b  EasyPaste-0.3.9-source.zip
+```
+
+Release : https://github.com/k2r59/EsaySoft/releases/tag/easypaste-v0.3.9
+
+Installateur : https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.9/EasyPaste-0.3.9-universal.dmg
+
+Les utilisateurs peuvent rechercher la mise à jour dans EasyPaste. Ce tour publie la version ; il ne remplace pas à nouveau `/Applications/EasyPaste.app`, qui conserve le correctif privé précédemment installé. Une installation OTA complète n’a pas été rejouée pendant cette publication.
