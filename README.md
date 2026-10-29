@@ -1,6 +1,6 @@
 # EsaySoft
 
-Trois applications macOS natives, en français, gratuites et sous licence MIT.
+Quatre applications macOS natives, en français, gratuites et sous licence MIT.
 Cette première distribution fonctionne en local, sans compte EsaySoft ni synchronisation iCloud.
 
 | Application | Usage | Sources et guide |
@@ -8,6 +8,7 @@ Cette première distribution fonctionne en local, sans compte EsaySoft ni synchr
 | **EasyShoot** | Capturer l’écran, extraire du texte, annoter des images et monter une vidéo. | [app/EasyShoot](app/EasyShoot) |
 | **EasyTile** | Placer les fenêtres avec une palette, des raccourcis ou un menu pendant leur déplacement. | [app/EasyTile](app/EasyTile) |
 | **EasyPaste** | Retrouver ses copies, organiser ses favoris et capturer des images, du texte ou des vidéos dans le presse-papiers. | [app/EasyPaste](app/EasyPaste) |
+| **EasyMusic** | Rechercher de la musique, importer des playlists publiques et organiser ses fichiers audio locaux. | [app/EasyMusic](app/EasyMusic) |
 
 ## Télécharger et installer
 
@@ -17,17 +18,19 @@ Les installateurs de la [distribution locale du 17 octobre 2026](https://github.
 - [EasyTile 1.1.0 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/local-2026-10-17/EasyTile-1.1.0-universal.dmg)
 - [EasyPaste 0.2.8 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.2.8/EasyPaste-0.2.8-universal.dmg)
 
+[EasyMusic 0.3.0 — télécharger le DMG](https://github.com/k2r59/EsaySoft/releases/download/easymusic-v0.3.0/EasyMusic-0.3.0-universal.dmg) — mises à jour intégrées, outils audio inclus.
+
 Ouvrir le DMG, glisser l’application dans **Applications**, puis l’ouvrir depuis ce dossier. Autoriser les fonctions souhaitées lorsque macOS le demande. Aucun compte développeur ni Xcode n’est nécessaire pour utiliser ces installateurs.
 
 La release contient les empreintes `SHA256SUMS` et la licence MIT. Les archives « Source code » contiennent les projets à compiler, tandis que les fichiers `.dmg` contiennent les applications à installer.
 
 ## Compatibilité
 
-Les trois applications nécessitent **macOS 15 ou ultérieur**. Les scripts produisent des applications universelles pour Apple Silicon et Intel. Les essais manuels ont été réalisés sur un Mac Apple Silicon ; l’exécution sur un Mac Intel reste à vérifier.
+EasyMusic nécessite **macOS 13 ou ultérieur** ; EasyShoot, EasyTile et EasyPaste nécessitent **macOS 15 ou ultérieur**. Les scripts produisent des applications universelles pour Apple Silicon et Intel. Les essais manuels ont été réalisés sur un Mac Apple Silicon ; l’exécution sur un Mac Intel reste à vérifier.
 
 ## Compiler une application
 
-Installer Xcode et ses outils de développement, avec Swift 6 et le SDK macOS. Aucune dépendance Swift externe n’est nécessaire.
+Installer Xcode et ses outils de développement, avec Swift 6 et le SDK macOS. EasyMusic utilise Sparkle pour ses mises à jour ; Swift Package Manager télécharge cette dépendance automatiquement.
 
 Depuis la racine du dépôt, par exemple pour EasyPaste :
 
