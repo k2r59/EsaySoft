@@ -29,6 +29,11 @@ struct LocalTrack: Identifiable, Codable {
     var track: Track
     var path: String
     var downloadedAt: Date = Date()
+    var bitrateKbps: Double? = nil
+    var bitrateLabel: String {
+        guard let value = bitrateKbps, value.isFinite, value > 0 else { return "— kb/s" }
+        return "≈ \(Int(value.rounded())) kb/s"
+    }
 }
 struct Playlist: Identifiable, Codable {
     var id: UUID = UUID()
@@ -37,6 +42,9 @@ struct Playlist: Identifiable, Codable {
     var importedTracks: [Track]? = nil
     var sourceURL: String? = nil
     var importWarning: String? = nil
+    var hasRemoteChanges: Bool? = nil
+    var lastSyncCheck: Date? = nil
+    var artworkPath: String? = nil
 }
 struct Library: Codable {
     var tracks: [LocalTrack] = []

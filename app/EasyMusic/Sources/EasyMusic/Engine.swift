@@ -40,7 +40,7 @@ struct Engine {
             let output = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
             guard process.terminationStatus == 0 else {
                 let error = output.components(separatedBy: .newlines).last(where: { $0.contains("ERROR:") }) ?? String(output.suffix(500))
-                throw MusicError.message(error.isEmpty ? "Cette source n’est pas disponible actuellement." : error)
+                throw AudioFailure.classify(error)
             }
             return output
         }.value
@@ -143,8 +143,8 @@ struct Engine {
         return result
     }
     static func downloadArguments(track: Track, format: String?, folder: URL) -> [String] {
-        ["--newline", "--progress", "--progress-template", "download:PROGRESS:%(progress._percent_str)s", "--print", "after_move:FILE:%(filepath)s",
-         "--no-simulate", "--no-overwrites", "-f", format ?? "bestaudio", "-P", folder.path,
+        ["--concurrent-fragments", "4", "--newline", "--progress", "--progress-template", "download:PROGRESS:%(progress._percent_str)s", "--print", "after_move:FILE:%(filepath)s",
+         "--no-simulate", "--no-overwrites", "-f", format.map { "\($0)[vcodec=none][acodec!=none]" } ?? "bestaudio", "-P", folder.path,
          "-o", "%(title).160B [%(id)s].%(ext)s", "--", track.url]
     }
 }

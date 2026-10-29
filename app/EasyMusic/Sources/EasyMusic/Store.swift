@@ -19,11 +19,17 @@ import AppKit
     private var lastListeningTick = Date()
     @Published var homeGenres: [CatalogItem] = []
     @Published var homeLoading = false
+    @Published var checkingPlaylists = Set<UUID>()
+    @Published var syncErrors: [UUID: String] = [:]
     @Published var importingPlaylist = false
     @Published var downloadErrors: [String: String] = [:]
     @Published var searching = false
     @Published var searched = false
     @Published var notice: String?
+    var noticeIsWarning: Bool {
+        let text = notice?.lowercased() ?? ""
+        return ["impossible", "aucune version", "protégé", "indisponible", "erreur", "dépassé", "plusieurs versions"].contains { text.contains($0) }
+    }
     @Published var selected: Track?
     @Published var formats: [AudioFormat] = []
     @Published var selectedFormat = "best"
@@ -31,11 +37,10 @@ import AppKit
     @Published var library = Library()
     @Published var section = "home"
     @Published var sourceFilter = "Tout"
-    @Published var activeTitle: String?
-    @Published var activeID: String?
+    @Published var activeDownloads: [ActiveDownload] = []
+    var activeTitle: String? { activeDownloads.first?.track.title }
+    var activeID: String? { activeDownloads.first?.id }
     @Published var previewLoadingID: String?
-    @Published var progress: Double = 0
-    @Published var phase = ""
     @Published var pending: [Track] = []
     @Published var playing: LocalTrack?
     @Published var previewing: Track?
@@ -56,7 +61,9 @@ import AppKit
     private var endObserver: NSObjectProtocol?
     private var searchID = UUID()
     private var inspectID = UUID()
-    private let storage: URL
+    var checkedBitrates = Set<UUID>()
+    let storage: URL
+    var downloadWorker: ((Track, String, String, URL) async throws -> (Track, String))?
     private var queueFormats: [String: String] = [:]
     private var queueExports: [String: String] = [:]
     var canConvert: Bool { Engine.executable("ffmpeg") != nil }
@@ -202,11 +209,11 @@ import AppKit
             }
             await withTaskGroup(of: (String, [Track], [CatalogItem], String?).self) { group in
                 let value = actual
-                for source in (["Deezer", "YouTube", "SoundCloud"] + (mode == .all ? ["Albums", "Artistes"] : [])) {
+                for source in (["Deezer", "YouTube", "SoundCloud"] + (mode == .all ? ["Albums", "Artistes", "Playlists"] : [])) {
                     group.addTask {
                         do {
-                            if source == "Albums" || source == "Artistes" {
-                                let items = try await Catalog.search(value, mode: source == "Albums" ? .albums : .artists)
+                            if source == "Albums" || source == "Artistes" || source == "Playlists" {
+                                let items = try await Catalog.search(value, mode: source == "Albums" ? .albums : source == "Playlists" ? .playlists : .artists)
                                 return (source, [], Array(items.prefix(4)), nil)
                             }
                             let tracks = try await source == "Deezer" ? Engine.deezer(value) : Engine.search(value, source: source)
@@ -254,8 +261,8 @@ import AppKit
     }
     func select(_ track: Track) {
         selected = track; formats = []; selectedFormat = "best"
-        let id = UUID(); inspectID = id; inspecting = !track.isCatalog
-        guard !track.isCatalog else { return }
+        let id = UUID(); inspectID = id; inspecting = !track.isCatalog && downloaded(track) == nil
+        guard inspecting else { return }
         Task {
             do {
                 let (_, available) = try await Engine.inspect(track.url)
@@ -276,6 +283,8 @@ import AppKit
         if let index = library.playlists.firstIndex(where: { $0.sourceURL == imported.sourceURL }) {
             library.playlists[index].importedTracks = imported.tracks
             library.playlists[index].importWarning = imported.warning
+            library.playlists[index].hasRemoteChanges = false
+            library.playlists[index].lastSyncCheck = Date()
             section = library.playlists[index].id.uuidString
         } else {
             let playlist = Playlist(name: imported.name, importedTracks: imported.tracks,
@@ -293,7 +302,7 @@ import AppKit
         for track in playlist.importedTracks ?? [] where downloaded(track) == nil { enqueue(track) }
     }
     func enqueue(_ track: Track) {
-        guard !pending.contains(where: { $0.id == track.id }), activeID != track.id else { return }
+        guard !isQueued(track) else { return }
         if downloaded(track) != nil {
             notice = "Ce morceau est déjà dans votre bibliothèque."; return
         }
@@ -301,64 +310,60 @@ import AppKit
         queueFormats[track.id] = selected?.id == track.id ? selectedFormat : "best"
         queueExports[track.id] = exportFormat
         pending.append(track)
-        if activeTitle == nil { Task { await drainQueue() } }
+        drainQueue()
     }
-    private func drainQueue() async {
-        guard activeTitle == nil else { return }
-        while !pending.isEmpty {
+    private func drainQueue() {
+        while activeDownloads.count < 2 && !pending.isEmpty {
             let requested = pending.removeFirst()
             let preferred = queueFormats.removeValue(forKey: requested.id) ?? "best"
             let export = queueExports.removeValue(forKey: requested.id) ?? "original"
             if downloaded(requested) != nil { continue }
-            activeTitle = requested.title; activeID = requested.id; progress = 0; phase = "Recherche de la meilleure version…"
-            do {
-                var source = requested
-                if requested.isCatalog {
-                    let query = requested.artist + " " + requested.title
-                    async let yt = try? Engine.search(query, source: "YouTube", count: 5)
-                    async let sc = try? Engine.search(query, source: "SoundCloud", count: 5)
-                    let candidates = await (yt ?? []) + (sc ?? [])
-                    let ranked = candidates.sorted { Matching.score($0, for: requested) > Matching.score($1, for: requested) }
-                    guard let best = ranked.first, Matching.score(best, for: requested) >= 0.85 else {
-                        results = ranked; section = "search"; searched = true
-                        throw MusicError.message("Plusieurs versions possibles pour « \(requested.title) ». Choisissez la bonne dans les résultats.")
-                    }
-                    source = best
-                }
-                phase = "Vérification de l’audio…"
-                let (_, available) = try await Engine.inspect(source.url)
-                guard !available.isEmpty else { throw MusicError.message("Cette source ne propose pas de flux audio seul accessible. Choisissez une autre version.") }
-                let format = preferred == "best" || requested.isCatalog ? nil : preferred
-                if let format, !available.contains(where: { $0.id == format }) { throw MusicError.message("Cette qualité n’est plus disponible. Réessayez en qualité automatique.") }
-                let destination = folder
-                try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
-                var args = Engine.downloadArguments(track: source, format: format, folder: destination)
-                if export != "original", canConvert, let ffmpeg = Engine.executable("ffmpeg") {
-                    args.insert(contentsOf: ["--ffmpeg-location", URL(fileURLWithPath: ffmpeg).deletingLastPathComponent().path,
-                                             "-x", "--audio-format", export, "--audio-quality", "0", "--embed-metadata", "--embed-thumbnail"], at: 0)
-                }
-                phase = "Téléchargement depuis \(source.source)…"
-                let output = try await Engine.run(args, timeout: 900) { [weak self] output in
-                    let line = output.components(separatedBy: .newlines).last { $0.hasPrefix("PROGRESS:") }
-                    if let line, let percent = Double(line.replacingOccurrences(of: "PROGRESS:", with: "").replacingOccurrences(of: "%", with: "").trimmingCharacters(in: .whitespaces)) {
-                        Task { @MainActor in self?.progress = min(1, max(0, percent / 100)); if percent >= 100 { self?.phase = "Finalisation du fichier…" } }
-                    }
-                }
-                guard let line = output.components(separatedBy: .newlines).last(where: { $0.hasPrefix("FILE:") }) else { throw MusicError.message("Le téléchargement n’a pas renvoyé de fichier final.") }
-                let path = String(line.dropFirst(5))
-                guard FileManager.default.fileExists(atPath: path) else { throw MusicError.message("Le fichier téléchargé est introuvable.") }
-                var saved = requested
-                saved.url = source.url; saved.source = source.source
-                if !library.tracks.contains(where: { $0.path == path }) { library.tracks.insert(LocalTrack(track: saved, path: path), at: 0) }
-                save(); notice = "« \(requested.title) » est dans votre bibliothèque."
-            } catch { downloadErrors[requested.id] = error.localizedDescription; notice = error.localizedDescription }
-            activeTitle = nil; activeID = nil; progress = 0
+            activeDownloads.append(ActiveDownload(track: requested))
+            let destination = folder
+            Task { await download(requested, preferred: preferred, export: export, destination: destination) }
         }
     }
-    func createPlaylist(_ name: String) {
+    func updateDownload(_ id: String, progress: Double? = nil, phase: String? = nil) {
+        guard let index = activeDownloads.firstIndex(where: { $0.id == id }) else { return }
+        if let progress { activeDownloads[index].progress = progress }
+        if let phase { activeDownloads[index].phase = phase }
+    }
+    private func download(_ requested: Track, preferred: String, export: String, destination: URL) async {
+        defer { activeDownloads.removeAll { $0.id == requested.id }; drainQueue() }
+        do {
+            try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+            let result: (Track, String)
+            if let downloadWorker { result = try await downloadWorker(requested, preferred, export, destination) }
+            else { result = try await AudioDownload.run(target: requested,
+                preferred: preferred == "best" || requested.isCatalog ? nil : preferred,
+                search: { query, service in try await Engine.search(query, source: service, count: 5) },
+                transfer: { [weak self] source, format in
+                    self?.updateDownload(requested.id, progress: 0, phase: "Téléchargement audio depuis \(source.source)…")
+                    return try await AudioDownload.transfer(source, format: format, folder: destination, export: export) { value in
+                        Task { @MainActor [weak self] in
+                            self?.updateDownload(requested.id, progress: value, phase: value >= 1 ? "Finalisation du fichier…" : nil)
+                        }
+                    }
+                }, status: { [weak self] phase in
+                    self?.updateDownload(requested.id, progress: 0, phase: phase)
+                    if phase.hasPrefix("Autre source") { self?.notice = "Une source audio a échoué pour « \(requested.title) ». \(phase)" }
+                })
+            }
+            let (source, path) = result
+            var saved = requested
+            saved.url = source.url; saved.source = source.source
+            let bitrate = downloadWorker == nil ? await AudioMetadata.bitrate(URL(fileURLWithPath: path)) : nil
+            if !library.tracks.contains(where: { $0.path == path }) { library.tracks.insert(LocalTrack(track: saved, path: path, bitrateKbps: bitrate), at: 0) }
+            save(); notice = "« \(requested.title) » est dans votre bibliothèque."
+        } catch {
+            downloadErrors[requested.id] = error.localizedDescription; notice = error.localizedDescription
+        }
+    }
+    @discardableResult func createPlaylist(_ name: String, navigate: Bool = true) -> UUID? {
         let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty else { return }
-        let playlist = Playlist(name: clean); library.playlists.append(playlist); section = playlist.id.uuidString; save()
+        guard !clean.isEmpty else { return nil }
+        let playlist = Playlist(name: String(clean.prefix(160))); library.playlists.append(playlist)
+        if navigate { section = playlist.id.uuidString }; save(); return playlist.id
     }
     func add(_ track: LocalTrack, to id: UUID) {
         guard let index = library.playlists.firstIndex(where: { $0.id == id }), !library.playlists[index].trackIDs.contains(track.id) else { return }
@@ -416,7 +421,7 @@ import AppKit
     func downloaded(_ track: Track) -> LocalTrack? {
         library.tracks.first { ($0.track.id == track.id || $0.track.url == track.url || Matching.sameRecording($0.track, track)) && FileManager.default.fileExists(atPath: $0.path) }
     }
-    func isQueued(_ track: Track) -> Bool { activeID == track.id || pending.contains { $0.id == track.id } }
+    func isQueued(_ track: Track) -> Bool { activeDownloads.contains { $0.id == track.id } || pending.contains { $0.id == track.id } }
     func preview(_ track: Track) {
         if previewing?.id == track.id && isPlaying { player.pause(); isPlaying = false; return }
         let id = UUID(); playbackID = id

@@ -78,9 +78,9 @@ struct SpotifyPlayerBar: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 Text("File d’attente").font(.headline)
-                if let active = store.activeTitle {
-                    Text(active).lineLimit(1); ProgressView(value: store.progress)
-                    Text(store.phase).font(.caption).foregroundStyle(Theme.secondary)
+                ForEach(store.activeDownloads) { active in
+                    Text(active.track.title).lineLimit(1); ProgressView(value: active.progress)
+                    Text(active.phase).font(.caption).foregroundStyle(Theme.secondary)
                 }
                 ForEach(store.pending) { track in Label(track.title, systemImage: "arrow.down").lineLimit(1) }
                 Divider()
@@ -97,6 +97,13 @@ struct SpotifyPlayerBar: View {
     func time(_ value: Double) -> String { guard value.isFinite, value >= 0 else { return "0:00" }; return String(format: "%d:%02d", Int(value)/60, Int(value)%60) }
 }
 struct AudioOutputPicker: NSViewRepresentable {
-    func makeNSView(context: Context) -> AVRoutePickerView { AVRoutePickerView() }
+    func makeNSView(context: Context) -> AVRoutePickerView {
+        let view = AVRoutePickerView()
+        view.isRoutePickerButtonBordered = false
+        view.setRoutePickerButtonColor(NSColor(white: 0.70, alpha: 1), for: .normal)
+        view.setRoutePickerButtonColor(NSColor.white, for: .normalHighlighted)
+        view.setRoutePickerButtonColor(NSColor(red: 0.12, green: 0.85, blue: 0.39, alpha: 1), for: .active)
+        return view
+    }
     func updateNSView(_ view: AVRoutePickerView, context: Context) {}
 }

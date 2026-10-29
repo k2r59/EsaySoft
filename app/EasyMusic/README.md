@@ -4,7 +4,7 @@ Première ébauche d’une application macOS native en SwiftUI. Recherchez un mo
 
 ## Lancer l’application
 
-Ouvrez `dist/EasyMusic-0.3.0.app` pour la version complète, ou utilisez son installateur DMG.
+Ouvrez `dist/EasyMusic-0.4.0.app` pour la version complète, ou utilisez son installateur DMG.
 
 Pour reconstruire l’application, installez Xcode ou ses outils de développement, puis exécutez depuis ce dossier :
 
@@ -15,7 +15,7 @@ open dist/EasyMusic.app
 
 Le script récupère yt-dlp 2026.10.26 depuis sa publication officielle et vérifie son SHA-256. L’application cible macOS 13 ou version ultérieure et les Mac Intel et Apple Silicon. La signature locale permet les essais sur ce Mac ; la distribution sur d’autres Mac nécessite une signature Developer ID et une notarisation.
 
-FFmpeg est facultatif pour télécharger le format original. Il active la conversion MP3/M4A, les métadonnées et pochettes intégrées lors de ces conversions, ainsi que la lecture locale des fichiers Opus/WebM. Node.js, s’il est installé, sert aux défis JavaScript de YouTube. Le moteur les recherche dans les emplacements Homebrew usuels. Le paquet de distribution 0.3.0 intègre ces deux dépendances. Le script de compilation rapide ne les inclut que si `BUNDLE_RUNTIME=1`.
+FFmpeg est facultatif pour télécharger le format original. Il active la conversion MP3/M4A, les métadonnées et pochettes intégrées lors de ces conversions, ainsi que la lecture locale des fichiers Opus/WebM. Node.js, s’il est installé, sert aux défis JavaScript de YouTube. Le moteur les recherche dans les emplacements Homebrew usuels. Le paquet de distribution 0.4.0 intègre ces deux dépendances. Le script de compilation rapide ne les inclut que si `BUNDLE_RUNTIME=1`.
 
 ## Utiliser EasyMusic
 
@@ -24,11 +24,11 @@ FFmpeg est facultatif pour télécharger le format original. Il active la conver
 3. Retrouvez le fichier dans **Tous les titres**.
 4. Créez une playlist avec le bouton **+**, puis ajoutez les titres avec leur menu **•••**. Cochez plusieurs playlists pour conserver le même titre dans chacune.
 
-Le bouton de lecture sur chaque résultat joue un extrait. Pour YouTube et SoundCloud, FFmpeg prépare un extrait de 30 secondes en cache. Sans FFmpeg, EasyMusic tente la lecture directe du flux, dont la compatibilité dépend du format. Une coche remplace le bouton de téléchargement quand le fichier existe déjà ; son menu donne accès aux playlists. Si le fichier a été supprimé du disque, le téléchargement redevient disponible.
+Les boutons Lire et Extrait distinguent le fichier local complet et la pré-écoute. Pour YouTube et SoundCloud, FFmpeg prépare un extrait de 30 secondes en cache. Sans FFmpeg, EasyMusic tente la lecture directe du flux, dont la compatibilité dépend du format. Une coche remplace le bouton de téléchargement quand le fichier existe déjà ; le bouton + ouvre un sélecteur de playlists. Si le fichier a été supprimé du disque, le téléchargement redevient disponible.
 
 Cliquez sur un résultat pour consulter les qualités disponibles. Choisissez le format de sortie et le dossier de destination dans **Sources et réglages**. Une conversion ne peut pas améliorer la qualité du fichier source.
 
-La recherche réunit les réponses disponibles sans attendre qu’une source défaillante réussisse. Pour un résultat Deezer, EasyMusic cherche une version sur YouTube et SoundCloud. La comparaison utilise le titre, l’artiste et la durée, et pénalise les reprises ou remixes non demandés. Une correspondance incertaine affiche les candidats au lieu de télécharger automatiquement. Cette comparaison reste heuristique et ne garantit pas l’identité de deux enregistrements.
+La recherche réunit les réponses disponibles sans attendre qu’une source défaillante réussisse. Pour un résultat Deezer, EasyMusic cherche une version sur YouTube et SoundCloud. La comparaison utilise le titre, l’artiste et la durée, et pénalise les reprises ou remixes non demandés. Une correspondance incertaine est refusée. En cas d’échec, une autre source audio est essayée automatiquement. Cette comparaison reste heuristique et ne garantit pas l’identité de deux enregistrements.
 
 ## Accueil
 
@@ -44,7 +44,7 @@ L’accueil présente les classements publics Deezer, des playlists de styles va
 | Bandcamp, Jamendo, Audiomack | Import d’un lien de morceau, selon les formats accessibles |
 | Internet Archive, Vimeo, Mixcloud | Import d’un lien, selon les formats accessibles |
 
-Les liens doivent utiliser HTTPS. Les albums du catalogue Deezer peuvent être ouverts puis téléchargés morceau par morceau avec **Télécharger l’album**. Les liens Deezer de titre, album ou artiste sont reconnus. Les playlists publiques proposées sur l’accueil peuvent être ouvertes et leurs titres placés dans la file. Les liens de playlist Spotify, Deezer et YouTube Music ouvrent désormais l’import dédié. Les restrictions géographiques, les demandes de connexion et les changements des services peuvent empêcher certains téléchargements. EasyMusic ne déverrouille pas les contenus protégés.
+Les liens doivent utiliser HTTPS. Les albums du catalogue Deezer peuvent être ouverts puis téléchargés morceau par morceau depuis les actions de chaque morceau. Les liens Deezer de titre, album ou artiste sont reconnus. Les playlists publiques proposées sur l’accueil peuvent être ouvertes et leurs titres placés dans la file. Les liens de playlist Spotify, Deezer et YouTube Music ouvrent désormais l’import dédié. Les restrictions géographiques, les demandes de connexion et les changements des services peuvent empêcher certains téléchargements. EasyMusic ne déverrouille pas les contenus protégés.
 
 ## Exporter vers Offline Music sur iPhone
 
@@ -66,7 +66,7 @@ La [documentation d’Offline Music](https://musicplayeroffline.com/faq/import) 
 - Copies de lecture décodées : `~/Library/Caches/EasyMusic`.
 - Dossier de destination : préférences locales de l’application.
 
-Les téléchargements passent l’un après l’autre. yt-dlp conserve son comportement de reprise des fichiers partiels et retente les requêtes une fois. La file en attente n’est pas conservée après fermeture de l’application. Les fichiers terminés et les playlists sont enregistrés. Les fichiers audio ne sont pas supprimés quand un titre est retiré d’une playlist.
+Deux téléchargements peuvent avancer simultanément, avec quatre fragments parallèles par transfert. yt-dlp conserve son comportement de reprise des fichiers partiels et retente les requêtes une fois. La file en attente n’est pas conservée après fermeture de l’application. Les fichiers terminés et les playlists sont enregistrés. Les fichiers audio ne sont pas supprimés quand un titre est retiré d’une playlist.
 
 ## Vérifier le projet
 
@@ -88,7 +88,7 @@ Téléchargez uniquement les contenus que vous êtes autorisé à conserver.
 
 ## Distribution et mises à jour
 
-La version 0.3.0 dispose d’un lecteur à trois zones avec file de lecture, répétition, lecture aléatoire, volume et choix de sortie audio.
+La version 0.4.0 dispose d’un lecteur à trois zones avec file de lecture, répétition, lecture aléatoire, volume et choix de sortie audio.
 
 Le paquet universel embarque yt-dlp, Node.js, FFmpeg et FFprobe : aucune installation Homebrew n’est nécessaire chez le destinataire. La compilation des dépendances est reproductible avec `scripts/build-dependencies.sh`. Les sources FFmpeg/LAME et les licences sont jointes à l’archive source.
 
@@ -119,3 +119,12 @@ Cliquez sur **Importer une playlist** dans la barre latérale, puis collez un li
 - Spotify : lecture des métadonnées de la page publique intégrée, sans compte ni clé API. Cette page peut être indisponible ou limiter la liste affichée. Un avertissement permanent précise que l’exhaustivité n’est pas garantie, même pour une playlist publique. Aucun flux audio Spotify n’est téléchargé : les morceaux sont recherchés sur les sources audio accessibles.
 
 **Télécharger les titres manquants** remplit la file de téléchargement. Les fichiers déjà reconnus sont réutilisés, les doublons de liens sont retirés et l’ordre des titres importés est conservé. Les échecs restent visibles pendant la session et peuvent être réessayés. Les listes importées persistent après redémarrage, mais la file de téléchargement n’est pas relancée automatiquement. Un nouvel import du même lien actualise la playlist existante. Les liens courts doivent être remplacés par leur lien complet.
+
+
+## Playlists et détails (0.4.0)
+
+Le bouton + ouvre un sélecteur avec recherche, création et sélection multiple. Ajouter un morceau distant lance son téléchargement une seule fois ; les autres playlists réutilisent le fichier. Retirer un morceau d’une playlist ne supprime pas le fichier.
+
+Le menu de la playlist permet de la renommer et de choisir sa pochette. Par défaut, elle reprend celle du premier titre. Le lien d’origine reste enregistré. Pendant l’utilisation, les listes importées sont vérifiées au plus toutes les quinze minutes ; une pastille signale les changements. Le bouton de synchronisation actualise les titres exposés par la source tout en conservant le nom local et la pochette.
+
+Cliquez sur un titre pour ouvrir ses détails à droite. Les albums sont affichés lorsque l’artiste est identifié exactement dans le catalogue public. Aucun nombre d’auditeurs ni biographie ne sont inventés. Le débit local est mesuré avec ffprobe ; il est approximatif pour les fichiers à débit variable.

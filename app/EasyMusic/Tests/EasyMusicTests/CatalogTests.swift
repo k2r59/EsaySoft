@@ -3,7 +3,7 @@ import XCTest
 
 final class CatalogTests: XCTestCase {
     func testSearchFiltersUseContentTypes() {
-        XCTAssertEqual(SearchMode.allCases.map(\.rawValue), ["Tout", "Styles", "Titres", "Albums", "Artistes"])
+        XCTAssertEqual(SearchMode.allCases.map(\.rawValue), ["Tout", "Styles", "Titres", "Albums", "Artistes", "Playlists"])
     }
     func testOldLibraryDecodesWithoutRecentCollections() throws {
         let value = try JSONDecoder().decode(Library.self, from: Data("{\"tracks\":[],\"playlists\":[]}".utf8))

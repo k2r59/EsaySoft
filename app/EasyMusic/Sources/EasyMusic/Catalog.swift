@@ -1,11 +1,12 @@
 import Foundation
 
 enum SearchMode: String, CaseIterable, Identifiable {
-    case all = "Tout", genres = "Styles", tracks = "Titres", albums = "Albums", artists = "Artistes"
+    case all = "Tout", genres = "Styles", tracks = "Titres", albums = "Albums", artists = "Artistes", playlists = "Playlists"
     var id: String { rawValue }
     var placeholder: String {
         switch self {
         case .all, .tracks: return "Un titre, un artiste ou un lien"
+        case .playlists: return "Nom d’une playlist"
         case .albums: return "Nom d’un album"
         case .artists: return "Nom d’un artiste"
         case .genres: return "Jazz, rock, électro…"
@@ -46,7 +47,7 @@ enum Catalog {
             let normalized = normalizeGenre(value)
             return genres.filter { normalizeGenre($0.name).contains(normalized) || normalized.contains(normalizeGenre($0.name)) }
         }
-        let kind = mode == .albums ? "album" : "artist"
+        let kind = mode == .albums ? "album" : mode == .playlists ? "playlist" : "artist"
         return items(try await rows("search/" + kind, query: [URLQueryItem(name: "q", value: term), URLQueryItem(name: "limit", value: "24")]), kind: kind)
     }
     static func normalizeGenre(_ raw: String) -> String {
