@@ -6,6 +6,27 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyMusic</title>
         <item>
+            <title>0.6.1</title>
+            <pubDate>Thu, 29 Oct 2026 15:55:32 +0100</pubDate>
+            <sparkle:version>9</sparkle:version>
+            <sparkle:shortVersionString>0.6.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyMusic 0.6.1
+
+- Démarrage du moteur audio accéléré : il n’est plus décompressé à chaque recherche et ouverture de flux.
+- Moins de requêtes pour ouvrir les flux YouTube, avec retour automatique au parcours complet si nécessaire.
+- Préparation silencieuse au survol du bouton lecture, reprise immédiatement lors du clic.
+- Amorçage local du moteur au lancement de l’application.
+- Contrôles du morceau, de sa durée et de ses pistes audio conservés ; aucun téléchargement ajouté à la bibliothèque par la préparation.
+- Qualité et format audio affichés uniquement dans les détails, pour alléger les listes.
+- Notifications flottantes compactes : confirmations temporaires, échecs de téléchargement conservés jusqu’à fermeture, même si un autre titre réussit entre-temps.
+- Avertissement d’import regroupé dans une icône à droite des actions de playlist, avec une bulle au survol ou au clic.
+- Meilleure récupération des titres avec plusieurs artistes : crédits et versions comparés sans confondre les invités.
+- Correction d’un échec pendant l’ajout de la pochette à un fichier audio téléchargé.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easymusic-v0.6.1/EasyMusic-0.6.1-universal.dmg" length="137828197" type="application/octet-stream" sparkle:edSignature="AsoN2Zgk2cnJRhHV8LosdWJSb0MH58juOWi00EnMXfTAmkANOJ0mZDKUFxA0zxFBTaVxBreI0x3ghcQy2EqCCw=="/>
+        </item>
+        <item>
             <title>0.6.0</title>
             <pubDate>Thu, 29 Oct 2026 14:18:45 +0100</pubDate>
             <sparkle:version>8</sparkle:version>
@@ -43,33 +64,9 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
 ]]></description>
             <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easymusic-v0.5.0/EasyMusic-0.5.0-universal.dmg" length="134531204" type="application/octet-stream" sparkle:edSignature="9KaaKxQjL843k9y2lMnMkVCUNEzaICV3qJhx0S5rQP5Krb5XmFT3PED4KPIaU4vji66otR1N1aws3+7DcIjLBQ=="/>
         </item>
-        <item>
-            <title>0.4.0</title>
-            <pubDate>Thu, 29 Oct 2026 11:01:15 +0100</pubDate>
-            <sparkle:version>5</sparkle:version>
-            <sparkle:shortVersionString>0.4.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# EasyMusic 0.4.0
-
-- Recherche compacte avec meilleur résultat, filtres par type et playlists.
-- Bouton + : rechercher une playlist, en créer une et ajouter un titre à plusieurs listes.
-- Panneau d’informations au clic sur un titre : pochette, artiste, albums disponibles, lecture et qualité audio.
-- Lecture locale sur la pochette et extrait séparé ; débit audio mesuré pour les fichiers locaux.
-- Actions de playlist sur une seule ligne, téléchargement des titres manquants par icône.
-- Renommage des playlists, pochette personnalisée ou celle du premier morceau.
-- Conservation du lien d’import, vérification périodique pendant l’utilisation, pastille de changement et synchronisation manuelle.
-- Messages d’erreur et avertissements d’import plus visibles ; nouvelle fenêtre d’import.
-- Deux téléchargements simultanés, quatre fragments par transfert et suppression d’une extraction préliminaire inutile.
-- En cas d’échec ou de protection d’une source, recherche d’une autre version audio suffisamment proche. Aucun contournement des protections.
-- Bouton de sortie audio harmonisé avec le lecteur.
-
-L’import et la comparaison Spotify restent limités aux titres exposés par la page publique. Les fichiers déjà téléchargés restent conservés lors de la synchronisation.
-]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easymusic-v0.4.0/EasyMusic-0.4.0-universal.dmg" length="134200880" type="application/octet-stream" sparkle:edSignature="oWXSP6NiLMxkvJjqcz3bTCpuiLDSVAz7Qb20CPNmbcGfQ9+5C/nfPBwWHOQwJwjMHmjAClCAcFgEY+plz10NAw=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: TThZNxPQ9SIIzI5549FtmBlZHSdU80FhZkMKoRQN6hCkNo0PVz3J9q0RpGYFWwBGGAeTZQL0K4/VjtMIG3E2Dg==
-length: 5970
+edSignature: 6drbQB5TYt9AzLN6o1yJYi/jQLU7aInYAdqyGLW7UFwgMvwIYb/Y9Fx/tGPPvokx5KkQ/QXyR9rE3ZkrxJudBw==
+length: 5803
 -->
