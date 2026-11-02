@@ -11,7 +11,16 @@ struct ShelfWheelRouting: NSViewRepresentable {
 
 final class ShelfWheelRoutingView: NSView {
     private weak var registeredPanel: ShelfPanel?
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    // A real native surface keeps the gaps in the window's input region when
+    // clear Liquid Glass is composited separately by WindowServer. A fully
+    // transparent, non-hit-testable bridge leaves those pixels click-through.
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.white.withAlphaComponent(0.01).setFill()
+        dirtyRect.fill()
+    }
+    override func scrollWheel(with event: NSEvent) {
+        enclosingScrollView?.scrollWheel(with: event)
+    }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         register()

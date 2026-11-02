@@ -977,3 +977,29 @@ fdc2fe990d488e0bf58ca2455610146c5d3b879839435ebbe6c1ad5ee87a2b8e  EasyPaste-0.3.
 912d8f46fc02df85362c337494c60a6a961e501fff90cdb0955ed97ab1bed65f  EasyPaste-0.3.10.1-universal.zip
 61cfe8718a7bc62fb7db07cd93527ad28d2f391ba030cbffda692596a2a814c6  EasyPaste-0.3.10.1-source.zip
 ```
+
+## 34. Blocage confirmé après publication, diagnostic et surface native — 2 novembre 2026
+
+Hervé indique que 0.3.10.1 bloque toujours dès que le pointeur est entre deux tuiles. Le processus tournait réellement depuis `/Applications/EasyPaste.app`, version 0.3.10.1 (29), exécutable SHA-256 `0e022a89b991d57c155b1363f620a40f350d78b8a46a9f69ea83f1cd29d9a416`, identique au paquet publié. Aucun ancien binaire installé à incriminer.
+
+Différence de construction identifiée : la précédente bêta arm64 assemblée à partir de `swift test` déclarait SDK 15.0 dans LC_BUILD_VERSION ; les paquets de production universels déclarent SDK 27.0 via build.sh. Les sept tests de défilement passent aussi avec les options explicites de production (18,813 s, `/tmp/easypaste-scroll-production-sdk.log`). Cette différence seule n'a pas été prouvée comme cause. **Construire désormais les versions privées à valider avec scripts/build.sh et contrôler leurs deux architectures/SDK, pas avec un exécutable récupéré après swift test.**
+
+Diagnostic privé, sans modification des sources publiées : copie instrumentée construite SDK 27 dans `/Users/k2r59/Library/Caches/EasyPaste-wheel-diagnostic/app/EasyPaste`, paquet `/Users/k2r59/Library/Caches/EasyPaste-local-install/wheel-production-diagnostic/EasyPaste.app`. Enregistre uniquement métadonnées d'événement et géométrie de la rangée, sans contenu du presse-papiers, maximum 600 lignes. Fichier `/tmp/EasyPaste-wheel-diagnostic.jsonl`, copie conservée `/tmp/EasyPaste-wheel-before-native-gap.jsonl`. Le programme a été quitté après le diagnostic.
+
+- `sky.scroll` envoie dans cette session des événements précis de deltas X=0/Y=0 : les essais UI automatisés précédents n'étaient pas probants, y compris quand l'app était au premier plan. Ne pas présenter ces gestes comme un test matériel.
+- Essai réel demandé à Hervé : 63 mouvements non nuls avec Maj, précis, X horizontal et Y=0, sans phase/inertie. Le pont et le NSScrollView sont présents, les coordonnées sont dans le viewport, et chaque mouvement reçu fait avancer l'offset du delta attendu au tour suivant. Aucun point enregistré ne correspond aux interstices de 13 points (calcul du pas de 265 points, origine 25). Hervé confirme que cela bloque précisément dans les espaces.
+- Hypothèse étayée : ces zones ne reçoivent pas les événements à cause de leur surface native transparente/non interactive sous le verre. Le défaut se situe avant le traitement des deltas ; ce n'est pas une nouvelle erreur de conversion des axes.
+- Un essai XCTest ajoutant une fenêtre visible puis NSWindow.windowNumber(at:) échouait même sur les corps des cartes (fenêtre 124 au lieu de la fenêtre de test). Il a été retiré comme non probant ; ne pas le présenter comme reproduction isolée du bug.
+
+Correctif LOCAL dans `ShelfWheelRouting.swift` : le pont natif ne force plus hitTest à nil ; son fond dessine un blanc à 1 % dans le dirtyRect pour donner aux espaces une surface native réelle. `scrollWheel` peut transmettre à son NSScrollView. Pas de nouvelle couche allouée explicitement, pas de minuterie ni de moniteur en production. Les cartes gardent la priorité sur ce fond. Tests modifiés pour vérifier cette priorité et la réception native par le pont.
+
+Validation : **338 tests Release sans échec**, 54,070 s, avec SDK 27 explicite ; `/tmp/easypaste-native-gap-full.log`. Sept tests ciblés : 18,508 s, `/tmp/easypaste-native-gap.log`. `git diff --check` passe. Le nouveau paquet ne contient pas l'instrumentation privée.
+
+Paquet actuellement lancé : `/Users/k2r59/Library/Caches/EasyPaste-native-gap/app/EasyPaste/dist/EasyPaste.app`, **0.3.10.2-beta.1 (30)**. Créé par `scripts/build.sh`, Developer ID vérifié, Intel + Apple Silicon, minimum macOS 15, SDK 27 sur les deux architectures. Exécutable SHA-256 `77661d8255389a8dd92aca4fc77ec41e40aade981d3ea6e939ac443ce98923fd`. Sources fonctionnelles identiques au dépôt modifié. Historique normal, pas Demo. Pas de nouvelle notarisation/publication. `/Applications/EasyPaste.app` reste la 0.3.10.1.
+
+Hervé répond d'abord « Ça bloque encore entre les tuiles », puis corrige sa réponse à la même question en « Ça défile maintenant entre les tuiles ». La dernière réponse est retenue comme validation manuelle. Aucun nouveau numéro public, tag, flux ou publication modifié. Correctif et tests restent non commités ; attendre une demande de publication. Pour la prochaine livraison, conserver exactement le chemin de construction de cette bêta, et utiliser un numéro de build supérieur à 30.
+
+
+## 35. Publication 0.3.10.2 autorisée — 2 novembre 2026
+
+Hervé demande de rendre public le correctif de défilement validé dans la section 34. Version 0.3.10.2, build 31 (supérieur au build privé 30). Aucun changement fonctionnel supplémentaire. Notes dans app/EasyPaste/docs/RELEASE-0.3.10.2.md ; validation dans app/EasyPaste/QA-0.3.10.2.md. La construction reste dans le projet interne de la bêta validée, `/Users/k2r59/Library/Caches/EasyPaste-native-gap/app/EasyPaste`, avec un bundle distinct `dist/EasyPaste-0.3.10.2.app`. Publication en cours : attendre la vérification finale du flux avant annonce.

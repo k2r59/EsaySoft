@@ -115,7 +115,8 @@ import XCTest
             let bridge = try XCTUnwrap(descendants(host).compactMap { $0 as? ShelfWheelRoutingView }.first)
             XCTAssertTrue(bridge.enclosingScrollView === scroll, "The row bridge must target only the card scroll view")
             XCTAssertTrue(panel.wheelRoutingView === bridge)
-            XCTAssertNil(bridge.hitTest(.zero), "The wheel bridge must not intercept card clicks")
+            let bridgePoint = bridge.superview!.convert(CGPoint(x: bridge.bounds.midX, y: bridge.bounds.midY), from: bridge)
+            XCTAssertTrue(bridge.hitTest(bridgePoint) === bridge, "The native background must receive events in gaps")
             let center = scroll.contentView.convert(CGPoint(x: scroll.contentView.bounds.midX, y: scroll.contentView.bounds.midY), to: nil)
             let outside = scroll.contentView.convert(CGPoint(x: -10, y: -10), to: nil)
             for flags: CGEventFlags in [[], .maskCommand, [.maskShift, .maskCommand], [.maskShift, .maskAlternate], [.maskShift, .maskControl]] {
@@ -137,6 +138,9 @@ import XCTest
             let hitPoint = host.superview?.convert(point, from: host) ?? point
             let hit = try XCTUnwrap(host.hitTest(hitPoint), "compact=\(compact) expanded=\(expanded) delta=\(delta) x=\(x) offset=\(scroll.contentView.bounds.minX)")
             XCTAssertTrue(hit === scroll || hit.enclosingScrollView === scroll, "Wheel events over the card or its gap must stay in the card scroll view, x=\(x)")
+            if positions.first == x {
+                XCTAssertFalse(hit is ShelfWheelRoutingView, "The background must not take clicks from card bodies")
+            }
             let oldX = scroll.contentView.bounds.minX
             let cg = try XCTUnwrap(CGEvent(scrollWheelEvent2Source: nil, units: units, wheelCount: 2, wheel1: shiftVertical ? delta : 0, wheel2: shiftVertical ? 0 : delta, wheel3: 0))
             if shiftVertical || (routeRow && routeShift) { cg.flags = .maskShift }
