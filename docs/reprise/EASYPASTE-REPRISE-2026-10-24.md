@@ -958,3 +958,22 @@ Paquet privé normal (pas Demo), signé Developer ID et vérifié : `/Users/k2r5
 ## 33. Publication 0.3.10.1 autorisée — 2 novembre 2026
 
 Hervé confirme que la bêta fonctionne en local puis demande explicitement de publier en **0.3.10.1**. Le correctif de la section 32 est conservé sans changement fonctionnel. Build **29**, supérieur au build public 27 et au build privé 28, afin que la bêta puisse également recevoir la version stable via Sparkle. Notes dans app/EasyPaste/docs/RELEASE-0.3.10.1.md, validation dans app/EasyPaste/QA-0.3.10.1.md. Construction et publication en cours ; ne pas annoncer la disponibilité avant vérification finale du flux public.
+
+Publication 0.3.10.1 terminée et vérifiée :
+
+- Sources : commit `d5c0eaf`, poussé sur `codex/reprise-easypaste-2026-10-24`, tag `easypaste-v0.3.10.1`.
+- Les 215 fichiers sources de l'app dans le cache de construction sont identiques au commit. Exécutable universel Intel/Apple Silicon, minimum macOS 15.0, SDK 27.0. Bundle 0.3.10.1 (29), identifiant/certificat/clé Sparkle conservés.
+- Notarisation Apple acceptée : `4dc473b2-1cce-4e21-b28a-9f130996ee38`. Bundle et DMG agrafés ; Gatekeeper les accepte comme Notarized Developer ID.
+- Publication avec téléchargement et vérification des quatre fichiers avant ouverture de la release au public. Release stable, ni brouillon ni préversion.
+- GitHub Pages : état `built`, commit `4505e53ce5ba368d1ceff60a13705db3b5ad509d`. Flux public téléchargé : version 0.3.10.1, build 29, identique au flux local et signature Ed25519 valide.
+- Release : https://github.com/k2r59/EsaySoft/releases/tag/easypaste-v0.3.10.1
+- DMG : https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.10.1/EasyPaste-0.3.10.1-universal.dmg
+- Construction interne : `/Users/k2r59/Library/Caches/EasyPaste-release-0.3.10.1/app/EasyPaste/dist/`. Archives copiées dans `app/EasyPaste/dist/`, bundle lié vers ce cache. Aucune installation locale forcée ; l'app ouverte peut encore être la bêta. Aucun essai OTA complet supplémentaire effectué pendant cette publication.
+
+Empreintes :
+
+```text
+fdc2fe990d488e0bf58ca2455610146c5d3b879839435ebbe6c1ad5ee87a2b8e  EasyPaste-0.3.10.1-universal.dmg
+912d8f46fc02df85362c337494c60a6a961e501fff90cdb0955ed97ab1bed65f  EasyPaste-0.3.10.1-universal.zip
+61cfe8718a7bc62fb7db07cd93527ad28d2f391ba030cbffda692596a2a814c6  EasyPaste-0.3.10.1-source.zip
+```
