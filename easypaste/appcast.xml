@@ -6,6 +6,23 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyPaste</title>
         <item>
+            <title>0.3.10</title>
+            <pubDate>Mon, 02 Nov 2026 13:47:36 +0100</pubDate>
+            <sparkle:version>27</sparkle:version>
+            <sparkle:shortVersionString>0.3.10</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.10
+
+- **Défilement horizontal** : Maj + molette continue de faire défiler la barre rapide quand le pointeur se trouve entre deux tuiles. Le défilement au trackpad conserve son fonctionnement habituel.
+- **Raccourcis personnalisables** : modifiez les combinaisons dans Réglages → Général → Raccourcis clavier. Les raccourcis actuels restent ceux par défaut. Détection des conflits et retour aux réglages d’origine, individuellement ou pour l’ensemble.
+- **Google Sheets** : le collage sans mise en forme depuis EasyPaste utilise le collage de valeurs dans les feuilles reconnues. Par défaut, sélectionnez une carte puis utilisez ⇧Retour. Le menu « Collage spécial » propre à Sheets reste indépendant.
+- **FileZilla** : adaptation du collage dans les champs du Gestionnaire de sites, notamment Hôte, Utilisateur, Mot de passe et nom du site.
+
+macOS 15 ou ultérieur, Intel et Apple Silicon.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.10/EasyPaste-0.3.10-universal.dmg" length="13250339" type="application/octet-stream" sparkle:edSignature="k/9kDnC5ooiKnUwa93Gz3AOpXB1vL1TzkHfIOWLkQF9ALqr0BBoJ16P46o/3QVBh5k7QdCyyOS2JSVBjRtByCg=="/>
+        </item>
+        <item>
             <title>0.3.9</title>
             <pubDate>Thu, 29 Oct 2026 14:47:12 +0100</pubDate>
             <sparkle:version>26</sparkle:version>
@@ -41,32 +58,9 @@ macOS 15 ou ultérieur, Intel et Apple Silicon.
 ]]></description>
             <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.8/EasyPaste-0.3.8-universal.dmg" length="13073563" type="application/octet-stream" sparkle:edSignature="LLVThvNga6F/qJt5kvG/3tS9fkKmZqzqccGs68RRxL2Qy+aFa8o3redXLlupsDZJ4HhW7toZ6qJGGv2LuaRwAA=="/>
         </item>
-        <item>
-            <title>0.3.7</title>
-            <pubDate>Mon, 26 Oct 2026 09:43:46 +0100</pubDate>
-            <sparkle:version>24</sparkle:version>
-            <sparkle:shortVersionString>0.3.7</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.7
-
-- Bibliothèque allégée : fond continu, filtres soulignés et actions sans panneau supplémentaire. Les dégradés, boutons et onglets actifs suivent la teinte choisie dans Apparence.
-- Barre rapide : logo P transparent, contraste renforcé et aperçu intégré avec de petites icônes pour modifier, copier, coller, gérer les favoris et supprimer.
-- Correction du mouvement de la barre à l’ouverture et à la fermeture de l’aperçu. Le bas de la barre reste fixe pendant l’animation.
-- Affichage des icônes des applications sources et de la page web d’origine lorsqu’elle est disponible.
-- Dimensions des images et captures en pixels, conservées après annotation ou remplacement. Les petites images restent à leur taille native dans l’aperçu.
-- Suppression des titres répétés dans les tuiles de texte et des légendes génériques inutiles pour les images.
-- Nouvelle section **Réglages → Intégrations → Extension navigateur** : préparation de l’extension EasyPaste Web et vérification du lien local avec Arc ou Chrome. L’extension permet de copier une page avec sa mise en forme et les transcriptions YouTube disponibles. Elle s’installe séparément depuis ce menu.
-- Correctifs de copie avec mise en forme dans l’extension et vérification plus stricte des informations de page d’origine.
-
-L’historique reste stocké sur le Mac. Le collage direct nécessite l’autorisation Accessibilité de macOS.
-
-macOS 15 ou ultérieur, Intel et Apple Silicon. Le matériau Liquid Glass natif nécessite macOS 26 ; les versions précédentes utilisent un matériau compatible.
-]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.7/EasyPaste-0.3.7-universal.dmg" length="13025030" type="application/octet-stream" sparkle:edSignature="/Z/U0VIw3CZJVnKymOvSUIgIRVrXBPslPxY5mk6q14uCFfX3o9coOImEWOnsfVz3HWVETu7/I1SNgcSyzhrfCA=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: Pzy55LPizVRfw94nT5qtdkdTu5XgSYSPd/seV+Rm4lsAspEQyQIqSI+yob6IlP5DO6TSDmL+3b8X1Wcn3AsJDA==
-length: 6207
+edSignature: P2IfDH9+ZAxRHpcFVwuQ6TtBHCXln6VyOfkFU6YHtDpAavFDOmQW7ZwzD7nFu+CicQQW/v7nXJYl7BBrA1RzBQ==
+length: 5511
 -->
