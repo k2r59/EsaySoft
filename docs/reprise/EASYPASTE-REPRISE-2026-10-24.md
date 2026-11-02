@@ -1003,3 +1003,21 @@ Hervé répond d'abord « Ça bloque encore entre les tuiles », puis corrige sa
 ## 35. Publication 0.3.10.2 autorisée — 2 novembre 2026
 
 Hervé demande de rendre public le correctif de défilement validé dans la section 34. Version 0.3.10.2, build 31 (supérieur au build privé 30). Aucun changement fonctionnel supplémentaire. Notes dans app/EasyPaste/docs/RELEASE-0.3.10.2.md ; validation dans app/EasyPaste/QA-0.3.10.2.md. La construction reste dans le projet interne de la bêta validée, `/Users/k2r59/Library/Caches/EasyPaste-native-gap/app/EasyPaste`, avec un bundle distinct `dist/EasyPaste-0.3.10.2.app`. Publication en cours : attendre la vérification finale du flux avant annonce.
+
+Publication 0.3.10.2 terminée et vérifiée :
+
+- Sources : commit `5857268`, poussé sur `codex/reprise-easypaste-2026-10-24`, tag `easypaste-v0.3.10.2`.
+- Les 217 fichiers du projet de construction sont identiques au commit. Les 25 sections __TEXT Intel et 27 sections __TEXT arm64 de l’exécutable publié sont identiques à celles de la bêta validée, comparées directement dans les Mach-O. Empreinte de __text : x86_64 `6d72cb19290b63cd466c91df953f10bd0052476989a662494a54d1f9f1831efc`, arm64 `af17e792328178046cc7b53379f904ad9dcd7bc8adc5186eab47970eba784f74`. Détail local `/tmp/easypaste-0.3.10.2-binary-parity.json`. SDK 27.0, minimum macOS 15.0 sur les deux architectures.
+- Version stable 0.3.10.2 (31), identifiant/certificat/clé Sparkle conservés. Bundle privé validé non modifié.
+- Notarisation Apple acceptée : `adf04dad-0f5d-40c4-84cb-ca41487ec2e7`. Bundle et DMG agrafés, signatures et Gatekeeper acceptés.
+- Les quatre fichiers ont été téléchargés depuis la release en brouillon et comparés avant publication. Release stable, non préversion.
+- GitHub Pages `built`, commit `03453efa1398f182ef0aa08201c6a85de58dc86e`. Après propagation, le flux public présente 0.3.10.2 (31), est identique au flux local signé et sa signature Ed25519 est valide.
+- Release : https://github.com/k2r59/EsaySoft/releases/tag/easypaste-v0.3.10.2
+- DMG : https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.10.2/EasyPaste-0.3.10.2-universal.dmg
+- Fichiers dans `app/EasyPaste/dist/`, bundle lié vers `/Users/k2r59/Library/Caches/EasyPaste-native-gap/app/EasyPaste/dist/EasyPaste-0.3.10.2.app`. Pas de nouvelle installation locale forcée ni de nouvel essai OTA complet. L'app ouverte peut rester la bêta validée.
+
+```text
+c379d34677a9f603ca5d192cfa7d37477d8f692ffc851b5561a732b435044a4e  EasyPaste-0.3.10.2-universal.dmg
+1f58e279f4060cb63bbc2b3f87f66c8c4c36bcab4afb2c67f7d66828234f388f  EasyPaste-0.3.10.2-universal.zip
+cee1f75ae775952692ef54133048100b33fa406b957c2de03e831046a3068b1e  EasyPaste-0.3.10.2-source.zip
+```
