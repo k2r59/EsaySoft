@@ -6,6 +6,21 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyPaste</title>
         <item>
+            <title>0.3.10.1</title>
+            <pubDate>Mon, 02 Nov 2026 14:19:09 +0100</pubDate>
+            <sparkle:version>29</sparkle:version>
+            <sparkle:shortVersionString>0.3.10.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.10.1
+
+- **Défilement horizontal corrigé** : Maj + molette continue de fonctionner entre les tuiles de la barre rapide, y compris avec les souris qui transmettent un défilement précis.
+- La rangée reçoit désormais les gestes sur toute sa surface. Le défilement horizontal et l’inertie restent gérés par macOS.
+
+macOS 15 ou ultérieur, Intel et Apple Silicon.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.10.1/EasyPaste-0.3.10.1-universal.dmg" length="13260516" type="application/octet-stream" sparkle:edSignature="i458kEFc2jpwGDVUBFYgdNN/x2DD+Kxtqu/P5uzRXjp0VZvtApHUr25ngrwIY14NIayfVSoYkosR44toaY7QDQ=="/>
+        </item>
+        <item>
             <title>0.3.10</title>
             <pubDate>Mon, 02 Nov 2026 13:47:36 +0100</pubDate>
             <sparkle:version>27</sparkle:version>
@@ -38,29 +53,9 @@ macOS 15 ou ultérieur, Intel et Apple Silicon.
 ]]></description>
             <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.9/EasyPaste-0.3.9-universal.dmg" length="13043747" type="application/octet-stream" sparkle:edSignature="2o3ZJR7F5M0p/ObLlroVAtvaZaxwwVegcTvLGjYrdzWpRNcgMSo6uZKmGPgI1wD1A1JxlC8wo4V+LmS0XAUjCA=="/>
         </item>
-        <item>
-            <title>0.3.8</title>
-            <pubDate>Wed, 28 Oct 2026 13:57:11 +0100</pubDate>
-            <sparkle:version>25</sparkle:version>
-            <sparkle:shortVersionString>0.3.8</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.8
-
-- **Compteur de collages** : un badge numérique sur chaque tuile indique combien de fois son contenu a été collé depuis EasyPaste. Pratique pour retrouver les liens déjà envoyés. Le badge apparaît dès le premier collage et s’adapte au thème.
-- **Activé par défaut** : l’affichage du compteur peut être masqué dans **Réglages → Général → Collage → Afficher le nombre de collages**. Les compteurs sont conservés localement et chiffrés avec l’historique.
-- **Recherche prête à saisir** : correction du focus parfois absent à l’ouverture de la barre rapide et après une sélection. Le raccourci ⌘F cible la recherche de la fenêtre active.
-- **Défilement horizontal** : la zone de défilement inclut désormais les espaces entre les tuiles et les marges de la barre rapide.
-- **Pile de collage** : les éléments sont retirés de la pile après l’envoi de la commande de collage, pour éviter leur retrait lorsque l’application cible ne peut pas être activée.
-
-Le compteur suit les commandes de collage envoyées par EasyPaste. Il ne compte pas les ⌘V effectués directement dans une autre application et ne reconstitue pas les collages antérieurs à son activation. Il ne confirme pas l’envoi d’un message dans l’application cible.
-
-macOS 15 ou ultérieur, Intel et Apple Silicon.
-]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.8/EasyPaste-0.3.8-universal.dmg" length="13073563" type="application/octet-stream" sparkle:edSignature="LLVThvNga6F/qJt5kvG/3tS9fkKmZqzqccGs68RRxL2Qy+aFa8o3redXLlupsDZJ4HhW7toZ6qJGGv2LuaRwAA=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: P2IfDH9+ZAxRHpcFVwuQ6TtBHCXln6VyOfkFU6YHtDpAavFDOmQW7ZwzD7nFu+CicQQW/v7nXJYl7BBrA1RzBQ==
-length: 5511
+edSignature: qGKrxB+AGqRvt+xL0EWr1RGFeGE60C7IIhcl2HybrHbnXDmFJeVzRwkr5ycfBRaX5VDEFO9+7r7f4NLCEy6WDg==
+length: 4557
 -->
