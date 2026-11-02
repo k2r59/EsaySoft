@@ -6,6 +6,21 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyPaste</title>
         <item>
+            <title>0.3.10.2</title>
+            <pubDate>Mon, 02 Nov 2026 15:11:01 +0100</pubDate>
+            <sparkle:version>31</sparkle:version>
+            <sparkle:shortVersionString>0.3.10.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.10.2
+
+- **Défilement entre les tuiles** : correction des espaces transparents qui pouvaient bloquer Maj + molette dans la barre rapide, même après la précédente mise à jour.
+- Toute la rangée reçoit désormais la molette, tout en conservant les clics sur les cartes et les boutons.
+
+macOS 15 ou ultérieur, Intel et Apple Silicon.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.10.2/EasyPaste-0.3.10.2-universal.dmg" length="13260906" type="application/octet-stream" sparkle:edSignature="FX1S70jt3L+NhzUY53FASJDD2xrCiBM4BP0lZ3ZJnmR23m/b8xMfLHVPSq+Zr4wsnixXbqQwPd8zYAPs0BXcAw=="/>
+        </item>
+        <item>
             <title>0.3.10.1</title>
             <pubDate>Mon, 02 Nov 2026 14:19:09 +0100</pubDate>
             <sparkle:version>29</sparkle:version>
@@ -37,25 +52,9 @@ macOS 15 ou ultérieur, Intel et Apple Silicon.
 ]]></description>
             <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.10/EasyPaste-0.3.10-universal.dmg" length="13250339" type="application/octet-stream" sparkle:edSignature="k/9kDnC5ooiKnUwa93Gz3AOpXB1vL1TzkHfIOWLkQF9ALqr0BBoJ16P46o/3QVBh5k7QdCyyOS2JSVBjRtByCg=="/>
         </item>
-        <item>
-            <title>0.3.9</title>
-            <pubDate>Thu, 29 Oct 2026 14:47:12 +0100</pubDate>
-            <sparkle:version>26</sparkle:version>
-            <sparkle:shortVersionString>0.3.9</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.9
-
-- **Bitwarden** : les liens créés sont ajoutés à l’historique et à la pile de collage, tout en restant copiés dans le presse-papiers. L’ajout fonctionne en mode rapide et avec les options, sans doublon dans la pile.
-- **Originaux conservés** : enregistrer un texte modifié, un contenu formaté ou une image annotée crée toujours une nouvelle entrée. Le choix « Remplacer l’original » disparaît ; le bouton Enregistrer suffit.
-- **Options vidéo et réglages** : les interrupteurs activés reprennent la couleur du thème et restent lisibles même dans une fenêtre inactive. Toute la ligne est cliquable.
-
-macOS 15 ou ultérieur, Intel et Apple Silicon.
-]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.9/EasyPaste-0.3.9-universal.dmg" length="13043747" type="application/octet-stream" sparkle:edSignature="2o3ZJR7F5M0p/ObLlroVAtvaZaxwwVegcTvLGjYrdzWpRNcgMSo6uZKmGPgI1wD1A1JxlC8wo4V+LmS0XAUjCA=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: qGKrxB+AGqRvt+xL0EWr1RGFeGE60C7IIhcl2HybrHbnXDmFJeVzRwkr5ycfBRaX5VDEFO9+7r7f4NLCEy6WDg==
-length: 4557
+edSignature: HvTcYB53huknLBuK81BwwvX/sndiLALbdj8uChs8ZW4wqndCDUF+XvXOjwOnuCG4XpHVWvtNZbavxszsGQFxAg==
+length: 4231
 -->
