@@ -73,6 +73,7 @@ private final class WebcamPreview: NSView {
     override func layout() { super.layout(); CATransaction.begin(); CATransaction.setDisableActions(true); preview.frame = bounds; CATransaction.commit() }
 }
 @MainActor final class RecordingHUDModel: ObservableObject {
+    @Published var stopShortcut = ShortcutAction.stop.initial.display
     @Published var title = "Préparation…"
     @Published var elapsed = "0:00"
     @Published var stopping = false
@@ -106,7 +107,7 @@ private struct RecordingHUDView: View {
                     Text(model.stopping ? "Finalisation…" : model.countdown == nil ? "Arrêter" : "Annuler")
                 }.font(.system(size: 12, weight: .semibold)).padding(.horizontal, 14).frame(height: 36)
                 .foregroundStyle(.white).background(model.stopping ? Color.gray : Color(red: 0.80, green: 0.20, blue: 0.24), in: RoundedRectangle(cornerRadius: 10)).contentShape(Rectangle())
-            }.buttonStyle(FullAreaButtonStyle()).disabled(model.stopping).help(model.countdown == nil ? "Arrêter et conserver la vidéo · ⌃⌥⌘S" : "Annuler l’enregistrement avant son démarrage")
+            }.buttonStyle(FullAreaButtonStyle()).disabled(model.stopping).help(model.countdown == nil ? "Arrêter et conserver la vidéo · " + model.stopShortcut : "Annuler l’enregistrement avant son démarrage")
         }.padding(.horizontal, 16).frame(height: 68).chromeSurface(radius: 18).foregroundStyle(Theme.ink)
         .clipShape(RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.border))
     }

@@ -104,7 +104,7 @@ struct MainView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 14) {
                 SearchBar(history: history, integrated: true)
-                Button { history.openShelf?() } label: { HStack(spacing: 9) { Image(systemName: "rectangle.bottomthird.inset.filled"); Text("Barre rapide"); KeyCap(text: "⇧⌘V") } }
+                Button { history.openShelf?() } label: { HStack(spacing: 9) { Image(systemName: "rectangle.bottomthird.inset.filled"); Text("Barre rapide"); KeyCap(text: history.shortcuts[.shelf].display) } }
                     .buttonStyle(PasteButtonStyle()).fixedSize()
             }.padding(.top, 10)
             ViewThatFits(in: .horizontal) {

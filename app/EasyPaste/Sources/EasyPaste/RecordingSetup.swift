@@ -4,6 +4,7 @@ struct RecordingSetupView: View {
     @State private var options = RecordingOptions()
     @State private var cameras: [RecordingDevice] = []
     @State private var microphones: [RecordingDevice] = []
+    var stopShortcut = ShortcutAction.stop.initial.display
     let cancel: () -> Void
     let start: (RecordingOptions) -> Void
     var body: some View {
@@ -30,7 +31,7 @@ struct RecordingSetupView: View {
                 Spacer()
                 Picker("Qualité vidéo", selection: $options.fullResolution) { Text("Native · jusqu’à 4K").tag(true); Text("Légère · 1080p").tag(false) }.labelsHidden().frame(width: 210)
             }
-            Label("Arrêter : barre flottante ou ⌃⌥⌘S", systemImage: "stop.circle").font(.system(size: 11)).foregroundStyle(Theme.muted)
+            Label("Arrêter : barre flottante ou " + stopShortcut, systemImage: "stop.circle").font(.system(size: 11)).foregroundStyle(Theme.muted)
             HStack { Button("Annuler", action: cancel).buttonStyle(PasteButtonStyle()).keyboardShortcut(.cancelAction); Spacer(); Button(options.area ? "Choisir la zone" : "Démarrer dans 3 s") { start(options) }.buttonStyle(PasteButtonStyle(primary: true)).keyboardShortcut(.defaultAction) }
         }.padding(28).frame(width: 500).chromeSurface(radius: 22).foregroundStyle(Theme.ink)
         .task { cameras = RecordingDevice.cameras; microphones = RecordingDevice.microphones }

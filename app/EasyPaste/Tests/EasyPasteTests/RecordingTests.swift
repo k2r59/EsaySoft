@@ -223,6 +223,10 @@ final class RecordingWriterTests: XCTestCase {
         defer { history.stopMonitoring(); try? FileManager.default.removeItem(at: folder) }
         let original = try await history.saveImage(DemoArtwork.png())
         let copy = try await history.saveImage(DemoArtwork.png(), parent: original)
+        // Finish automatic OCR before seeding the metadata this test protects.
+        // Otherwise a legitimate OCR completion races the synthetic old text.
+        for _ in 0..<500 where !history.ocrTasks.isEmpty { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertTrue(history.ocrTasks.isEmpty, "Initial OCR must finish before preparing the variant fixture")
         let board = UUID(); history.mutate(original.id) { $0.pinned = true; $0.boards = [board]; $0.title = "Mon image"; $0.ocr = "ancien texte confidentiel" }; await history.flush()
         let old = try await history.fullClip(original)
         history.surface = "shelf"; history.openPreview(old)

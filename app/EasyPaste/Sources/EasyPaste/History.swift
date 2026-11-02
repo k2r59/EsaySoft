@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import Vision
 import ImageIO
@@ -40,6 +41,8 @@ struct ClipQuery {
 @MainActor final class History: ObservableObject {
     let updates = AppUpdates()
     let sounds: SoundFeedback
+    let shortcuts: KeyboardShortcuts
+    private var shortcutsObservation: AnyCancellable?
     var updateBusy: Bool {
         AppUpdates.isBusy(recording: recording, capture: captureBusy, annotation: annotating,
                           editor: editing != nil || newSnippet, preview: previewing != nil || shelfPreview != nil,
@@ -132,6 +135,7 @@ struct ClipQuery {
     }
     init(vault: ClipVault? = nil, monitor: Bool = true, defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        self.shortcuts = KeyboardShortcuts(defaults: defaults)
         self.sounds = monitor ? SoundFeedback(defaults: defaults) : SoundFeedback(defaults: defaults, playback: { _ in })
         self.bitwarden = BitwardenModel(defaults: defaults)
         enabled = defaults.bool(forKey: "monitoring")
@@ -142,6 +146,7 @@ struct ClipQuery {
         confirmTrash = defaults.object(forKey: "confirmTrash") == nil || defaults.bool(forKey: "confirmTrash")
         showPasteCounts = defaults.object(forKey: "showPasteCounts") == nil || defaults.bool(forKey: "showPasteCounts")
         changeCount = NSPasteboard.general.changeCount
+        shortcutsObservation = shortcuts.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         sounds.muted = { [weak self] in self?.recording ?? true }
         if let vault {
             self.vault = vault

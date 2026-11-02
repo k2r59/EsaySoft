@@ -16,7 +16,7 @@ struct ClipCardFooter: View {
             }
             Spacer(minLength: 4)
             if let index = quickIndex, index < 9 {
-                Text("⌘\(index + 1)").font(.system(size: 10, design: .monospaced))
+                Text(history.shortcuts[ShortcutAction.cards[index]].display).font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(Theme.muted).padding(.trailing, 3).accessibilityHidden(true)
             }
             action(clip.pinned ? "Retirer des favoris" : "Ajouter aux favoris",

@@ -23,8 +23,9 @@ import CryptoKit
     private let shelfSizer = ShelfWindowSizer()
     private var status: NSStatusItem!
     private var target: NSRunningApplication?
+    private var pasteRenameContext: PasteCompatibility.RenameContext?
     private lazy var destinations = PasteDestinationTracker()
-    private var hotkeys: [EventHotKeyRef] = []
+    private let shortcutRegistry = GlobalShortcutRegistry()
     private var handler: EventHandlerRef?
     private var keys: Any?
     private var resignObserver: NSObjectProtocol?
@@ -49,6 +50,7 @@ import CryptoKit
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppAppearance.stored().apply()
         target = destinations.capture()
+        pasteRenameContext = PasteCompatibility.captureRename(destination: target)
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1190, height: 850), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         window.title = "EasyPaste"; window.titlebarAppearsTransparent = true; window.titleVisibility = .hidden; window.delegate = self
         window.titlebarSeparatorStyle = .none
@@ -163,6 +165,7 @@ import CryptoKit
         // Keep the same destination while opening an editor from our shelf.
         if NSApp.isActive, shelf?.isVisible == true || window?.isVisible == true { return }
         target = destinations.capture()
+        pasteRenameContext = PasteCompatibility.captureRename(destination: target)
     }
     private func refreshBitwardenMenu() {
         let tag = 8240
@@ -292,6 +295,7 @@ import CryptoKit
     private func paste(_ clips: [Clip], plain: Bool) {
         guard !isPasting else { return }; isPasting = true
         let destination = target
+        let renameContext = pasteRenameContext
         let fromStack = history.collection == "stack"
         Task {
             defer { isPasting = false }
@@ -316,17 +320,27 @@ import CryptoKit
             closeShelf(restore: false)
             guard destination.activate(options: []) else { return }
             try? await Task.sleep(nanoseconds: 180_000_000)
-            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == destination.processIdentifier,
-                  let down = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true),
-                  let up = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false) else { return }
-            down.flags = .maskCommand; up.flags = .maskCommand
-            down.postToPid(destination.processIdentifier); up.postToPid(destination.processIdentifier)
+            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == destination.processIdentifier else { return }
+            let compatibility = await PasteCompatibility.prepare(destination: destination, plain: plain, rename: renameContext)
+            if compatibility == .unavailable {
+                history.report("Contenu copié. Utilise le menu Coller du champ pour terminer.")
+                return
+            }
+            if compatibility != .inserted {
+                guard NSWorkspace.shared.frontmostApplication?.processIdentifier == destination.processIdentifier,
+                      let down = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true),
+                      let up = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false) else { return }
+                let flags: CGEventFlags = compatibility == .sheetsValues ? [.maskCommand, .maskShift] : .maskCommand
+                down.flags = flags; up.flags = flags
+                down.postToPid(destination.processIdentifier); up.postToPid(destination.processIdentifier)
+            }
             history.recordPaste(clips, plain: plain)
             if fromStack { history.consumeStack(clips) }
-            history.report("Collé dans \(destination.localizedName ?? "l’application").")
+            history.report(compatibility == .sheetsValues ? "Valeurs collées dans Google Sheets." : "Collé dans \(destination.localizedName ?? "l’application").")
         }
     }
     private func key(_ event: NSEvent) -> NSEvent? {
+        if history.shortcuts.recording != nil { return event }
         if annotations.isKeyWindow { return annotations.key(event) }
         guard window.isKeyWindow || shelf?.isKeyWindow == true else { return event }
         guard NSApp.keyWindow?.attachedSheet == nil, history.editing == nil, history.previewing == nil, !history.newSnippet, !history.showNewBoard else { return event }
@@ -336,13 +350,13 @@ import CryptoKit
             if history.shelfPreview != nil { history.shelfPreview = nil } else { closeShelf() }
             return nil
         }
-        if cmd, event.charactersIgnoringModifiers == "f" { NotificationCenter.default.post(name: SearchTextField.focusNotification, object: NSApp.keyWindow); return nil }
+        if history.shortcuts[.search].matches(event) { NotificationCenter.default.post(name: SearchTextField.focusNotification, object: NSApp.keyWindow); return nil }
         if cmd, event.charactersIgnoringModifiers == "n" { if flags.contains(.shift) { history.showNewBoard = true } else { history.newSnippet = true }; return nil }
-        if cmd, event.charactersIgnoringModifiers == "e", let clip = history.selectedClip, clip.trashedAt == nil {
+        if history.shortcuts[.edit].matches(event), let clip = history.selectedClip, clip.trashedAt == nil {
             if clip.kind == .image { annotations.open(clip); return nil }
             if clip.editable { history.editing = clip; return nil }
         }
-        if cmd, event.charactersIgnoringModifiers == "y", let clip = history.selectedClip { history.openPreview(clip); return nil }
+        if history.shortcuts[.preview].matches(event), let clip = history.selectedClip { history.openPreview(clip); return nil }
         if cmd, event.charactersIgnoringModifiers == "o", let clip = history.selectedClip { openClip(clip); return nil }
         if cmd, event.charactersIgnoringModifiers == "t" { toggleMonitoring(); return nil }
         if !(NSApp.keyWindow?.firstResponder is NSTextView) {
@@ -352,10 +366,14 @@ import CryptoKit
             if cmd, event.charactersIgnoringModifiers == "z", !history.recentlyTrashed.isEmpty { history.undoTrash(); return nil }
         }
         guard shelf?.isKeyWindow == true else { return event }
-        let physical: [UInt16: Int] = [18: 0, 19: 1, 20: 2, 21: 3, 23: 4, 22: 5, 26: 6, 28: 7, 25: 8]
-        if cmd, let index = physical[event.keyCode], index < history.visible.count { paste([history.visible[index]], plain: flags.contains(.shift)); return nil }
+        for (index, action) in ShortcutAction.cards.enumerated() where index < history.visible.count {
+            let binding = history.shortcuts[action]
+            if binding.matches(event) { paste([history.visible[index]], plain: false); return nil }
+            if !binding.flags.contains(.shift), binding.shifted.matches(event) { paste([history.visible[index]], plain: true); return nil }
+        }
+        if history.shortcuts[.paste].matches(event) { paste(history.selection, plain: false); return nil }
+        if history.shortcuts[.plainPaste].matches(event) { paste(history.selection, plain: true); return nil }
         if event.keyCode == 123 || event.keyCode == 124 { history.moveSelection(event.keyCode == 123 ? -1 : 1); return nil }
-        if event.keyCode == 36 { paste(history.selection, plain: flags.contains(.shift)); return nil }
         if event.keyCode == 49, !(NSApp.keyWindow?.firstResponder is NSTextView), let c = history.selectedClip { history.openPreview(c); return nil }
         return event
     }
@@ -366,16 +384,37 @@ import CryptoKit
             var id = EventHotKeyID()
             GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &id)
             let delegate = Unmanaged<AppDelegate>.fromOpaque(context).takeUnretainedValue()
-            MainActor.assumeIsolated { switch id.id { case 0: delegate.toggleShelf(); case 1: delegate.copyNext(); case 2: delegate.rememberTarget(); delegate.captures.run(.area); case 3: delegate.rememberTarget(); delegate.captures.run(.text); case 4: delegate.captures.stop(); default: break } }; return noErr
+            MainActor.assumeIsolated { guard delegate.history.shortcuts.recording == nil else { return }; switch id.id { case 0: delegate.toggleShelf(); case 1: delegate.copyNext(); case 2: delegate.rememberTarget(); delegate.captures.run(.area); case 3: delegate.rememberTarget(); delegate.captures.run(.text); case 4: delegate.captures.stop(); default: break } }; return noErr
         }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &handler)
-        let captureModifiers = UInt32(cmdKey | optionKey | controlKey)
-        let bindings: [(Int, UInt32)] = [(kVK_ANSI_V, UInt32(cmdKey | shiftKey)), (kVK_ANSI_V, captureModifiers), (kVK_ANSI_C, captureModifiers), (kVK_ANSI_X, captureModifiers), (kVK_ANSI_S, captureModifiers)]
-        for (id, binding) in bindings.enumerated() {
-            var ref: EventHotKeyRef?
-            if RegisterEventHotKey(UInt32(binding.0), binding.1, EventHotKeyID(signature: 0x45504153, id: UInt32(id)), GetApplicationEventTarget(), 0, &ref) == noErr, let ref { hotkeys.append(ref) }
-            else { history.report("Un raccourci est déjà utilisé. La barre rapide reste accessible depuis le menu EasyPaste.") }
+        history.shortcuts.apply = { [weak self] values in self?.shortcutRegistry.replace(values) }
+        history.shortcuts.recordingChanged = { [weak self] recording in
+            guard let self else { return }
+            if recording { self.shortcutRegistry.suspend() }
+            else if let issue = self.shortcutRegistry.start(self.history.shortcuts.bindings) { self.history.shortcuts.error = issue }
         }
+        history.shortcuts.changed = { [weak self] in self?.refreshShortcutLabels() }
+        if let issue = shortcutRegistry.start(history.shortcuts.bindings) { history.shortcuts.error = issue; history.report(issue) }
+        refreshShortcutLabels()
     }
+    private func refreshShortcutLabels() {
+        func update(_ menu: NSMenu) {
+            for item in menu.items {
+                var action: ShortcutAction?
+                if item.action == #selector(toggleShelf) { action = .shelf }
+                if item.action == #selector(copyNext) { action = .stack }
+                if item.action == #selector(stopVideo) { action = .stop }
+                if item.action == #selector(captureFromMenu(_:)) {
+                    if item.tag == CaptureAction.area.rawValue { action = .capture }
+                    if item.tag == CaptureAction.text.rawValue { action = .ocr }
+                }
+                if let action { item.title = action.title + "   " + history.shortcuts[action].display }
+                if let submenu = item.submenu { update(submenu) }
+            }
+        }
+        if let menu = status?.menu { update(menu) }
+        if let menu = NSApp.mainMenu { update(menu) }
+    }
+
     private func fillDemo() {
         let samples: [(String, String, String)] = [
             ("Pour les bonnes idées.", "Une pensée, un lien, trois mots qui tombent juste.\nGarde ce qui compte, retrouve-le quand tu en as besoin.", "Notes"),

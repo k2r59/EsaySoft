@@ -87,15 +87,7 @@ struct SettingsView: View {
                     HStack(alignment: .center, spacing: 24) { VStack(alignment: .leading, spacing: 6) { Text(trusted ? "Collage direct autorisé" : "Collage direct").fontWeight(.medium); if !trusted { Text("Autorise l’Accessibilité pour coller directement. Sinon, utilise ⌘V après la copie.").font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true) } }; Spacer(); Button(trusted ? "Vérifier" : "Autoriser…") { if !trusted { let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary; _ = AXIsProcessTrustedWithOptions(options) }; trusted = AXIsProcessTrusted() }.buttonStyle(PasteButtonStyle(primary: !trusted)) }
                     Divider().opacity(0.3)
                     SettingsDetails("Raccourcis clavier") {
-                        shortcut("Barre rapide", "⇧⌘V")
-                        shortcut("Capturer une zone", "⌃⌥⌘C")
-                        shortcut("Arrêter la vidéo", "⌃⌥⌘S")
-                        shortcut("Extraire du texte", "⌃⌥⌘X")
-                        shortcut("Coller / en texte brut", "↩ / ⇧↩")
-                        shortcut("Coller une des 9 premières cartes", "⌘1…9")
-                        shortcut("Rechercher / modifier / aperçu", "⌘F / ⌘E / ⌘Y")
-                        shortcut("Copier le suivant dans la pile", "⌃⌥⌘V")
-                        Text("Pile : copie le suivant avec ⌃⌥⌘V, puis colle-le avec ⌘V.")
+                        ShortcutSettings(shortcuts: history.shortcuts)
                     }
                 }
                     case .privacy:
@@ -147,7 +139,7 @@ struct SettingsView: View {
     private func section<Content: View>(_ title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12) { Label(title, systemImage: icon).font(.system(size: 15, weight: .semibold)).foregroundStyle(palette.accent).padding(.bottom, 4); content() }.font(.system(size: 12)).controlSize(.regular).padding(24).frame(maxWidth: .infinity, alignment: .leading).surface()
     }
-    private func shortcut(_ title: String, _ keys: String) -> some View { PreferenceRow(title) { Text(keys).font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundStyle(Theme.muted).frame(width: 106, height: 28).background(Theme.ink.opacity(0.05), in: RoundedRectangle(cornerRadius: 7)).overlay(RoundedRectangle(cornerRadius: 7).stroke(Theme.ink.opacity(0.08))) } }
+
     private func appName(_ id: String) -> String { NSWorkspace.shared.urlForApplication(withBundleIdentifier: id)?.deletingPathExtension().lastPathComponent ?? id }
     private func addExclusion() { let panel = NSOpenPanel(); panel.title = "Choisir une application à ignorer"; panel.directoryURL = URL(fileURLWithPath: "/Applications"); panel.allowedContentTypes = [.applicationBundle]; panel.allowsMultipleSelection = true; if panel.runModal() == .OK { for url in panel.urls { if let id = Bundle(url: url)?.bundleIdentifier, !history.exclusions.contains(id) { history.exclusions.append(id) } } } }
     private func clear() { let alert = NSAlert(); alert.messageText = "Effacer l’historique ?"; alert.informativeText = "Les copies ordinaires seront déplacées dans la corbeille pendant 7 jours. Tes favoris et collections sont conservés."; alert.addButton(withTitle: "Effacer"); alert.addButton(withTitle: "Annuler"); if alert.runModal() == .alertFirstButtonReturn { history.clearHistory() } }

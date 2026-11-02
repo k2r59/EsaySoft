@@ -131,7 +131,7 @@ private struct ShelfCaptureButton: NSViewRepresentable {
         let id = UUID(); operation = id; currentAction = action; history.captureBusy = true
         if !CGPreflightScreenCaptureAccess() { showPermission(action); return }
         if action == .video {
-            present(RecordingSetupView(cancel: { [weak self] in self?.cancel() }, start: { [weak self] options in self?.beginVideo(options) }), title: "Enregistrer une vidéo")
+            present(RecordingSetupView(stopShortcut: history.shortcuts[.stop].display, cancel: { [weak self] in self?.cancel() }, start: { [weak self] options in self?.beginVideo(options) }), title: "Enregistrer une vidéo")
         } else {
             task = Task { [weak self] in await self?.captureImage(action, id: id) }
         }
@@ -278,6 +278,7 @@ private struct ShelfCaptureButton: NSViewRepresentable {
                 if options.area { guard let rect = await select() else { if operation == id { history.captureBusy = false; operation = nil; showResult?() }; return }; area = rect }
                 else { area = screen }
                 if options.webcam && (area.width < 240 || area.height < 180) { throw CaptureFailure.message("Sélectionne une zone d’au moins 240 × 180 points pour inclure la webcam.") }
+                recordingOverlay.model.stopShortcut = history.shortcuts[.stop].display
                 try await recordingOverlay.show(area: Self.quartzRect(area), options: options, stop: { [weak self = self] in
                     guard let self else { return }; if self.recorder.state == .recording { self.stop() } else { self.cancel() }
                 })

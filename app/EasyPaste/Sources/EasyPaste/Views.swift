@@ -19,7 +19,7 @@ struct SearchBar: View {
                         prompt: glass ? "Rechercher…" : "Rechercher dans l’historique…",
                         color: secondary, fontSize: glass ? 15 : 13, focusOnAppear: focusOnAppear)
             if !history.query.isEmpty { Button { history.query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(secondary).frame(width: 24, height: 24) }.buttonStyle(FullAreaButtonStyle()) }
-            if !glass { KeyCap(text: "⌘F") }
+            if !glass { KeyCap(text: history.shortcuts[.search].display) }
         }.padding(.horizontal, 16).padding(.vertical, 12)
             .background {
                 if integrated {
@@ -183,7 +183,7 @@ struct ClipActions: View {
             Button("Coller") { history.paste?([clip], false) }
             if [.text, .link, .color].contains(clip.kind) {
                 Button("Coller sans mise en forme") { history.paste?([clip], true) }
-                    .help("Colle le texte et les valeurs affichées, sans HTML ni mise en forme · ⇧↩")
+                    .help("Colle le texte et les valeurs affichées, sans HTML ni mise en forme · " + history.shortcuts[.plainPaste].display)
             }
             Button("Copier") { Task { _ = await history.copy([clip]) } }
             Button(clip.kind == .image ? "Copier le texte détecté" : "Copier en texte brut") { Task { _ = await history.copy([clip], plain: true) } }.disabled((clip.kind == .image && clip.ocr.isEmpty) || clip.kind == .video)
@@ -254,6 +254,7 @@ struct ShelfView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         LazyHStack(spacing: 13) { ForEach(Array(history.visible.enumerated()), id: \.element.id) { index, clip in ClipCard(history: history, clip: clip, compact: history.compact, quickIndex: index).frame(width: history.compact ? 215 : 252).id(clip.id) } }
                             .padding(3).contentShape(Rectangle())
+                            .background { ShelfWheelRouting().accessibilityHidden(true) }
                     }.contentShape(Rectangle())
                     .onChange(of: history.selected) { _, value in if let value { proxy.scrollTo(value) } }
                     .onAppear { if let value = history.selected { proxy.scrollTo(value) } }
