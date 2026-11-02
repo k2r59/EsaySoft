@@ -921,3 +921,21 @@ Paquet privé préparé à la demande « comment je peux tester ? » : `/Users/k
 Hervé confirme « ça fonctionne » après essai du correctif Maj + molette, puis autorise la publication. La version 0.3.10 (build 27) regroupe le routage de molette validé, les raccourcis personnalisables avec valeurs par défaut conservées, et les adaptations ciblées Sheets / Gestionnaire de sites FileZilla. Leurs limites sont explicites dans `app/EasyPaste/QA-0.3.10.md` ; notes utilisateur dans `app/EasyPaste/docs/RELEASE-0.3.10.md`. L'aperçu XLSX de Claude et la connexion rapide de FileZilla ne sont pas annoncés corrigés.
 
 Construction universelle et signature Developer ID réalisées sur le SSD interne dans `/Users/k2r59/Library/Caches/EasyPaste-release-0.3.10/app/EasyPaste`. L'identifiant d'application et la clé Sparkle restent inchangés. La notarisation, le contrôle des archives téléchargées et la vérification du flux public doivent être terminés avant annonce de disponibilité. Le résultat définitif de la publication sera ajouté après vérification.
+
+Publication terminée et vérifiée le 2 novembre 2026 :
+
+- Sources publiées sur la branche `codex/reprise-easypaste-2026-10-24`, commit `de694c3`, tag `easypaste-v0.3.10`.
+- Notarisation Apple acceptée : `c55d5a07-e013-4bda-be5b-c99cba386609`. Bundle et DMG agrafés, signature stricte et Gatekeeper acceptés. Exécutable universel x86_64/arm64, minimum macOS 15.0 vérifié sur les deux architectures.
+- Script de publication : génération et vérification des signatures Ed25519 du paquet et du flux, release en brouillon, téléchargement des quatre fichiers et égalité des empreintes avant publication.
+- GitHub Pages `built`, commit `62bbe436f99af579bbd348d7c0fe4b4fdc6f307c`. Le flux public téléchargé présente 0.3.10 (27), est identique au flux signé local et sa signature est valide.
+- Release publique : https://github.com/k2r59/EsaySoft/releases/tag/easypaste-v0.3.10
+- DMG public : https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.10/EasyPaste-0.3.10-universal.dmg
+- Archives également présentes dans `app/EasyPaste/dist/` (ignoré par Git), bundle de distribution lié vers le cache interne. Aucune nouvelle installation locale effectuée pendant cette publication ; ne pas confondre la copie privée testée avec l'application habituelle dans Applications.
+
+Empreintes des archives publiées :
+
+```text
+7f636e123837ab447b1c56661f99f8f9e354abfbe48f570b89227dc36e68f7e3  EasyPaste-0.3.10-universal.dmg
+7be5d10e53fd2cdfdfc1b54badb97cd28e9970fb157c9cb7194219623bdcab4c  EasyPaste-0.3.10-universal.zip
+a1fa219976cf80ab7f1aa7db57b7a27fcbdf4cc7640db6215b605172ac72c4da  EasyPaste-0.3.10-source.zip
+```
