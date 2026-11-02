@@ -435,4 +435,17 @@ import CryptoKit
         history.report("Aperçu de démonstration · données fictives, collecte désactivée.")
     }
 }
-final class ShelfPanel: NSPanel { override var canBecomeKey: Bool { true }; override var canBecomeMain: Bool { false } }
+final class ShelfPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
+    weak var wheelRoutingView: ShelfWheelRoutingView?
+
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .scrollWheel, attachedSheet == nil,
+           let scroll = wheelRoutingView?.enclosingScrollView,
+           ShelfWheelRoutingView.route(event, in: scroll, at: event.locationInWindow) {
+            return
+        }
+        super.sendEvent(event)
+    }
+}

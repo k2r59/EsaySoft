@@ -939,3 +939,22 @@ Empreintes des archives publiées :
 7be5d10e53fd2cdfdfc1b54badb97cd28e9970fb157c9cb7194219623bdcab4c  EasyPaste-0.3.10-universal.zip
 a1fa219976cf80ab7f1aa7db57b7a27fcbdf4cc7640db6215b605172ac72c4da  EasyPaste-0.3.10-source.zip
 ```
+
+## 32. Défilement encore bloqué en 0.3.10 — nouveau routage privé, 2 novembre 2026
+
+Après la mise à jour publique, Hervé constate toujours un arrêt de Maj + molette entre les tuiles. Il utilise une souris Logitech et demande une technique indépendante du modèle. `/Applications/EasyPaste.app` est bien la 0.3.10 ; ce n'est pas une ancienne version. La validation manuelle antérieure de la section 31 n'a donc pas suffi. Le filtre `!hasPreciseScrollingDeltas` excluait certains événements possibles ; aucune trace matérielle ne prouve encore que ce filtre est la cause exacte sur sa souris.
+
+Travail LOCAL, non publié :
+- Remplacement du moniteur local par `ShelfPanel.sendEvent`. La fenêtre transmet le défilement directement au NSScrollView de toute la rangée, avant le choix de cible par tuile/interstice.
+- Le pont invisible enregistre une référence faible dans la fenêtre et la retire au détachement. Pas de minuterie, de moniteur global, de parcours des cartes, de chargement anticipé de tout l'historique ou de changement des clics.
+- Traitement des événements horizontaux et de Maj + molette en unités ligne ET pixel. Si Maj arrive avec seulement un delta vertical, copie de l'événement et translation des trois représentations de delta sur X ; instantané des valeurs avant mutation car les setters CGEvent modifient aussi des champs associés. L'événement original reste intact. Les événements déjà horizontaux ne sont pas inversés.
+- Vitesse, limites et inertie toujours gérées par NSScrollView. Cmd/Alt/Ctrl, gestes hors du viewport et fenêtres avec feuille attachée restent sur le chemin habituel.
+
+Validation : **338 tests Release, zéro échec**, 53,596 s, `/tmp/easypaste-window-scroll-full.log`. Sept tests `ShelfInteractionTests`, dont appel réel à `panel.sendEvent` (événements synthétiques, coordonnées locales explicites), axes X/Y, Maj, lignes/pixels, normal/compact, aperçu ouvert/fermé, sens aller/retour et haut/bas des espaces. Vérification des phases, inertie, préservation de l'événement et retrait du pont. Les tests ne remplacent pas le geste physique Logitech. `git diff --check` passe.
+
+Paquet privé normal (pas Demo), signé Developer ID et vérifié : `/Users/k2r59/Downloads/EasyPaste-test-defilement/EasyPaste.app`, **0.3.11-beta.1 (28)**, arm64. Empreinte exécutable : `c81f1bb2968cb3e7d89d07aef521d2ecd692b567c7b319e89f53337515b37565`. Basé sur les ressources/frameworks de l'app installée, avec le nouvel exécutable testé. Identifiant et historique habituels conservés. Aucun remplacement d'Applications, aucune nouvelle notarisation, aucune modification du flux, tag, release ou scripts/release.json. La version publique reste 0.3.10. Quitter l'app habituelle avant d'ouvrir ce paquet ; vérifier le chemin du processus avant de conclure au résultat du test. Attendre la validation du geste réel avant toute nouvelle publication.
+
+
+## 33. Publication 0.3.10.1 autorisée — 2 novembre 2026
+
+Hervé confirme que la bêta fonctionne en local puis demande explicitement de publier en **0.3.10.1**. Le correctif de la section 32 est conservé sans changement fonctionnel. Build **29**, supérieur au build public 27 et au build privé 28, afin que la bêta puisse également recevoir la version stable via Sparkle. Notes dans app/EasyPaste/docs/RELEASE-0.3.10.1.md, validation dans app/EasyPaste/QA-0.3.10.1.md. Construction et publication en cours ; ne pas annoncer la disponibilité avant vérification finale du flux public.

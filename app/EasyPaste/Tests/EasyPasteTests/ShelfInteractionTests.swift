@@ -40,7 +40,56 @@ import XCTest
         }
     }
 
-    private func checkWheelRouting(compact: Bool, expanded: Bool, units: CGScrollEventUnit = .pixel, yFraction: CGFloat = 0.5, shiftVertical: Bool = false, routeRow: Bool = false) async throws {
+    func testPreciseShiftWheelThroughWindowAcrossCardsAndGaps() async throws {
+        for compact in [false, true] {
+            for expanded in [false, true] {
+                for vertical in [false, true] {
+                    try await checkWheelRouting(compact: compact, expanded: expanded, units: .pixel,
+                        shiftVertical: vertical, routeRow: true)
+                }
+            }
+        }
+    }
+
+    func testHorizontalWheelThroughWindowWithoutShiftAtGapEdges() async throws {
+        for compact in [false, true] {
+            for expanded in [false, true] {
+                for unit: CGScrollEventUnit in [.line, .pixel] {
+                    for fraction: CGFloat in [0.08, 0.92] {
+                        try await checkWheelRouting(compact: compact, expanded: expanded,
+                            units: unit, yFraction: fraction, routeRow: true, routeShift: false)
+                    }
+                }
+            }
+        }
+    }
+
+    func testShiftConversionPreservesPixelDeltasAndGesturePhases() throws {
+        let scroll = WheelSpyScrollView(frame: CGRect(x: 0, y: 0, width: 300, height: 200))
+        scroll.documentView = NSView(frame: CGRect(x: 0, y: 0, width: 2000, height: 200))
+        for phase: Int64 in [1, 2, 4] {
+            let cg = try XCTUnwrap(CGEvent(scrollWheelEvent2Source: nil, units: .pixel,
+                wheelCount: 2, wheel1: -17, wheel2: 0, wheel3: 0))
+            cg.flags = .maskShift
+            cg.setIntegerValueField(.scrollWheelEventScrollPhase, value: phase)
+            let event = try XCTUnwrap(NSEvent(cgEvent: cg))
+            XCTAssertTrue(ShelfWheelRoutingView.route(event, in: scroll, at: CGPoint(x: 100, y: 100)))
+            let delivered = try XCTUnwrap(scroll.lastWheel)
+            XCTAssertEqual(delivered.scrollingDeltaX, event.scrollingDeltaY, accuracy: 0.001)
+            XCTAssertEqual(delivered.scrollingDeltaY, 0)
+            XCTAssertEqual(delivered.phase, event.phase)
+            XCTAssertEqual(delivered.hasPreciseScrollingDeltas, event.hasPreciseScrollingDeltas)
+            XCTAssertEqual(event.scrollingDeltaY, -17, "The original event must remain intact")
+        }
+        let cg = try XCTUnwrap(CGEvent(scrollWheelEvent2Source: nil, units: .pixel,
+            wheelCount: 2, wheel1: 0, wheel2: -12, wheel3: 0))
+        cg.setIntegerValueField(.scrollWheelEventMomentumPhase, value: 2)
+        let momentum = try XCTUnwrap(NSEvent(cgEvent: cg))
+        XCTAssertTrue(ShelfWheelRoutingView.route(momentum, in: scroll, at: CGPoint(x: 100, y: 100)))
+        XCTAssertTrue(scroll.lastWheel === momentum, "Unshifted inertia is forwarded unchanged")
+    }
+
+    private func checkWheelRouting(compact: Bool, expanded: Bool, units: CGScrollEventUnit = .pixel, yFraction: CGFloat = 0.5, shiftVertical: Bool = false, routeRow: Bool = false, routeShift: Bool = true) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let suite = "EasyPaste.scroll-routing." + UUID().uuidString
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
@@ -65,6 +114,7 @@ import XCTest
         if routeRow {
             let bridge = try XCTUnwrap(descendants(host).compactMap { $0 as? ShelfWheelRoutingView }.first)
             XCTAssertTrue(bridge.enclosingScrollView === scroll, "The row bridge must target only the card scroll view")
+            XCTAssertTrue(panel.wheelRoutingView === bridge)
             XCTAssertNil(bridge.hitTest(.zero), "The wheel bridge must not intercept card clicks")
             let center = scroll.contentView.convert(CGPoint(x: scroll.contentView.bounds.midX, y: scroll.contentView.bounds.midY), to: nil)
             let outside = scroll.contentView.convert(CGPoint(x: -10, y: -10), to: nil)
@@ -73,10 +123,6 @@ import XCTest
                 cg.flags = flags
                 XCTAssertFalse(ShelfWheelRoutingView.route(try XCTUnwrap(NSEvent(cgEvent: cg)), in: scroll, at: center))
             }
-            let precise = try XCTUnwrap(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: -40, wheel2: 0, wheel3: 0))
-            precise.flags = .maskShift
-            precise.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
-            XCTAssertFalse(ShelfWheelRoutingView.route(try XCTUnwrap(NSEvent(cgEvent: precise)), in: scroll, at: center), "Trackpad gestures stay native")
             let outsideWheel = try XCTUnwrap(CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 2, wheel1: -1, wheel2: 0, wheel3: 0))
             outsideWheel.flags = .maskShift
             XCTAssertFalse(ShelfWheelRoutingView.route(try XCTUnwrap(NSEvent(cgEvent: outsideWheel)), in: scroll, at: outside), "Preview and header gestures must not scroll the cards")
@@ -93,11 +139,17 @@ import XCTest
             XCTAssertTrue(hit === scroll || hit.enclosingScrollView === scroll, "Wheel events over the card or its gap must stay in the card scroll view, x=\(x)")
             let oldX = scroll.contentView.bounds.minX
             let cg = try XCTUnwrap(CGEvent(scrollWheelEvent2Source: nil, units: units, wheelCount: 2, wheel1: shiftVertical ? delta : 0, wheel2: shiftVertical ? 0 : delta, wheel3: 0))
-            if shiftVertical || routeRow { cg.flags = .maskShift }
-            cg.location = panel.convertPoint(toScreen: host.convert(point, to: nil))
+            if shiftVertical || (routeRow && routeShift) { cg.flags = .maskShift }
+            let windowPoint = host.convert(point, to: nil)
+            // Synthetic CGEvents without an associated window expose screen
+            // coordinates here. Supply panel-local coordinates to exercise the
+            // actual sendEvent path rather than calling the routing helper.
+            cg.location = CGPoint(x: windowPoint.x, y: (NSScreen.screens.first?.frame.maxY ?? 0) - windowPoint.y)
             let wheel = try XCTUnwrap(NSEvent(cgEvent: cg))
             if routeRow {
-                XCTAssertTrue(ShelfWheelRoutingView.route(wheel, in: scroll, at: host.convert(point, to: nil)))
+                XCTAssertEqual(wheel.locationInWindow.x, windowPoint.x, accuracy: 0.01)
+                XCTAssertEqual(wheel.locationInWindow.y, windowPoint.y, accuracy: 0.01)
+                panel.sendEvent(wheel)
             } else {
                 hit.scrollWheel(with: wheel)
             }
@@ -107,5 +159,12 @@ import XCTest
           }
         }
         XCTAssertEqual(scroll.contentView.bounds.minX, 0, accuracy: 0.5)
+        panel.contentView = nil
+        XCTAssertNil(panel.wheelRoutingView, "Detaching the row must remove its registration")
     }
+}
+
+@MainActor private final class WheelSpyScrollView: NSScrollView {
+    var lastWheel: NSEvent?
+    override func scrollWheel(with event: NSEvent) { lastWheel = event }
 }
