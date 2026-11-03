@@ -244,6 +244,17 @@ struct ShelfView: View {
                     if !history.stack.isEmpty { shelfTab("Pile (\(history.stack.count))", icon: "square.stack", selected: history.collection == "stack") { history.collection = "stack" } }
                 } }
                 CaptureMenu(history: history, iconOnly: true)
+                Button { history.capture?(.text) } label: {
+                    Image(systemName: CaptureAction.text.icon)
+                        .font(.system(size: 20))
+                        .frame(width: 42, height: 42)
+                        .background(palette.controlPlate.opacity(0.95), in: Circle())
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(FullAreaButtonStyle())
+                .disabled(history.captureBusy || history.samplingColor || history.recording || history.annotating || history.loading || history.fault)
+                .help("\(CaptureAction.text.title) · \(history.shortcuts[.ocr].display)")
+                .accessibilityLabel(CaptureAction.text.title)
                 Button { history.page = "settings"; history.showLibrary?() } label: { Image(systemName: "gearshape").font(.system(size: 18)).frame(width: 42, height: 42).background(palette.controlPlate.opacity(0.95), in: Circle()) }.buttonStyle(FullAreaButtonStyle()).help("Réglages").accessibilityLabel("Réglages")
             }
             if history.loading { ProgressView("Ouverture…").padding(12).glassLabelPlate().frame(maxWidth: .infinity, maxHeight: .infinity) }

@@ -141,6 +141,10 @@ import CryptoKit
         quickCapture.tag = CaptureAction.area.rawValue; quickCapture.target = self
         quickCapture.image = NSImage(systemSymbolName: "viewfinder", accessibilityDescription: "Capturer une zone")
         menu.addItem(quickCapture)
+        let quickText = NSMenuItem(title: CaptureAction.text.title, action: #selector(captureFromMenu(_:)), keyEquivalent: "")
+        quickText.tag = CaptureAction.text.rawValue
+        quickText.image = NSImage(systemSymbolName: CaptureAction.text.icon, accessibilityDescription: CaptureAction.text.title)
+        menu.addItem(quickText)
         let colorItem = NSMenuItem(title: "Prélever une couleur…", action: #selector(sampleColor), keyEquivalent: "")
         colorItem.image = NSImage(systemSymbolName: "eyedropper", accessibilityDescription: "Prélever une couleur")
         menu.addItem(colorItem)
