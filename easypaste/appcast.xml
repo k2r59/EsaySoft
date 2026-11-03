@@ -6,6 +6,24 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyPaste</title>
         <item>
+            <title>0.3.11</title>
+            <pubDate>Tue, 03 Nov 2026 16:12:50 +0100</pubDate>
+            <sparkle:version>32</sparkle:version>
+            <sparkle:shortVersionString>0.3.11</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.11
+
+- **Extraction de texte en accès direct** : l’OCR est maintenant accessible dans le menu principal de la barre des menus, sous « Capturer une zone ».
+- **Une icône OCR dans la barre rapide** : lancez l’extraction du texte d’une zone depuis le bouton situé entre Capture et Réglages, sans ouvrir de sous-menu.
+- Le bouton suit le thème et la transparence de la barre. Son infobulle affiche votre raccourci clavier personnalisé.
+
+Cette version conserve le correctif de défilement entre les tuiles de la 0.3.10.2.
+
+macOS 15 ou ultérieur, Intel et Apple Silicon.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.11/EasyPaste-0.3.11-universal.dmg" length="13262551" type="application/octet-stream" sparkle:edSignature="SH6Lw7e8yEyhKQ1Sh4pE25L7eFCTmykTDWI22ZHwr/DfwIz28Ivm8UA89sKTqlfa9jydbThkU5HxPZoEM+sUBQ=="/>
+        </item>
+        <item>
             <title>0.3.10.2</title>
             <pubDate>Mon, 02 Nov 2026 15:11:01 +0100</pubDate>
             <sparkle:version>31</sparkle:version>
@@ -35,26 +53,9 @@ macOS 15 ou ultérieur, Intel et Apple Silicon.
 ]]></description>
             <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.10.1/EasyPaste-0.3.10.1-universal.dmg" length="13260516" type="application/octet-stream" sparkle:edSignature="i458kEFc2jpwGDVUBFYgdNN/x2DD+Kxtqu/P5uzRXjp0VZvtApHUr25ngrwIY14NIayfVSoYkosR44toaY7QDQ=="/>
         </item>
-        <item>
-            <title>0.3.10</title>
-            <pubDate>Mon, 02 Nov 2026 13:47:36 +0100</pubDate>
-            <sparkle:version>27</sparkle:version>
-            <sparkle:shortVersionString>0.3.10</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.10
-
-- **Défilement horizontal** : Maj + molette continue de faire défiler la barre rapide quand le pointeur se trouve entre deux tuiles. Le défilement au trackpad conserve son fonctionnement habituel.
-- **Raccourcis personnalisables** : modifiez les combinaisons dans Réglages → Général → Raccourcis clavier. Les raccourcis actuels restent ceux par défaut. Détection des conflits et retour aux réglages d’origine, individuellement ou pour l’ensemble.
-- **Google Sheets** : le collage sans mise en forme depuis EasyPaste utilise le collage de valeurs dans les feuilles reconnues. Par défaut, sélectionnez une carte puis utilisez ⇧Retour. Le menu « Collage spécial » propre à Sheets reste indépendant.
-- **FileZilla** : adaptation du collage dans les champs du Gestionnaire de sites, notamment Hôte, Utilisateur, Mot de passe et nom du site.
-
-macOS 15 ou ultérieur, Intel et Apple Silicon.
-]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.10/EasyPaste-0.3.10-universal.dmg" length="13250339" type="application/octet-stream" sparkle:edSignature="k/9kDnC5ooiKnUwa93Gz3AOpXB1vL1TzkHfIOWLkQF9ALqr0BBoJ16P46o/3QVBh5k7QdCyyOS2JSVBjRtByCg=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: HvTcYB53huknLBuK81BwwvX/sndiLALbdj8uChs8ZW4wqndCDUF+XvXOjwOnuCG4XpHVWvtNZbavxszsGQFxAg==
-length: 4231
+edSignature: 0ihn1yWO771ZkLgcpJ736SI17/3Zqek3sat03ydFhprDoemQLBagSr3gtjYVr0ODl6C5eu5JmIDwOydNRFXFCQ==
+length: 3894
 -->
