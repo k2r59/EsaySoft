@@ -1021,3 +1021,28 @@ c379d34677a9f603ca5d192cfa7d37477d8f692ffc851b5561a732b435044a4e  EasyPaste-0.3.
 1f58e279f4060cb63bbc2b3f87f66c8c4c36bcab4afb2c67f7d66828234f388f  EasyPaste-0.3.10.2-universal.zip
 cee1f75ae775952692ef54133048100b33fa406b957c2de03e831046a3068b1e  EasyPaste-0.3.10.2-source.zip
 ```
+
+## 36. EasyPaste 0.3.11 publiée — 3 novembre 2026
+
+- Autorisation explicite de publication donnée après ajout de deux accès directs à l’OCR.
+- Version 0.3.11, build 32, commit de release `0a3ee37` sur `codex/reprise-easypaste-2026-10-24`, poussé.
+- Menu principal de la barre des menus : extraction de texte sous la capture de zone ; réutilise `captureFromMenu`, son tag OCR et le rafraîchissement des raccourcis personnalisés.
+- Barre rapide : bouton `text.viewfinder` entre Capture et Réglages, 42 × 42 points, thème existant, surface entièrement cliquable, infobulle avec raccourci et libellé accessible. Désactivé pendant les opérations incompatibles.
+- Aucune modification du routage de molette de la 0.3.10.2.
+- 18 tests ciblés réussis puis 338 tests Release réussis en 55,921 s. Pas de nouveau test manuel OCR ou de geste physique de molette revendiqué.
+- Construction universelle par `scripts/package.sh` dans `/Users/k2r59/Library/Caches/EasyPaste-native-gap/app/EasyPaste`, SDK 27, cible macOS 15. Toutes les sources suivies comparées au projet de construction, identiques.
+- Bundle : `dist/EasyPaste-0.3.11.app` dans le projet interne ; lien depuis le dist du dépôt. Aucun remplacement de l’app installée effectué.
+- Signature Developer ID et notarisation acceptées : `9120ef54-6d94-4a27-bfe8-a6751cd42c5d`. Tickets agrafés et Gatekeeper accepté pour app et DMG.
+- Publication par `scripts/publish-update.py` : quatre assets téléchargés et comparés avant passage public, signatures DMG et appcast vérifiées.
+- GitHub Pages construit : `d837a3cd355b855389222d564dbaedee22d4e132`. Flux public téléchargé sans paramètre, 0.3.11 / 32, identique au flux local signé, signature Ed25519 valide.
+- Release : https://github.com/k2r59/EsaySoft/releases/tag/easypaste-v0.3.11
+- Notes : `app/EasyPaste/docs/RELEASE-0.3.11.md`. QA : `app/EasyPaste/QA-0.3.11.md`.
+- Logs : `/tmp/easypaste-0.3.11-tests.log`, `/tmp/easypaste-0.3.11-package.log`, `/tmp/easypaste-0.3.11-publish.log`, `/tmp/easypaste-0.3.11-public.xml`.
+
+Sommes des assets :
+
+```text
+c418ce12347afe3e07772e705afeb572fe87b6376c47be24882a8392fe1fa841  EasyPaste-0.3.11-universal.dmg
+45514b6b68c041adc42a038bac63481857dfdd21052c8ff73ff4e64eb6470a29  EasyPaste-0.3.11-universal.zip
+4ba49c6025aa3a0e0011e6fd008e90724573b9565f8cae31d6311cf1b9813150  EasyPaste-0.3.11-source.zip
+```
