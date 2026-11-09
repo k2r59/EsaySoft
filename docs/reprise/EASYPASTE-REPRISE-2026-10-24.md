@@ -1096,3 +1096,16 @@ Cet état remplace le blocage iPhone décrit dans les passes précédentes.
 - Suite complète Release de régression : 355 tests, zéro échec, 62,046 s ; `/tmp/easypaste-0312-regression.log`. Les tests couvrent notamment les données distantes différées, les photos incorporées, les limites du dossier autorisé, l’annulation et le retour au début de l’historique.
 - Les anciens fichiers de transfert avaient expiré : leur récupération rétroactive n’a pas été validée positivement. Le transfert réel neuf depuis la galerie est validé.
 - Le correctif de défilement horizontal déjà publié reste inchangé. Aucun test ne justifie une garantie absolue d’absence de bugs.
+
+
+### Publication stable 0.3.12 — 9 novembre 2026
+
+- Autorisation explicite : « publie la », puis demande de changelog à copier dans Slack.
+- Sources et tests : commit `df82182`, poussé sur `codex/reprise-easypaste-2026-10-24`.
+- Version stable 0.3.12 /37, installateur universel Intel + Apple Silicon, signature Developer ID et notarisation Apple acceptées (`a07deefc-4b05-4bf2-8022-77373395ada6`).
+- Release publique : https://github.com/k2r59/EsaySoft/releases/tag/easypaste-v0.3.12 ; ni brouillon ni préversion. Les quatre fichiers téléchargés après upload ont été comparés par SHA-256 avant publication.
+- SHA-256 du DMG : `09a66ae4d50c20d068cab564430a35b1fc4e2a49346a2e231d3d317fd65fda0c`.
+- Flux Sparkle et DMG signés puis vérifiés par le script de publication. Déploiement Pages déclenché au commit `4ba59b0d162bf1da0b028be8c4124a75018b05bc` ; attendre et consigner la vérification du flux HTTP public avant d’annoncer sa disponibilité dans l’app.
+- Logs : `/tmp/easypaste-0312-package.log`, `/tmp/easypaste-0312-publish.log`.
+
+- Vérification finale réussie : l’URL publique du flux, sans paramètre de contournement du cache, annonce 0.3.12 /37 ; octets identiques au flux signé local et signature Ed25519 valide. DMG retéléchargé depuis son URL publique et SHA-256 identique. La mise à jour stable est disponible.
