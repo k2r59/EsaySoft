@@ -6,6 +6,24 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyPaste</title>
         <item>
+            <title>0.3.12</title>
+            <pubDate>Mon, 09 Nov 2026 15:58:35 +0100</pubDate>
+            <sparkle:version>37</sparkle:version>
+            <sparkle:shortVersionString>0.3.12</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.12
+
+- Le curseur de capture affiche une croix et des coordonnées, et reste visible au passage entre les écrans.
+- Une nouvelle copie ramène l’historique au début, même après une recherche. Une réouverture sans nouvelle copie conserve la sélection.
+- Les copies provenant d’un autre appareil Apple sont attendues lorsqu’elles arrivent avec du retard, sans bloquer l’interface.
+- Les photos reçues sous forme de fichiers peuvent être intégrées comme images, en pleine résolution, avec miniature et aperçu.
+- Si macOS protège le dossier de transfert, une autorisation ciblée est proposée dans Réglages → Confidentialité. Les fichiers d’origine restent conservés ; la récupération crée des copies image dans l’historique.
+
+Validation : 355 tests automatiques réussis, contrôle du retour au début de l’historique et essai réel d’une image copiée depuis la galerie iPhone, avec miniature et aperçu agrandi.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.12/EasyPaste-0.3.12-universal.dmg" length="12978268" type="application/octet-stream" sparkle:edSignature="iI4mECIi/nl0IoeEovOK4eAM5Tsgq69FYtUUxkmwKU4cMLhKomXzc2zsvwE/PP9giRBtJOVHYyshUlF5/QFFDA=="/>
+        </item>
+        <item>
             <title>0.3.11</title>
             <pubDate>Tue, 03 Nov 2026 16:12:50 +0100</pubDate>
             <sparkle:version>32</sparkle:version>
@@ -38,24 +56,9 @@ macOS 15 ou ultérieur, Intel et Apple Silicon.
 ]]></description>
             <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.10.2/EasyPaste-0.3.10.2-universal.dmg" length="13260906" type="application/octet-stream" sparkle:edSignature="FX1S70jt3L+NhzUY53FASJDD2xrCiBM4BP0lZ3ZJnmR23m/b8xMfLHVPSq+Zr4wsnixXbqQwPd8zYAPs0BXcAw=="/>
         </item>
-        <item>
-            <title>0.3.10.1</title>
-            <pubDate>Mon, 02 Nov 2026 14:19:09 +0100</pubDate>
-            <sparkle:version>29</sparkle:version>
-            <sparkle:shortVersionString>0.3.10.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.10.1
-
-- **Défilement horizontal corrigé** : Maj + molette continue de fonctionner entre les tuiles de la barre rapide, y compris avec les souris qui transmettent un défilement précis.
-- La rangée reçoit désormais les gestes sur toute sa surface. Le défilement horizontal et l’inertie restent gérés par macOS.
-
-macOS 15 ou ultérieur, Intel et Apple Silicon.
-]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.10.1/EasyPaste-0.3.10.1-universal.dmg" length="13260516" type="application/octet-stream" sparkle:edSignature="i458kEFc2jpwGDVUBFYgdNN/x2DD+Kxtqu/P5uzRXjp0VZvtApHUr25ngrwIY14NIayfVSoYkosR44toaY7QDQ=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: 0ihn1yWO771ZkLgcpJ736SI17/3Zqek3sat03ydFhprDoemQLBagSr3gtjYVr0ODl6C5eu5JmIDwOydNRFXFCQ==
-length: 3894
+edSignature: EfaadqJFVGpSvDZfs44NXWujaTkO3XzTUeu4fAoif1Oa2AiZpF4Kr18uaRTPj3IkaoKmohEsz7zXgyoW74hvCg==
+length: 4464
 -->
