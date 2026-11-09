@@ -3,6 +3,17 @@ import QuartzCore
 
 final class SelectionWindow: NSWindow {
     override var canBecomeKey: Bool { true }
+    var pointerMoved: ((NSPoint) -> Void)?
+    override func sendEvent(_ event: NSEvent) {
+        let pointerEvent = [.mouseMoved, .leftMouseDown, .leftMouseDragged].contains(event.type)
+        if pointerEvent { pointerMoved?(convertPoint(toScreen: event.locationInWindow)) }
+        super.sendEvent(event)
+        // Cursor rectangles in a non-key window can be reset by AppKit while
+        // crossing displays. Reassert after dispatch, without a timer or stack.
+        if pointerEvent, let view = contentView as? SelectionView, !view.completed {
+            SelectionView.captureCursor.set()
+        }
+    }
 }
 
 /// The overlay never draws attributed strings in a mouse-driven draw(_:) loop.
@@ -14,13 +25,22 @@ final class SelectionView: NSView {
     var done: ((CGRect?) -> Void)?
     var windowFrames: [CGRect] = []
     private var tracking: NSTrackingArea?
+    private var cursorTracking: NSTrackingArea?
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let tracking { removeTrackingArea(tracking) }
-        let area = NSTrackingArea(rect: bounds, options: [.activeAlways, .mouseMoved, .inVisibleRect], owner: self)
+        if let cursorTracking { removeTrackingArea(cursorTracking) }
+        let area = NSTrackingArea(rect: bounds, options: [.activeAlways, .mouseMoved, .mouseEnteredAndExited, .enabledDuringMouseDrag, .inVisibleRect], owner: self)
         addTrackingArea(area); tracking = area
+        // activeAlways deliberately does not support cursorUpdate in AppKit.
+        let cursorArea = NSTrackingArea(rect: bounds, options: [.activeInActiveApp, .cursorUpdate, .inVisibleRect], owner: self)
+        addTrackingArea(cursorArea); cursorTracking = cursorArea
     }
+    override func cursorUpdate(with event: NSEvent) { if !completed { Self.captureCursor.set() } }
+    override func mouseEntered(with event: NSEvent) { updatePointer(at: convert(event.locationInWindow, from: nil)) }
+    override func mouseExited(with event: NSEvent) { coordinatesLabel.isHidden = true }
     override func mouseMoved(with event: NSEvent) {
+        updatePointer(at: convert(event.locationInWindow, from: nil))
         guard !windowFrames.isEmpty else { return }
         let point = convert(event.locationInWindow, from: nil)
         selection = windowFrames.first { $0.contains(point) }
@@ -31,7 +51,21 @@ final class SelectionView: NSView {
     private let border = CAShapeLayer()
     private let dimensionsLabel = NSTextField(labelWithString: "")
     private let instructionLabel = NSTextField(labelWithString: "")
-    private var completed = false
+    private let coordinatesLabel = NSTextField(labelWithString: "")
+    private(set) var completed = false
+    var pointerCoordinates: String? { coordinatesLabel.isHidden ? nil : coordinatesLabel.stringValue }
+    var pointerLabelFrame: CGRect { coordinatesLabel.frame }
+    static let captureCursor: NSCursor = {
+        let image = NSImage(size: NSSize(width: 36, height: 36), flipped: false) { _ in
+            let path = NSBezierPath(ovalIn: NSRect(x: 10, y: 10, width: 16, height: 16))
+            path.move(to: NSPoint(x: 18, y: 2)); path.line(to: NSPoint(x: 18, y: 34))
+            path.move(to: NSPoint(x: 2, y: 18)); path.line(to: NSPoint(x: 34, y: 18))
+            NSColor.white.setStroke(); path.lineWidth = 3; path.stroke()
+            NSColor.black.setStroke(); path.lineWidth = 1; path.stroke()
+            return true
+        }
+        return NSCursor(image: image, hotSpot: NSPoint(x: 18, y: 18))
+    }()
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -53,11 +87,21 @@ final class SelectionView: NSView {
         dimensionsLabel.isHidden = true
         instructionLabel.font = .systemFont(ofSize: 18, weight: .medium)
         instructionLabel.stringValue = instruction
+        coordinatesLabel.font = .monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
+        coordinatesLabel.textColor = .white
+        coordinatesLabel.maximumNumberOfLines = 2
+        coordinatesLabel.isHidden = true
+        coordinatesLabel.wantsLayer = true
+        coordinatesLabel.layer?.shadowColor = NSColor.black.cgColor
+        coordinatesLabel.layer?.shadowOpacity = 1
+        coordinatesLabel.layer?.shadowRadius = 2
+        coordinatesLabel.layer?.shadowOffset = .zero
+        addSubview(coordinatesLabel)
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override var acceptsFirstResponder: Bool { true }
-    override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
+    override func resetCursorRects() { addCursorRect(bounds, cursor: Self.captureCursor) }
     override func hitTest(_ point: NSPoint) -> NSView? { bounds.contains(point) ? self : nil }
 
     override func layout() {
@@ -74,14 +118,34 @@ final class SelectionView: NSView {
                 y: min(bounds.maxY, max(bounds.minY, point.y)))
     }
 
+    /// Called for every display, including when a drag is delivered to the
+    /// original window after the pointer has already entered another display.
+    func updatePointer(at point: NSPoint) {
+        guard !completed, bounds.contains(point) else { coordinatesLabel.isHidden = true; return }
+        Self.captureCursor.set()
+        let text = "\(Int((point.x - bounds.minX).rounded()))\n\(Int((bounds.maxY - point.y).rounded()))"
+        if coordinatesLabel.stringValue != text {
+            coordinatesLabel.stringValue = text
+            coordinatesLabel.sizeToFit()
+        }
+        let size = coordinatesLabel.frame.size
+        let x = point.x + 14 + size.width < bounds.maxX - 4 ? point.x + 14 : point.x - size.width - 14
+        let y = point.y - size.height - 10 > bounds.minY + 4 ? point.y - size.height - 10 : point.y + 14
+        coordinatesLabel.setFrameOrigin(NSPoint(x: max(bounds.minX + 4, min(x, bounds.maxX - size.width - 4)),
+                                                y: max(bounds.minY + 4, min(y, bounds.maxY - size.height - 4))))
+        coordinatesLabel.isHidden = false
+    }
+
     func begin(at point: NSPoint) {
         guard !completed else { return }
+        updatePointer(at: point)
         anchor = clamped(point)
         update(to: point)
     }
 
     func update(to point: NSPoint) {
         guard !completed, let anchor else { return }
+        updatePointer(at: point)
         let current = clamped(point)
         let rect = CGRect(x: min(anchor.x, current.x), y: min(anchor.y, current.y),
                           width: abs(anchor.x - current.x), height: abs(anchor.y - current.y))
@@ -111,6 +175,7 @@ final class SelectionView: NSView {
     private func complete(_ rect: CGRect?) {
         guard !completed else { return }
         completed = true
+        coordinatesLabel.isHidden = true
         let callback = done
         done = nil
         callback?(rect)

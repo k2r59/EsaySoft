@@ -89,6 +89,57 @@ import XCTest
         XCTAssertTrue(scroll.lastWheel === momentum, "Unshifted inertia is forwarded unchanged")
     }
 
+    func testNewCopyAfterSearchResetsRealScrollOffsetAndReopenPreservesManualPosition() async throws {
+        for compact in [false, true] {
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            let suite = UUID().uuidString
+            let defaults = UserDefaults(suiteName: suite)!
+            let history = History(vault: try ClipVault(directory: directory, key: SymmetricKey(size: .bits256)), monitor: false, defaults: defaults)
+            let panel = ShelfPanel(contentRect: CGRect(x: 50, y: 50, width: 1120, height: 400), styleMask: .borderless, backing: .buffered, defer: false)
+            panel.isReleasedWhenClosed = false
+            defer { history.stopMonitoring(); panel.close(); defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: directory) }
+            for i in 0..<600 { history.add(makeClip("old item \(i)")) }
+            history.surface = "shelf"; history.compact = compact; history.query = "old"
+            try await Task.sleep(for: .milliseconds(250))
+            let host = ShelfHosting.make(history: history)
+            panel.contentView = host; host.frame = CGRect(x: 0, y: 0, width: 1120, height: 400)
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(150))
+            func descendants(_ v: NSView) -> [NSView] { [v] + v.subviews.flatMap { descendants($0) } }
+            func row() throws -> NSScrollView {
+                try XCTUnwrap(descendants(host).compactMap { $0 as? ShelfWheelRoutingView }.first?.enclosingScrollView)
+            }
+            var scroll = try row()
+            scroll.contentView.scroll(to: NSPoint(x: 1500, y: 0)); scroll.reflectScrolledClipView(scroll.contentView)
+            XCTAssertGreaterThan(scroll.contentView.bounds.minX, 1000)
+            let fresh = makeClip("newly copied outside the search")
+            panel.orderOut(nil)
+            history.add(fresh)
+            try await Task.sleep(for: .milliseconds(150))
+            XCTAssertFalse(history.visible.contains { $0.id == fresh.id })
+            history.prepareShelf()
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(300))
+            host.layoutSubtreeIfNeeded(); scroll = try row()
+            XCTAssertEqual(history.visible.first?.id, fresh.id)
+            XCTAssertLessThanOrEqual(scroll.contentView.bounds.minX, 4, "Must align the latest card after the search results update")
+            // Recopy the already-selected newest card: its ID does not change.
+            scroll.contentView.scroll(to: NSPoint(x: 1000, y: 0)); scroll.reflectScrolledClipView(scroll.contentView)
+            history.add(makeClip(fresh.text))
+            try await Task.sleep(for: .milliseconds(250))
+            scroll = try row()
+            XCTAssertLessThanOrEqual(scroll.contentView.bounds.minX, 4)
+            history.select(history.visible[8])
+            try await Task.sleep(for: .milliseconds(150))
+            let remembered = scroll.contentView.bounds.minX
+            XCTAssertGreaterThan(remembered, 0)
+            history.prepareShelf()
+            try await Task.sleep(for: .milliseconds(150))
+            XCTAssertEqual(scroll.contentView.bounds.minX, remembered, accuracy: 1)
+            await history.flush()
+        }
+    }
+
     private func checkWheelRouting(compact: Bool, expanded: Bool, units: CGScrollEventUnit = .pixel, yFraction: CGFloat = 0.5, shiftVertical: Bool = false, routeRow: Bool = false, routeShift: Bool = true) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let suite = "EasyPaste.scroll-routing." + UUID().uuidString

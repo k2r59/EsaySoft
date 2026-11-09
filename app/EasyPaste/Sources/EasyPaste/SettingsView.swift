@@ -98,6 +98,8 @@ struct SettingsView: View {
                         Text("Les copies signalées comme confidentielles ou temporaires et les principaux gestionnaires de mots de passe sont ignorés. Un secret non signalé peut être enregistré.")
                         Text("La lecture et le collage d’une vidéo créent une copie temporaire déchiffrée. Après 24 h, EasyPaste la supprime au lancement suivant.")
                     }
+                    HandoffPhotoSettings(history: history)
+                    Divider().opacity(0.3)
                     HStack { Text("Applications exclues").fontWeight(.medium); Spacer(); Button("Ajouter…") { addExclusion() }.buttonStyle(PasteButtonStyle()) }
                     ForEach(history.exclusions, id: \.self) { id in HStack { Text(appName(id)).font(.system(size: 11)); Spacer(); Button { history.exclusions.removeAll { $0 == id } } label: { Image(systemName: "minus.circle") }.buttonStyle(FullAreaButtonStyle(minimumSize: 24)).help("Retirer cette exclusion") } }
                     Text("Les exclusions s’appliquent aux prochaines copies.").font(.system(size: 11)).foregroundStyle(Theme.muted)

@@ -269,7 +269,7 @@ struct ShelfView: View {
                     }.contentShape(Rectangle())
                     .onChange(of: history.selected) { _, value in if let value { proxy.scrollTo(value) } }
                     .onAppear { if let value = history.selected { proxy.scrollTo(value) } }
-                }
+                }.id(history.shelfScrollGeneration)
             }
             if !history.recentlyTrashed.isEmpty || history.selection.count > 1 || !history.enabled { HStack(spacing: 14) {
                 Spacer()

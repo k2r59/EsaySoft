@@ -1046,3 +1046,53 @@ c418ce12347afe3e07772e705afeb572fe87b6376c47be24882a8392fe1fa841  EasyPaste-0.3.
 45514b6b68c041adc42a038bac63481857dfdd21052c8ff73ff4e64eb6470a29  EasyPaste-0.3.11-universal.zip
 4ba49c6025aa3a0e0011e6fd008e90724573b9565f8cae31d6311cf1b9813150  EasyPaste-0.3.11-source.zip
 ```
+
+## 37. Trois correctifs privés en attente de validation réelle — 9 novembre 2026
+
+- Dernière demande : curseur de capture visible avec cercle/croix/coordonnées, y compris entre écrans ; copies iPhone absentes de l’historique ; retour au début de la barre après recherche et nouvelle copie. L’utilisateur demande de tout vérifier avant push.
+- Changements non commités dans le dépôt, aucune publication : SelectionView/CaptureController, ClipboardReader/ClipboardRetry/History, ShelfWheelRouting/Views et trois fichiers de tests. Rapport détaillé : `app/EasyPaste/QA-0.3.12-beta.1.md`.
+- 348 tests Release passent, 91,038 s. Les premiers essais de retour via ScrollViewReader entraient en conflit avec la molette : remplacés par un reset natif non animé et unique ; toute la suite passe ensuite.
+- Version privée 0.3.12-beta.1 / 33 construite par le script de production et signée Developer ID. Installée dans `/Applications/EasyPaste.app` après fermeture propre. Ancienne version sauvegardée dans `/Users/k2r59/Library/Caches/EasyPaste-local-install/backup-2026-11-09/EasyPaste.app`. Ne pas relancer un ancien bundle de cache par erreur.
+- Le `release.json` reste volontairement à 0.3.11 / 32 ; les métadonnées de la bêta ont été passées par variables d’environnement. Pas de notarisation ni de nouveau DMG public à cette étape.
+- Contrôle UI : le bouton OCR ouvre bien la sélection ; coordonnées visibles dans AX. Deux écrans réellement présents, échelles 1 et 2. Le contrôle ordinateur ne dispose pas d’un simple déplacement de souris sans clic pour observer visuellement la croix entre écrans ; l’utilisateur doit confirmer ce geste physique.
+- L’utilisateur a répondu qu’il peut tester avec son iPhone. Trois questions envoyées via request_user_input_async restent en attente : curseur permanent ; texte « TEST IPHONE EASYPASTE » et image depuis iPhone sans collage préalable ; retour à gauche après recherche et copie. Attendre ces réponses, corriger si nécessaire, avant commit/push. Ne pas confondre tests de presse-papiers simulé et transfert Handoff réel.
+- CUA session initialisée (`ep` lié à `/Applications/EasyPaste.app`). La dernière lecture filtrée n’a pas trouvé de résultat iPhone visible. Ne pas déduire un échec de cette seule lecture ; l’utilisateur n’a pas encore confirmé son essai.
+- Logs : `/tmp/easypaste-three-fixes-tests.log`, `/tmp/easypaste-three-fixes-full.log`, `/tmp/easypaste-three-fixes-build.log`.
+
+### Révision locale beta.2 (même journée, après essais réels)
+
+- Le curseur est confirmé par l’utilisateur. Les transferts iPhone texte puis photo ont été vus automatiquement dans l’historique.
+- Deux défauts supplémentaires ont été reproduits : photo Handoff reçue comme fichier JPEG temporaire, et ancienne position de défilement restaurée après un reset natif sur le grand historique réel.
+- La photo distante unique est maintenant incorporée comme image PNG sans perte à résolution native et orientation conservée. Décodage ImageIO, limites 20 Mo / 50 Mpx, fichiers locaux ordinaires seulement. Les fichiers Finder locaux et sélections multiples ne changent pas. Si le fichier promis n’existe pas encore, la lecture est réessayée.
+- Le reset utilise désormais `History.shelfScrollGeneration` et l’identité du ScrollViewReader des cartes. Le code `ShelfWheelRouting.swift` de production est intégralement conservé. La génération change seulement à la consommation d’une nouvelle copie devenue visible, y compris une recopie du même identifiant.
+- 351 tests Release passent (59,185 s) ; 600 cartes dans le test natif normal/compact. Trois tests photos supplémentaires vérifient JPEG/PNG, aperçu sans fichier temporaire, fichier absent, Finder inchangé et données non raster/trop grosses.
+- **Installée : 0.3.12-beta.2 / 34**, chemin usuel `/Applications/EasyPaste.app`, construction production universelle et Developer ID. Public reste 0.3.11 /32 ; aucun push/publication de ces changements.
+- Dernière action réelle : recherche « capture », AXScrollToBottom jusque 21–22 jours, fermeture de la barre. L’utilisateur doit recopier une photo iPhone ; ensuite rouvrir via ⇧⌘V, contrôler première tuile image et ouvrir son œil. C’est le contrôle réel restant avant commit/push.
+- Rapport détaillé mis à jour : `app/EasyPaste/QA-0.3.12-beta.1.md` (contient aussi beta.2 et les limites). Ne pas prendre le titre beta.1 pour la version installée.
+
+### Résultat des essais suivants (beta.3 / beta.4)
+
+- Retour à gauche confirmé réellement dans l’app installée : recherche, extrémité à 21–22 jours, fermeture, nouvelle copie locale et réouverture. Une seconde nouvelle copie image prend également la tête. Preuve AX + capture visuelle obtenues.
+- Photo iPhone : **ne pas marquer résolue**. Fichier réel reçu mais lecture refusée par macOS 27.2 ; `NSPasteboard.readObjects(NSURL)` + accès security-scoped ne suffisent pas. Journal `sandboxd/tccd` : `kTCCServiceSystemPolicyAppDataDetailed`, erreur `access requires indirect object have an associated app bundle` pour le conteneur Handoff. Ne pas contourner via droits privés/FDA/chmod.
+- Beta.4 garde le fichier dans l’historique en cas de refus et affiche un message expliquant pourquoi l’aperçu ne peut pas être généré. Les photos accessibles sont incorporées en PNG à résolution native. Révision distante présente au lancement importée une fois ; formats distants lus sans demander de conversions AppKit non annoncées.
+- 352 tests passent (59,044 s), y compris le refus d’accès qui ne doit plus perdre l’entrée. Construction beta.4 /36 lancée, installation encore à vérifier. Dernière version installée au moment de cette note : beta.3 /35.
+- L’utilisateur était agacé par les répétitions et la durée : ne plus demander de recopier depuis l’iPhone. Les transferts physiques sont déjà prouvés ; c’est le traitement de la photo protégée qui est bloqué. Ne pas promettre « 100 % » ni publier tant que cette limite n’est pas clairement acceptée/résolue.
+
+### État final local de cette passe
+
+Beta.4 /36 **installée et relancée**, interface d’historique visible, focus recherche présent. Signature Developer ID vérifiée avant remplacement. Sauvegarde beta.3 : `/Users/k2r59/Library/Caches/EasyPaste-local-install/backup-2026-11-09-beta3/EasyPaste.app`. Public inchangé (0.3.11 /32).
+
+Ne pas demander une nouvelle copie iPhone : l’utilisateur en a déjà effectué plusieurs. Son dernier JPEG réel n’a pas pu être décodé à cause du refus macOS documenté. Le fallback de conservation du fichier en cas d’accès refusé est couvert par le nouveau test, mais n’a pas été revalidé sur ce JPEG réel après installation beta.4 (le presse-papiers contient depuis d’autres copies). Ne pas confondre « références de fichiers conservées » et « octets de la photo sauvegardés » : sans accès au fichier temporaire, les octets ne sont pas incorporés et le lien peut expirer. L’aperçu iPhone n’est donc pas validé ; aucune publication/push autorisé implicitement par ces tests.
+
+
+### Validation réelle finale — 9 novembre 2026, 0.3.12 /37
+
+Cet état remplace le blocage iPhone décrit dans les passes précédentes.
+
+- Version locale installée : 0.3.12, build 37, Developer ID, sans suffixe beta. Aucune publication effectuée à ce stade.
+- Autorisation explicite de l’utilisateur accordée au seul dossier Apple `shared-pasteboard`, via le sélecteur macOS ; bookmark de lecture seule. Aucun accès complet au disque.
+- L’utilisateur a recopié une image directement depuis la galerie de son iPhone, sans collage sur le Mac. L’image est arrivée automatiquement en première tuile, avec origine « Autre appareil Apple », miniature, dimensions 1320 × 1097 px et poids 250 ko.
+- Vérification visuelle effective de la miniature puis de l’aperçu agrandi : image rendue, dimensions correctes et texte OCR disponible. Ce n’est plus une simple référence de fichier sans miniature. Aucun contenu privé de l’image ajouté au dépôt.
+- Suite complète Release de régression : 355 tests, zéro échec, 62,046 s ; `/tmp/easypaste-0312-regression.log`. Les tests couvrent notamment les données distantes différées, les photos incorporées, les limites du dossier autorisé, l’annulation et le retour au début de l’historique.
+- Les anciens fichiers de transfert avaient expiré : leur récupération rétroactive n’a pas été validée positivement. Le transfert réel neuf depuis la galerie est validé.
+- Le correctif de défilement horizontal déjà publié reste inchangé. Aucun test ne justifie une garantie absolue d’absence de bugs.

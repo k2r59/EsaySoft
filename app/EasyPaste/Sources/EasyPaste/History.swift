@@ -62,7 +62,7 @@ struct ClipQuery {
     @Published var surface = "library"
     @Published var sourceFilter = "" { didSet { refresh() } }
     @Published var todayOnly = false { didSet { refresh() } }
-    @Published var enabled: Bool { didSet { defaults.set(enabled, forKey: "monitoring"); changeCount = NSPasteboard.general.changeCount } }
+    @Published var enabled: Bool { didSet { defaults.set(enabled, forKey: "monitoring"); changeCount = NSPasteboard.general.changeCount; clipboardRetry.clear(); monitoringGeneration &+= 1 } }
     @Published var retention: Int { didSet { defaults.set(retention, forKey: "retention"); prune() } }
     @Published var exclusions: [String] { didSet { defaults.set(exclusions, forKey: "exclusions") } }
     @Published var mcpEnabled: Bool { didSet { defaults.set(mcpEnabled, forKey: "mcpEnabled") } }
@@ -120,11 +120,18 @@ struct ClipQuery {
     private let ocrQueue = DispatchQueue(label: "EasyPaste.ocr", qos: .utility)
     private var timer: Timer?
     private var changeCount: Int
+    private var clipboardRetry = ClipboardRetry()
+    private var monitoringGeneration = 0
+    private var remoteReadInFlight = false
+    private let remoteClipboardQueue = DispatchQueue(label: "EasyPaste.universal-clipboard", qos: .utility)
     private var searchTask: Task<Void, Never>?
     @Published private(set) var ocrTasks: Set<UUID> = []
     private var importInFlight = false
     // Keep a new copy pending when the current search/collection hides it.
     private var pendingClipboardSelection: UUID?
+    // A new copy gets a fresh scroll view identity. SwiftUI cannot restore an
+    // old LazyHStack offset after an asynchronous filter/layout update.
+    @Published private(set) var shelfScrollGeneration = UUID()
     private var stopping = false
     private var writes = 0
     private var savingTextVariants = Set<UUID>()
@@ -145,7 +152,9 @@ struct ClipQuery {
         compact = defaults.bool(forKey: "compact")
         confirmTrash = defaults.object(forKey: "confirmTrash") == nil || defaults.bool(forKey: "confirmTrash")
         showPasteCounts = defaults.object(forKey: "showPasteCounts") == nil || defaults.bool(forKey: "showPasteCounts")
-        changeCount = NSPasteboard.general.changeCount
+        // Handoff may already be waiting when EasyPaste launches. Import that
+        // remote revision once; ordinary local contents keep startup semantics.
+        changeCount = NSPasteboard.general.types?.contains(ClipboardReader.remoteType) == true ? -1 : NSPasteboard.general.changeCount
         shortcutsObservation = shortcuts.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         sounds.muted = { [weak self] in self?.recording ?? true }
         if let vault {
@@ -199,6 +208,7 @@ struct ClipQuery {
             visible = result.0; sources = result.1; total = result.2; totalBytes = result.3
             if let pending = pendingClipboardSelection, result.0.contains(where: { $0.id == pending }) {
                 selected = pending; selectedIDs = [pending]; pendingClipboardSelection = nil
+                shelfScrollGeneration = UUID()
             } else if selected == nil || !result.0.contains(where: { $0.id == self.selected }) { selected = result.0.first?.id }
             selectedIDs.formIntersection(Set(result.0.map(\.id)))
         }
@@ -233,14 +243,28 @@ struct ClipQuery {
         let i = visible.firstIndex { $0.id == selected } ?? 0
         select(visible[max(0,min(visible.count-1,i+delta))])
     }
-    func poll() {
+    func poll(_ pb: NSPasteboard = .general) {
         guard enabled, !stopping, !fault, !loading, !importInFlight, writes < 8 else { return }
-        let pb = NSPasteboard.general
-        guard pb.changeCount != changeCount else { return }; changeCount = pb.changeCount
+        let revision = pb.changeCount
+        guard revision != changeCount || clipboardRetry.isDue(revision) else { return }
+        if revision != changeCount { clipboardRetry.clear() }
+        changeCount = revision
+        let remote = pb.types?.contains(ClipboardReader.remoteType) == true
         let app = NSWorkspace.shared.frontmostApplication
+        if remote {
+            readRemoteClipboard(pb, revision: revision)
+            return
+        }
         guard app?.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
         do {
-            guard let raw = try ClipboardReader.read(pb, source: app?.localizedName ?? "Application", sourceID: app?.bundleIdentifier ?? "unknown", exclusions: Set(exclusions)) else { return }
+            guard let raw = try ClipboardReader.read(pb, source: app?.localizedName ?? "Application", sourceID: app?.bundleIdentifier ?? "unknown", exclusions: Set(exclusions)) else {
+                let types = Set((pb.types ?? []).map(\.rawValue))
+                if ClipboardPrivacy.allows(types: types, sourceID: app?.bundleIdentifier ?? "unknown", extra: Set(exclusions)) {
+                    clipboardRetry.unavailable(revision)
+                }
+                return
+            }
+            clipboardRetry.clear()
             importInFlight = true
             let sourcePID = app?.processIdentifier
             let clipboardRevision = pb.changeCount
@@ -259,6 +283,76 @@ struct ClipQuery {
             }
         } catch { report(error.localizedDescription) }
     }
+    private func readRemoteClipboard(_ pb: NSPasteboard, revision: Int) {
+        guard !remoteReadInFlight else { clipboardRetry.unavailable(revision); return }
+        remoteReadInFlight = true
+        let name = pb.name, excluded = Set(exclusions), generation = monitoringGeneration
+        Task {
+            let result: Result<Clip?, Error> = await withCheckedContinuation { continuation in
+                remoteClipboardQueue.async {
+                    // A Universal Clipboard download may block. Keep it off the
+                    // UI thread and allow new local copies while it completes.
+                    let board = NSPasteboard(name: name)
+                    let result = Result { () throws -> Clip? in
+                        guard board.changeCount == revision else { return nil }
+                        guard var clip = try ClipboardReader.read(board, source: "Autre appareil Apple", sourceID: ClipboardReader.remoteSourceID, exclusions: excluded),
+                              board.changeCount == revision else { return nil }
+                        clip.fingerprint = Clip.fingerprint(clip.payload)
+                        clip.prepareThumbnail()
+                        return clip
+                    }
+                    continuation.resume(returning: result)
+                }
+            }
+            remoteReadInFlight = false
+            guard enabled, !stopping, !fault, generation == monitoringGeneration,
+                  pb.changeCount == revision, changeCount == revision else { return }
+            switch result {
+            case .success(let clip?):
+                // Re-check exclusions if settings changed during the transfer.
+                guard ClipboardPrivacy.allows(types: [], sourceID: clip.sourceID, extra: Set(exclusions)) else { return }
+                clipboardRetry.clear(); add(clip); sounds.play(.copy)
+                if clip.kind == .file, ["png", "jpg", "jpeg", "heic", "heif", "tif", "tiff"].contains(URL(fileURLWithPath: clip.text).pathExtension.lowercased()) {
+                    report("Photo reçue. macOS bloque l’accès à son aperçu ; le fichier reste dans l’historique.")
+                }
+            case .success(nil): clipboardRetry.unavailable(revision)
+            case .failure(let error): clipboardRetry.clear(); report(error.localizedDescription)
+            }
+        }
+    }
+    /// Explicit recovery after the user authorizes the transfer folder. Keep
+    /// original file entries intact and add independent, durable image copies.
+    func recoverHandoffPhotos() async -> Int {
+        let candidates = clips.filter {
+            $0.trashedAt == nil && $0.source == "Autre appareil Apple" && $0.kind == .file &&
+            HandoffPhotoAccess.contains(URL(fileURLWithPath: $0.text), in: HandoffPhotoAccess.transferDirectory)
+        }.prefix(20)
+        let generation = monitoringGeneration
+        var recovered = 0
+        for original in candidates {
+            let url = URL(fileURLWithPath: original.text)
+            let image: Clip? = await withCheckedContinuation { continuation in
+                remoteClipboardQueue.async {
+                    let result: Clip? = try? HandoffPhotoAccess.shared.withAccess(to: url) {
+                        guard let data = try ClipboardReader.remotePhoto(url) else { return nil }
+                        let payload = ClipPayload(representations: [[.init(type: NSPasteboard.PasteboardType.png.rawValue, data: data)]])
+                        var clip = Clip(title: "Image copiée", text: "", source: original.source, sourceID: original.sourceID, kind: .image, fingerprint: Clip.fingerprint(payload), payload: payload)
+                        clip.parentID = original.id; clip.prepareThumbnail()
+                        return clip
+                    }
+                    continuation.resume(returning: result)
+                }
+            }
+            guard !stopping, generation == monitoringGeneration, HandoffPhotoAccess.shared.configured else { break }
+            guard let image, !clips.contains(where: { $0.trashedAt == nil && $0.fingerprint == image.fingerprint }),
+                  clips.contains(where: { $0.id == original.id && $0.trashedAt == nil }),
+                  ClipboardPrivacy.allows(types: [], sourceID: image.sourceID, extra: Set(exclusions)) else { continue }
+            add(image); recovered += 1
+            await flush() // Keep at most one full-resolution recovery queued.
+        }
+        return recovered
+    }
+
     private func persist(_ clip: Clip) {
         guard let vault else { return }
         writes += 1
@@ -309,7 +403,7 @@ struct ClipQuery {
             }
         }
     }
-    func stopMonitoring() { stopping = true; timer?.invalidate(); timer = nil }
+    func stopMonitoring() { stopping = true; clipboardRetry.clear(); monitoringGeneration &+= 1; timer?.invalidate(); timer = nil }
     func flush() async { await withCheckedContinuation { c in disk.async { c.resume() } } }
     private func restorePasteUsage(_ result: Result<PasteUsage, Error>) {
         switch result {

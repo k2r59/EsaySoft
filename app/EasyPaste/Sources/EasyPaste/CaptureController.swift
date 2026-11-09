@@ -183,6 +183,7 @@ private struct ShelfCaptureButton: NSViewRepresentable {
             NSApp.activate(ignoringOtherApps: true)
             for screen in NSScreen.screens {
                 let window = SelectionWindow(contentRect: screen.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+                window.pointerMoved = { [weak self] point in self?.updateSelectionPointer(at: point) }
                 window.backgroundColor = .clear; window.isOpaque = false; window.level = .screenSaver; window.isReleasedWhenClosed = false
                 window.collectionBehavior = [.canJoinAllSpaces,.fullScreenAuxiliary]; window.acceptsMouseMovedEvents = true
                 let view = SelectionView(frame: CGRect(origin: .zero, size: screen.frame.size))
@@ -200,10 +201,19 @@ private struct ShelfCaptureButton: NSViewRepresentable {
                 window.contentView = view; overlays.append(window); window.orderFrontRegardless()
                 if screen.frame.contains(NSEvent.mouseLocation) { window.makeKey(); window.makeFirstResponder(view) }
             }
+            updateSelectionPointer(at: NSEvent.mouseLocation)
+        }
+    }
+    private func updateSelectionPointer(at point: NSPoint) {
+        for window in overlays {
+            guard let view = window.contentView as? SelectionView else { continue }
+            view.updatePointer(at: view.convert(window.convertPoint(fromScreen: point), from: nil))
         }
     }
     private func finishSelection(_ rect: CGRect?) {
+        let hadOverlays = !overlays.isEmpty
         overlays.forEach { $0.orderOut(nil) }; overlays.removeAll()
+        if hadOverlays { NSCursor.arrow.set() }
         let continuation = selectionContinuation; selectionContinuation = nil; continuation?.resume(returning: rect)
     }
     private func captureImage(_ action: CaptureAction, id: UUID) async {
