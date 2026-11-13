@@ -13,6 +13,14 @@ struct BitwardenSettings: View {
                 PreferenceRow(model.account.isEmpty ? "Compte Bitwarden" : model.account) {
                     Button(model.account.isEmpty ? "Connecter…" : "Gérer…") { model.showAccount() }.buttonStyle(PasteButtonStyle())
                 }
+                PreferenceRow("Verrouiller après inactivité") {
+                    Picker("Verrouiller après inactivité", selection: $model.lockMinutes) {
+                        Text("15 minutes").tag(15)
+                        Text("1 heure").tag(60)
+                        Text("4 heures").tag(240)
+                    }.labelsHidden().frame(width: 150)
+                }
+                Text("Verrouillage immédiat à la veille ou au verrouillage du Mac.").font(.system(size: 11)).foregroundStyle(Theme.muted)
                 SettingsDetails("À propos du partage") {
                     Text("Seuls les éléments que tu choisis sont envoyés, chiffrés, à Bitwarden. Les adresses des destinataires sont transmises pour vérifier leur accès.")
                     Text("Fichiers et accès par e-mail : abonnement Bitwarden compatible requis. « Partager avec options… » reste disponible en mode rapide.")
@@ -183,7 +191,7 @@ struct BitwardenWindowView: View {
     }
     private var accountView: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if !model.account.isEmpty {
+            if !model.account.isEmpty && !model.requiresLogin {
                 Label(model.account, systemImage: "person.crop.circle").font(.system(size: 14, weight: .medium)).textSelection(.enabled)
                 Text("Déverrouille la connexion avec Touch ID ou le mot de passe de ce Mac.").font(.system(size: 12)).foregroundStyle(Theme.muted)
                 Button("Déverrouiller") { model.unlock() }.buttonStyle(PasteButtonStyle(primary: true)).disabled(model.busy)

@@ -5,8 +5,12 @@ import SwiftUI
     enum Page { case account, create, sends }
     @Published private(set) var enabled: Bool
     @Published var publicOnly: Bool { didSet { defaults.set(publicOnly, forKey: "bitwarden.publicOnly"); visibilityChanged?() } }
+    @Published var lockMinutes: Int {
+        didSet { defaults.set(lockMinutes, forKey: "bitwarden.lockMinutes"); scheduleLock() }
+    }
     @Published private(set) var account: String
     @Published private(set) var unlocked = false
+    @Published private(set) var requiresLogin = false
     @Published private(set) var busy = false
     @Published private(set) var progress: Double?
     @Published private(set) var status = ""
@@ -34,6 +38,7 @@ import SwiftUI
     private var idle: Task<Void, Never>?
     private var generation = UUID()
     private var quick = false
+    private var confirmQuickCompletion = false
     private var pendingClip: Clip?
     private weak var history: History?
     private var temporary: BWTemporaryDirectory?
@@ -44,6 +49,8 @@ import SwiftUI
     init(defaults: UserDefaults = .standard, client: BWClient = BWClient(), store: any BWSessionStore = BWKeychainSessionStore()) {
         self.defaults = defaults; self.client = client; self.store = store
         enabled = defaults.bool(forKey: "bitwarden.enabled"); publicOnly = defaults.bool(forKey: "bitwarden.publicOnly")
+        let storedMinutes = defaults.integer(forKey: "bitwarden.lockMinutes")
+        lockMinutes = [15, 60, 240].contains(storedMinutes) ? storedMinutes : 15
         account = defaults.bool(forKey: "bitwarden.enabled") ? defaults.string(forKey: "bitwarden.account") ?? "" : ""
         // No Keychain read, network session restoration, timer or polling at initialization.
     }
@@ -88,6 +95,8 @@ import SwiftUI
     private func begin(_ text: String, operation: @escaping (UUID) async throws -> Void) {
         guard enabled, !busy else { return }
         error = nil; status = text; progress = nil; busy = true
+        // An earlier idle timeout must not close an active authentication/upload.
+        idle?.cancel(); idle = nil
         let ticket = UUID(); generation = ticket
         work = Task { [weak self] in
             guard let self else { return }
@@ -98,7 +107,8 @@ import SwiftUI
                 else { self.error = (error as? BWError)?.errorDescription ?? "L’opération a échoué. Réessaie." }
                 if case BWError.twoFactor(let values) = error { self.providers = values; self.needsDeviceCode = false }
                 if case BWError.newDevice = error { self.needsDeviceCode = true }
-                if case BWError.expiredSession = error { self.session = nil; self.unlocked = false; self.page = .account }
+                if case BWError.expiredSession = error { self.requestLogin() }
+                if case BWError.keychain(-25300) = error { self.requestLogin() }
             }
             guard self.generation == ticket else { return }
             self.busy = false; self.work = nil; self.progress = nil
@@ -106,9 +116,16 @@ import SwiftUI
         }
     }
     private func check(_ ticket: UUID) throws { try Task.checkCancellation(); guard enabled, generation == ticket else { throw CancellationError() } }
+    private func requestLogin() {
+        session = nil; unlocked = false; requiresLogin = true; page = .account
+        // Keep the selected content and options while replacing a compact
+        // progress panel with the connection form.
+        confirmQuickCompletion = true
+        present?()
+    }
     private func saveSession(_ value: BWSession, ticket: UUID) async throws {
         try check(ticket); try await store.write(value); try check(ticket)
-        session = value; unlocked = true; account = value.email; providers = []; needsDeviceCode = false
+        session = value; unlocked = true; requiresLogin = false; account = value.email; providers = []; needsDeviceCode = false
         defaults.set(value.email, forKey: "bitwarden.account"); defaults.set(value.region.rawValue, forKey: "bitwarden.region")
     }
     func login(email: String, password: String, code: String, provider: Int) {
@@ -137,7 +154,7 @@ import SwiftUI
         }
     }
     private func afterUnlock(_ ticket: UUID) async throws {
-        if let clip = pendingClip { try await loadClip(clip, ticket: ticket); pendingClip = nil; page = .create; if quick { try await upload(ticket) } }
+        if let clip = pendingClip { try await loadClip(clip, ticket: ticket); page = .create; if quick { try await upload(ticket) } }
         else { page = .sends; try await loadSends(ticket) }
     }
     private func activeSession(_ ticket: UUID) async throws -> BWSession {
@@ -152,11 +169,17 @@ import SwiftUI
     func share(_ clip: Clip, forceOptions: Bool = false) {
         guard canShare, clip.trashedAt == nil else { return }
         quick = publicOnly && !forceOptions; pendingClip = clip; created = nil; copied = false; error = nil
+        confirmQuickCompletion = !unlocked
         options = quick ? Self.fastOptions() : BWSendOptions(name: String(clip.title.prefix(90)))
         page = unlocked ? .create : .account; status = "Préparation…"; present?()
-        guard unlocked else { return }
+        guard unlocked else {
+            // The user's share action also starts local authentication for an
+            // existing account; no extra "Déverrouiller" click is necessary.
+            if !account.isEmpty && !requiresLogin { unlock() }
+            return
+        }
         begin("Préparation…") { ticket in
-            try await self.loadClip(clip, ticket: ticket); self.pendingClip = nil
+            try await self.loadClip(clip, ticket: ticket)
             if self.quick { try await self.upload(ticket) }
         }
     }
@@ -208,6 +231,7 @@ import SwiftUI
             let cleanup = Task.detached { try await self.client.delete(id: send.id, session: session) }
             try await cleanup.value; throw CancellationError()
         }
+        pendingClip = nil
         created = send; copied = copyLink(send.link)
         if copied { history?.sounds.play(.copy) }
         sends.insert(send, at: 0)
@@ -226,7 +250,12 @@ import SwiftUI
         try check(ticket)
         status = copied ? "Lien copié" : "Lien créé · copie impossible"
         if copied { notify?("Lien copié · \(options.days) jours") }
-        if quick && copied { dismiss?(); quickFeedback?("Lien copié · 7 jours"); self.content = nil; created = nil }
+        if quick && copied {
+            quickFeedback?("Lien copié · 7 jours")
+            // After authentication, show the result instead of making the
+            // window vanish and leaving the user unsure whether to share again.
+            if !confirmQuickCompletion { dismiss?(); self.content = nil; created = nil }
+        }
         temporary = nil; self.options.password = ""
     }
     func showSends() {
@@ -257,8 +286,9 @@ import SwiftUI
         temporary = nil
     }
     private func scheduleLock() {
-        idle?.cancel(); guard unlocked else { return }
-        idle = Task { [weak self] in do { try await Task.sleep(for: .seconds(15 * 60)) } catch { return }; self?.lock() }
+        idle?.cancel(); guard unlocked, !busy else { return }
+        let minutes = [15, 60, 240].contains(lockMinutes) ? lockMinutes : 15
+        idle = Task { [weak self] in do { try await Task.sleep(for: .seconds(minutes * 60)) } catch { return }; self?.lock() }
     }
     static func writeLink(_ url: URL) -> Bool {
         let item = NSPasteboardItem(); item.setString(url.absoluteString, forType: .string)

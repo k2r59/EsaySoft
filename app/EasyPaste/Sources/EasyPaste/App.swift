@@ -22,6 +22,7 @@ import CryptoKit
     private var shelf: ShelfPanel?
     private let shelfSizer = ShelfWindowSizer()
     private var status: NSStatusItem!
+    private var statusMenu: NSMenu?
     private var target: NSRunningApplication?
     private var pasteRenameContext: PasteCompatibility.RenameContext?
     private lazy var destinations = PasteDestinationTracker()
@@ -134,6 +135,10 @@ import CryptoKit
         editRoot.submenu = editMenu; main.addItem(editRoot); NSApp.mainMenu = main
         status = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         status.button?.image = NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "EasyPaste")
+        status.button?.target = self
+        status.button?.action = #selector(statusClicked(_:))
+        status.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        status.button?.toolTip = "EasyPaste · Clic gauche : menu · Clic droit : barre rapide"
         let menu = NSMenu()
         menu.addItem(withTitle: "Barre rapide   ⇧⌘V", action: #selector(toggleShelf), keyEquivalent: "")
         menu.addItem(withTitle: "Ouvrir la bibliothèque…", action: #selector(showMain), keyEquivalent: "")
@@ -163,7 +168,21 @@ import CryptoKit
         menu.addItem(.separator()); menu.addItem(withTitle: "Réglages…", action: #selector(settings), keyEquivalent: "")
         menu.addItem(withTitle: "Rechercher des mises à jour…", action: #selector(checkUpdates), keyEquivalent: "")
         menu.addItem(withTitle: "Quitter EasyPaste", action: #selector(quit), keyEquivalent: "")
-        for item in menu.items { item.target = self }; status.menu = menu
+        for item in menu.items { item.target = self }; statusMenu = menu
+    }
+    @objc private func statusClicked(_ sender: NSStatusBarButton) {
+        if NSApp.currentEvent?.type == .rightMouseUp {
+            // Use the keyboard shortcut's path, including destination tracking
+            // and search focus. Do not activate the library or open the menu.
+            toggleShelf()
+            return
+        }
+        guard let menu = statusMenu else { return }
+        // A permanently attached menu consumes both mouse buttons before our
+        // action runs. Attach it only while AppKit tracks the primary click.
+        status.menu = menu
+        defer { status.menu = nil }
+        sender.performClick(nil)
     }
     private func rememberTarget() {
         // Keep the same destination while opening an editor from our shelf.
@@ -173,7 +192,7 @@ import CryptoKit
     }
     private func refreshBitwardenMenu() {
         let tag = 8240
-        for menu in [status?.menu, NSApp.mainMenu].compactMap({ $0 }) {
+        for menu in [statusMenu, NSApp.mainMenu].compactMap({ $0 }) {
             if let old = menu.item(withTag: tag) { menu.removeItem(old) }
             guard history.bitwarden.enabled else { continue }
             let root = NSMenuItem(title: "Bitwarden", action: nil, keyEquivalent: ""); root.tag = tag
@@ -415,7 +434,7 @@ import CryptoKit
                 if let submenu = item.submenu { update(submenu) }
             }
         }
-        if let menu = status?.menu { update(menu) }
+        if let menu = statusMenu { update(menu) }
         if let menu = NSApp.mainMenu { update(menu) }
     }
 

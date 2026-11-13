@@ -128,12 +128,14 @@ actor BWTestTransport: BWTransport {
     var uploadFails = false
     var delaySend = false
     var failToken = false
-    func configure(uploadFails: Bool = false, delaySend: Bool = false, failToken: Bool = false) { self.uploadFails = uploadFails; self.delaySend = delaySend; self.failToken = failToken }
+    var delayToken = false
+    func configure(uploadFails: Bool = false, delaySend: Bool = false, failToken: Bool = false, delayToken: Bool = false) { self.uploadFails = uploadFails; self.delaySend = delaySend; self.failToken = failToken; self.delayToken = delayToken }
     func execute(_ request: URLRequest, file: URL?, progress: @escaping @Sendable (Double) -> Void) async throws -> BWHTTPResponse {
         requests.append(request)
         let path = request.url!.path
         if path.contains("prelogin") { return response(["kdf": 0, "kdfIterations": 100000]) }
         if path == "/connect/token" {
+            if delayToken { try await Task.sleep(for: .seconds(1)) }
             if failToken { return response(["error":"invalid_grant"], status: 400) }
             let master = try BWCrypto.masterKey(password: "password-test", email: "me@example.com", kdf: BWKDF(iterations: 100000))
             return response(["access_token":"FAKE-ACCESS", "refresh_token":"FAKE-REFRESH", "expires_in":3600, "Key":try BWCrypto.encrypt(Data(repeating: 7, count: 64), key: BWCrypto.stretched(master))])
@@ -229,6 +231,85 @@ actor BWTestTransport: BWTransport {
         XCTAssertNotEqual(title, item.title); XCTAssertTrue(title.contains(" à "))
         let deletion = ISO8601DateFormatter().date(from:body["deletionDate"] as! String)!
         XCTAssertEqual(deletion.timeIntervalSinceNow, 7*86400, accuracy: 5)
+    }
+    func testShareUnlocksSavedAccountAndCompletesOnceWithoutReopeningMenu() async throws {
+        try await unlock(); model.publicOnly = true; model.lock()
+        var dismissals = 0, copies = 0
+        model.dismiss = { dismissals += 1 }; model.copyLink = { _ in copies += 1; return true }
+        let before = await store.counts()
+        model.share(try await clip("After local authentication")); try await settle()
+        XCTAssertNil(model.error); XCTAssertTrue(model.unlocked); XCTAssertEqual(copies, 1)
+        XCTAssertNotNil(model.created, "Show the copied link after authentication")
+        XCTAssertEqual(dismissals, 0, "Do not make the authentication window vanish without a result")
+        XCTAssertEqual(history.stack.count, 1)
+        let after = await store.counts(); XCTAssertEqual(after[0], before[0] + 1)
+        model.share(try await clip("Next share")); try await settle()
+        let repeated = await store.counts()
+        XCTAssertEqual(repeated[0], after[0], "A second share must reuse the unlocked session")
+        XCTAssertEqual(copies, 2); XCTAssertEqual(dismissals, 1)
+    }
+    func testUnlockForOptionsResumesFormWithoutSendingOrLosingOptions() async throws {
+        try await unlock(); model.publicOnly = true; model.lock()
+        model.share(try await clip("Options after unlock"), forceOptions: true)
+        model.options.days = 3
+        model.options.audience = .emails; model.options.emails = "alice@example.com"
+        try await settle()
+        XCTAssertNil(model.error); XCTAssertEqual(model.page, .create); XCTAssertNotNil(model.content)
+        XCTAssertEqual(model.options.days, 3); XCTAssertEqual(model.options.emails, "alice@example.com")
+        let requests = await transport.snapshot()
+        XCTAssertFalse(requests.contains { $0.httpMethod == "POST" && $0.url?.path == "/sends" })
+    }
+    func testExpiredSavedSessionRetainsShareAcrossNewLogin() async throws {
+        try await unlock(); model.publicOnly = true; model.lock()
+        await transport.configure(failToken: true)
+        model.share(try await clip("Keep this original")); try await settle()
+        XCTAssertTrue(model.requiresLogin); XCTAssertFalse(model.unlocked)
+        XCTAssertTrue(history.stack.isEmpty)
+        await transport.configure()
+        model.login(email: "me@example.com", password: "password-test", code: "", provider: 0)
+        try await settle()
+        XCTAssertNil(model.error); XCTAssertFalse(model.requiresLogin)
+        XCTAssertNotNil(model.created); XCTAssertTrue(model.copied); XCTAssertEqual(history.stack.count, 1)
+        let requests = await transport.snapshot()
+        let sends = requests.filter { $0.httpMethod == "POST" && $0.url?.path == "/sends" }
+        XCTAssertEqual(sends.count, 1)
+        let body = try JSONSerialization.jsonObject(with: XCTUnwrap(sends.first?.httpBody)) as! [String: Any]
+        let secret = try BWCrypto.decrypt(body["key"] as! String, key: Data(repeating: 7, count: 64))
+        let encryptedText = (body["text"] as! [String: Any])["text"] as! String
+        let plain = try BWCrypto.decrypt(encryptedText, key: BWCrypto.sendKey(secret))
+        XCTAssertEqual(String(data: plain, encoding: .utf8), "Keep this original")
+    }
+    func testCancelledAutomaticUnlockNeverSendsOrClosesAndCanResume() async throws {
+        try await unlock(); model.publicOnly = true; model.lock()
+        await transport.configure(delayToken: true)
+        var copies = 0, dismissals = 0
+        model.copyLink = { _ in copies += 1; return true }; model.dismiss = { dismissals += 1 }
+        model.share(try await clip("Cancel then resume"))
+        model.cancel(); try await settle()
+        XCTAssertFalse(model.unlocked); XCTAssertEqual(copies, 0); XCTAssertEqual(dismissals, 0)
+        XCTAssertTrue(history.stack.isEmpty)
+        await transport.configure()
+        model.unlock(); try await settle()
+        XCTAssertEqual(copies, 1); XCTAssertEqual(history.stack.count, 1); XCTAssertNotNil(model.created)
+    }
+    func testCloseAfterCancelledUnlockClearsPendingShare() async throws {
+        try await unlock(); model.publicOnly = true; model.lock()
+        await transport.configure(delayToken: true)
+        model.share(try await clip("Do not send")); model.cancel(); try await settle(); model.close()
+        await transport.configure()
+        model.unlock(); try await settle()
+        XCTAssertNil(model.created); XCTAssertTrue(history.stack.isEmpty); XCTAssertEqual(model.page, .sends)
+    }
+    func testLockDurationDefaultsAndPersistsWithoutWeakeningExplicitLock() async throws {
+        XCTAssertEqual(model.lockMinutes, 15)
+        model.lockMinutes = 60
+        let next = BitwardenModel(defaults: defaults, client: BWClient(transport: transport), store: store)
+        XCTAssertEqual(next.lockMinutes, 60); await next.shutdown()
+        defaults.set(-1, forKey: "bitwarden.lockMinutes")
+        let invalid = BitwardenModel(defaults: defaults, client: BWClient(transport: transport), store: store)
+        XCTAssertEqual(invalid.lockMinutes, 15); await invalid.shutdown()
+        try await unlock(); model.lockMinutes = 240; model.lock()
+        XCTAssertFalse(model.unlocked); XCTAssertNil(model.content)
     }
     func testOptionsOverrideNeverAutoUploadsAndEmailPolicyIsPreserved() async throws {
         try await unlock(); model.publicOnly = true

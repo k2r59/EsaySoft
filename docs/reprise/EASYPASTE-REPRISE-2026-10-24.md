@@ -1109,3 +1109,22 @@ Cet état remplace le blocage iPhone décrit dans les passes précédentes.
 - Logs : `/tmp/easypaste-0312-package.log`, `/tmp/easypaste-0312-publish.log`.
 
 - Vérification finale réussie : l’URL publique du flux, sans paramètre de contournement du cache, annonce 0.3.12 /37 ; octets identiques au flux signé local et signature Ed25519 valide. DMG retéléchargé depuis son URL publique et SHA-256 identique. La mise à jour stable est disponible.
+
+
+### Modifications locales du 13 novembre 2026 — non publiées
+
+Demandes : clic droit sur l’icône de barre des menus = ⇧⌘V ; améliorer le partage Bitwarden après déverrouillage local. L’utilisateur confirme qu’il s’agit du mot de passe du Mac / Touch ID, et non du mot de passe maître.
+
+- `App.swift` : interception distincte des relâchements gauche/droit. Clic droit appelle exactement `toggleShelf`. Menu conservé séparément et attaché uniquement pendant le clic gauche ; les mises à jour Bitwarden et des raccourcis ciblent ce menu conservé. Infobulle explique les deux actions.
+- `BitwardenModel.swift` : partage avec compte connu verrouillé déclenche directement le déverrouillage local existant, sans supprimer son authentification. Reprise du contenu choisi ; résultat conservé à l’écran après authentification même en partage rapide, pour rendre visible que le lien est déjà copié. Les partages suivants utilisent la session encore ouverte.
+- Annulation du minuteur d’inactivité au début d’une opération, réarmement à sa fin : ne pas fermer une authentification/un upload en cours à cause d’un ancien minuteur.
+- Session expirée ou entrée de trousseau manquante : formulaire de connexion accessible sans déconnexion destructrice de l’intention de partage. Contenu en attente conservé jusqu’à création réussie, annulation explicite/fermeture, verrouillage ou déconnexion.
+- Réglage de verrouillage après inactivité : 15 min (défaut conservé), 1 h, 4 h. Verrouillage immédiat à la veille/verrouillage du Mac inchangé. Aucun mot de passe maître enregistré, aucun accès au trousseau élargi.
+- Six tests supplémentaires isolés avec transport simulé : reprise + absence de double envoi/réauthentification, mode options sans envoi automatique, session expirée puis connexion, annulation puis reprise, fermeture abandonnant le partage, durée persistée et verrouillage explicite. Aucun Send réel créé pour les tests.
+- 49 tests Bitwarden réussis ; première suite complète après changement du clic : 355 réussis. Suite finale avec six nouveaux tests en cours. Contrôle natif du Mac indisponible dans ce tour : ne pas prétendre avoir testé les clics physiques ni une véritable authentification système.
+
+- Suite finale terminée : **361 tests, zéro échec**, Release, 59,391 s. Log `/tmp/easypaste-status-bitwarden-regression.log`. Construction locale signée 0.3.13 /38 en cours dans le cache interne ; `scripts/release.json` et le flux public restent 0.3.12 /37. Pas de publication demandée pour cette passe.
+
+- Construction universelle 0.3.13 /38 terminée, signature Developer ID vérifiée. Bundle prêt : `/Users/k2r59/Library/Caches/EasyPaste-native-gap/app/EasyPaste/dist/EasyPaste-0.3.13.app`. Installation en attente que l’utilisateur quitte EasyPaste ; demande envoyée. Version publique inchangée.
+
+- Utilisateur : « EasyPaste est quitté ». Absence du processus vérifiée, installation locale effectuée dans `/Applications/EasyPaste.app` : **0.3.13 /38**, signature profonde stricte vérifiée après installation. Sauvegarde : `/Users/k2r59/Library/Caches/EasyPaste-local-install/backup-20261113-083616-before-0313/EasyPaste.app`. Historique/préférences inchangés, pas de publication. Relance et vérification manuelle clic droit + authentification système laissées à l’utilisateur (outil de contrôle du Mac indisponible).
