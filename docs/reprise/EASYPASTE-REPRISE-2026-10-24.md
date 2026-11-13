@@ -1128,3 +1128,16 @@ Demandes : clic droit sur l’icône de barre des menus = ⇧⌘V ; améliorer l
 - Construction universelle 0.3.13 /38 terminée, signature Developer ID vérifiée. Bundle prêt : `/Users/k2r59/Library/Caches/EasyPaste-native-gap/app/EasyPaste/dist/EasyPaste-0.3.13.app`. Installation en attente que l’utilisateur quitte EasyPaste ; demande envoyée. Version publique inchangée.
 
 - Utilisateur : « EasyPaste est quitté ». Absence du processus vérifiée, installation locale effectuée dans `/Applications/EasyPaste.app` : **0.3.13 /38**, signature profonde stricte vérifiée après installation. Sauvegarde : `/Users/k2r59/Library/Caches/EasyPaste-local-install/backup-20261113-083616-before-0313/EasyPaste.app`. Historique/préférences inchangés, pas de publication. Relance et vérification manuelle clic droit + authentification système laissées à l’utilisateur (outil de contrôle du Mac indisponible).
+
+
+### Publication 0.3.13 — 13 novembre 2026
+
+- Demande explicite : « publie la nouvelle version ».
+- Sources : commit `c77532a`, poussé sur `codex/reprise-easypaste-2026-10-24`. Configuration de release : **0.3.13 /38**.
+- Build universel Intel/Apple Silicon, signature Developer ID et notarisation Apple acceptées, soumission `b314cb8c-890b-47e5-b9a1-b8f7453c42b9`.
+- Release publique stable, ni brouillon ni préversion : https://github.com/k2r59/EsaySoft/releases/tag/easypaste-v0.3.13 .
+- DMG SHA-256 : `a6162fa4979d0e1d4bc74bdc17acf9cef09c864d6725769172be761e90454476`. ZIP application, ZIP sources et SHA256SUMS également publiés et retéléchargés pour comparaison avant publication du flux.
+- Flux Sparkle signé et vérifié, déploiement Pages `f470df6c47fe9af5dfa5e965c6c69cd454c49a10`. Logs : `/tmp/easypaste-0313-package.log`, `/tmp/easypaste-0313-publish.log`.
+- Même code que la version locale testée : 361 tests réussis. Le clic physique et l’authentification système réels n’ont pas été contrôlés via l’outil Mac, indisponible ; ne pas prétendre le contraire.
+
+- Vérification finale : le flux public sans paramètre de cache annonce **0.3.13 /38**, correspond octet par octet au flux local signé et sa signature est valide. Le DMG retéléchargé depuis son URL publique a le SHA-256 attendu. Mise à jour publique disponible.
