@@ -34,3 +34,29 @@ Aucun code du SDK interne ou des applications Bitwarden n’est embarqué.
 L’implémentation de compatibilité utilise CommonCrypto, CryptoKit et Security
 fournis par macOS. Bitwarden est une marque de Bitwarden Inc. Cette intégration
 indépendante n’est ni fournie ni prise en charge par Bitwarden.
+
+## Téléchargements web intégrés
+
+Seuls les moteurs médias sont embarqués, pas l’application EasyMusic ni ses fonctions.
+Ils sont exécutés comme programmes séparés et signés avec l’identité Developer ID
+EasyPaste. Aucun outil n’est installé dans le système ou téléchargé au premier usage.
+
+- yt-dlp 2026.10.26 : distribution autonome officielle avec Python et ses dépendances.
+  https://github.com/yt-dlp/yt-dlp/releases/tag/2026.10.26
+  Licences tierces dans `Licenses/yt-dlp.txt` des ressources de l’application.
+  Sa licence propre est dans `Licenses/yt-dlp-LICENSE.txt`. Sources de yt-dlp,
+  Mutagen 1.48.1 (GPL-2.0-or-later) et certifi 2026.10.23 (MPL-2.0)
+  incluses dans `.tools/vendor` de l’archive source.
+- FFmpeg 8.1.2 et LAME 3.100 : LGPL 2.1 ou ultérieure. Les sources exactes
+  non modifiées sont incluses dans `.tools/vendor` de l’archive source EasyPaste.
+  La commande de compilation et toutes les options sont dans
+  `scripts/build-media-dependencies.sh`. Aucun composant GPL/nonfree n’est activé.
+  Licences dans `Licenses/FFmpeg-LGPL.txt` et `Licenses/LAME-LGPL.txt`.
+  https://ffmpeg.org/legal.html
+- Node.js 22.23.4 : MIT et licences tierces, reproduites dans
+  `Licenses/Node-LICENSE.txt`. https://nodejs.org/dist/v22.23.4/
+
+FFmpeg/LAME sont liés statiquement entre eux, pas à EasyPaste. Le script fourni
+permet de reconstruire les exécutables complets, les modifier et les remplacer
+avant de signer à nouveau votre build. Les dépendances sont verrouillées par
+version et SHA-256 ; les signatures des composants natifs sont vérifiées au build.

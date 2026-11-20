@@ -98,6 +98,7 @@ def main():
     assert info["SURequireSignedFeed"] and info["SUVerifyUpdateBeforeExtraction"]
     assert not info.get("EasyPasteDemo") and not info.get("EasyPasteUpdateQA") and not info.get("AnnotationPreview")
     run("codesign", "--verify", "--deep", "--strict", str(app))
+    run("python3", str(ROOT / "scripts/verify-media-runtime.py"), str(app))
     run("spctl", "--assess", "--type", "execute", str(app))
     run("xcrun", "stapler", "validate", str(dmg))
     run("codesign", "--verify", str(dmg))

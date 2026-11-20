@@ -85,16 +85,65 @@ final class BrowserMediaTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(100)); worker.cancel()
         do { _ = try await worker.value; XCTFail("Expected cancellation") } catch { XCTAssertTrue(error is CancellationError) }
     }
+    private func liveBundle() throws -> Bundle {
+        guard let path = ProcessInfo.processInfo.environment["EASYPASTE_MEDIA_TEST_APP"],
+              let bundle = Bundle(path: path) else {
+            throw XCTSkip("Set EASYPASTE_MEDIA_TEST_APP to the packaged EasyPaste app")
+        }
+        XCTAssertTrue(BrowserMediaEngine.isAvailable(bundle: bundle))
+        return bundle
+    }
+    private func verifyMedia(_ file: URL, mode: String, bundle: Bundle) async throws {
+        let probe = try XCTUnwrap(BrowserMediaEngine.executable("ffprobe", bundle: bundle))
+        let output = try await BrowserMediaEngine.run(["-v", "error", "-show_entries", "format=format_name,duration:stream=codec_type", "-of", "json", file.path], timeout: 30, executable: probe)
+        let data = try XCTUnwrap(output.data(using: .utf8))
+        let info = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let format = try XCTUnwrap(info["format"] as? [String: Any])
+        XCTAssertTrue((format["format_name"] as? String ?? "").contains(mode == "audio" ? "mp3" : "mp4"))
+        XCTAssertGreaterThan(Double(format["duration"] as? String ?? "0") ?? 0, 0)
+        let streams = info["streams"] as? [[String: Any]] ?? []
+        XCTAssertTrue(streams.contains { $0["codec_type"] as? String == mode })
+    }
+    func testBundledRuntimeIsCompleteAndNeverFallsBackToInstalledTools() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".app")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let resources = root.appendingPathComponent("Contents/Resources")
+        try FileManager.default.createDirectory(at: resources.appendingPathComponent("bin/yt-dlp-runtime"), withIntermediateDirectories: true)
+        try PropertyListSerialization.data(fromPropertyList: ["CFBundleIdentifier": "test.easypaste.media", "CFBundlePackageType": "APPL"], format: .xml, options: 0).write(to: root.appendingPathComponent("Contents/Info.plist"))
+        let bundle = try XCTUnwrap(Bundle(url: root))
+        XCTAssertFalse(BrowserMediaEngine.isAvailable(bundle: bundle))
+        XCTAssertNil(BrowserMediaEngine.executable("ffmpeg", bundle: bundle))
+        for name in ["yt-dlp-runtime/yt-dlp_macos", "ffmpeg", "ffprobe", "node"] {
+            let file = resources.appendingPathComponent("bin/" + name)
+            try Data("#!/bin/sh\nexit 0\n".utf8).write(to: file)
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: file.path)
+        }
+        XCTAssertTrue(BrowserMediaEngine.isAvailable(bundle: bundle))
+        XCTAssertNil(BrowserMediaEngine.executable("../../usr/bin/true", bundle: bundle))
+        let args = try BrowserMediaEngine.arguments(url: "https://example.com/media.mp4", mode: nil, bundle: bundle)
+        XCTAssertTrue(args.contains("node:" + resources.appendingPathComponent("bin/node").path))
+        XCTAssertTrue(args.contains(resources.appendingPathComponent("bin").path))
+        XCTAssertTrue(args.contains("--no-js-runtimes")); XCTAssertTrue(args.contains("--no-plugin-dirs"))
+        for name in ["ffprobe", "node"] {
+            let file = resources.appendingPathComponent("bin/" + name)
+            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
+            XCTAssertFalse(BrowserMediaEngine.isAvailable(bundle: bundle))
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: file.path)
+        }
+    }
     func testLiveDirectMP4Download() async throws {
-        guard ProcessInfo.processInfo.environment["EASYPASTE_MEDIA_LIVE_TEST"] == "1" else { throw XCTSkip("Optional network test using the installed EasyMusic runtime") }
+        guard ProcessInfo.processInfo.environment["EASYPASTE_MEDIA_LIVE_TEST"] == "1" else { throw XCTSkip("Optional network test using only the packaged EasyPaste runtime") }
+        let bundle = try liveBundle()
+        let executable = try XCTUnwrap(BrowserMediaEngine.executable("yt-dlp", bundle: bundle))
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let url = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
-        let metadata = try await BrowserMediaEngine.run(BrowserMediaEngine.arguments(url: url, mode: nil), timeout: 60)
+        let metadata = try await BrowserMediaEngine.run(BrowserMediaEngine.arguments(url: url, mode: nil, bundle: bundle), timeout: 60, executable: executable)
         XCTAssertFalse(try BrowserMediaEngine.metadata(metadata, mode: "video").isEmpty)
-        _ = try await BrowserMediaEngine.run(BrowserMediaEngine.arguments(url: url, mode: "video", output: root), timeout: 90)
+        _ = try await BrowserMediaEngine.run(BrowserMediaEngine.arguments(url: url, mode: "video", output: root, bundle: bundle), timeout: 90, executable: executable)
         XCTAssertGreaterThan(try root.appendingPathComponent("media.mp4").resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0, 1000)
+        try await verifyMedia(root.appendingPathComponent("media.mp4"), mode: "video", bundle: bundle)
     }
     @MainActor func testQueueCompletesInUniqueFoldersAndFailureRemovesOnlyNewFiles() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -123,18 +172,50 @@ final class BrowserMediaTests: XCTestCase {
     }
     func testLiveYouTubeVideoAndAudioDownloads() async throws {
         guard ProcessInfo.processInfo.environment["EASYPASTE_MEDIA_LIVE_TEST"] == "1" else { throw XCTSkip("Optional real YouTube download test") }
+        let bundle = try liveBundle()
+        let executable = try XCTUnwrap(BrowserMediaEngine.executable("yt-dlp", bundle: bundle))
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
         let url = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
-        let metadata = try await BrowserMediaEngine.run(BrowserMediaEngine.arguments(url: url, mode: nil), timeout: 90)
+        let metadata = try await BrowserMediaEngine.run(BrowserMediaEngine.arguments(url: url, mode: nil, bundle: bundle), timeout: 90, executable: executable)
         for mode in ["video", "audio"] {
             XCTAssertFalse(try BrowserMediaEngine.metadata(metadata, mode: mode).isEmpty)
             let folder = root.appendingPathComponent(mode)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            _ = try await BrowserMediaEngine.run(BrowserMediaEngine.arguments(url: url, mode: mode, output: folder), timeout: 120)
+            _ = try await BrowserMediaEngine.run(BrowserMediaEngine.arguments(url: url, mode: mode, output: folder, bundle: bundle), timeout: 120, executable: executable)
             let file = folder.appendingPathComponent(mode == "audio" ? "media.mp3" : "media.mp4")
             XCTAssertGreaterThan(try file.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0, 1000)
+            try await verifyMedia(file, mode: mode, bundle: bundle)
         }
+    }
+
+    @MainActor func testLiveQueuedDownloadUsesBundledToolsAndReportsCompletion() async throws {
+        guard ProcessInfo.processInfo.environment["EASYPASTE_MEDIA_LIVE_TEST"] == "1" else { throw XCTSkip("Optional real native bridge download") }
+        let bundle = try liveBundle()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let config = BrowserBridgeConfiguration(enabled: true, browser: .arc, generation: "bundled-test")
+        try BrowserExtensionFiles.write(config, to: root.appendingPathComponent("configuration.json"))
+        _ = try BrowserMediaRequest.enqueue(url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4", mode: "audio", config: config, root: root)
+        let model = BrowserMediaDownloads(root: root, destinationRoot: root.appendingPathComponent("downloads"), revealOnRequest: false, runner: { args, timeout in
+            // The production queue builds the same options with Bundle.main. For
+            // XCTest only, replace the runtime locations with the packaged app.
+            var options = args
+            if let index = options.firstIndex(of: "--js-runtimes") { options.removeSubrange(index...index + 1) }
+            if let index = options.firstIndex(of: "--ffmpeg-location") { options.removeSubrange(index...index + 1) }
+            options.insert(contentsOf: ["--js-runtimes", "node:" + BrowserMediaEngine.executable("node", bundle: bundle)!.path,
+                                       "--ffmpeg-location", BrowserMediaEngine.executable("ffmpeg", bundle: bundle)!.deletingLastPathComponent().path], at: options.firstIndex(of: "--")!)
+            return try await BrowserMediaEngine.run(options, timeout: timeout, executable: BrowserMediaEngine.executable("yt-dlp", bundle: bundle))
+        }, toolsAvailable: { BrowserMediaEngine.isAvailable(bundle: bundle) })
+        model.consume()
+        for _ in 0..<1800 where model.active { try await Task.sleep(for: .milliseconds(100)) }
+        if model.active { await model.shutdown(); XCTFail("Download timed out") }
+        XCTAssertEqual(model.jobs.count, 1)
+        let job = try XCTUnwrap(model.jobs.first)
+        let file = try XCTUnwrap(job.file, job.status)
+        try await verifyMedia(file, mode: "audio", bundle: bundle)
+        let status = try XCTUnwrap(BrowserExtensionFiles.read(BrowserMediaStatus.self, from: BrowserMediaStatus.file(job.id, root: root)))
+        XCTAssertEqual(status.state, "completed")
     }
 
     func testProgressIsScopedToGenerationAndExpiresWithoutExposingPaths() throws {

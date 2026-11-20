@@ -210,7 +210,12 @@ Le test synthétique de recherche sur 10 000 notes prend environ 40 ms sur le Ma
 
 ## Développement
 
-Nécessite Xcode avec le SDK macOS et Swift 6. Aucune dépendance externe.
+Nécessite Xcode avec le SDK macOS, Swift 6 et Python 3 pour les scripts de construction.
+`build.sh` prépare automatiquement les moteurs médias verrouillés par version et
+empreinte SHA-256, compile FFmpeg/LAME pour Intel et Apple Silicon, puis embarque
+et signe les composants dans l’application. Le premier build prend donc plus de
+temps. Le cache local `.tools` est exclu de Git ; `EASYPASTE_MEDIA_CACHE` permet
+de le placer ailleurs. Aucun de ces outils n’est requis sur le Mac de l’utilisateur.
 
 ```sh
 swift test
@@ -235,6 +240,13 @@ NOTARY_PROFILE='VotreProfilDansLeTrousseau' \
 ```
 
 Aucun certificat privé ni identifiant Apple n’est inclus dans le projet. Le script produit le DMG, une archive de l’app, une archive des sources et leurs empreintes SHA-256 dans `dist/`.
+
+Le build et la publication vérifient aussi chaque composant natif embarqué
+(signature, deux architectures et absence de bibliothèques externes), puis
+lancent les quatre moteurs avec un PATH système et un dossier personnel vide.
+Pour les essais réseau réels, définir `EASYPASTE_MEDIA_LIVE_TEST=1` et
+`EASYPASTE_MEDIA_TEST_APP` avec le chemin absolu de l’app construite avant
+`swift test -c release --filter BrowserMediaTests`.
 
 ## Vérification de la version 0.2
 

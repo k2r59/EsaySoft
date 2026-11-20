@@ -9,6 +9,24 @@ link_sdk=(-Xlinker -platform_version -Xlinker macos -Xlinker 15.0 -Xlinker "$sdk
 swift build -j 2 -c release --arch arm64 --arch x86_64 "${link_sdk[@]}"
 app=${APP_BUNDLE_PATH:-dist/EasyPaste.app}
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$app/Contents/Frameworks"
+# Ship the media runtime with every app build, including clean developer builds.
+# No first-launch installer, Homebrew, or other application is required.
+python3 scripts/prepare-media-ytdlp.py
+./scripts/build-media-dependencies.sh
+media_cache=${EASYPASTE_MEDIA_CACHE:-$PWD/.tools}
+mkdir -p "$app/Contents/Resources/bin" "$app/Contents/Resources/Licenses"
+rm -rf "$app/Contents/Resources/bin/yt-dlp-runtime"
+ditto "$media_cache/runtime/yt-dlp-runtime" "$app/Contents/Resources/bin/yt-dlp-runtime"
+for tool in ffmpeg ffprobe node; do
+ cp "$media_cache/runtime/$tool" "$app/Contents/Resources/bin/$tool"
+ lipo "$app/Contents/Resources/bin/$tool" -verify_arch arm64
+ lipo "$app/Contents/Resources/bin/$tool" -verify_arch x86_64
+done
+cp "$media_cache/vendor/yt-dlp-THIRD-PARTY-LICENSES.txt" "$app/Contents/Resources/Licenses/yt-dlp.txt"
+cp "$media_cache/vendor/yt-dlp-LICENSE.txt" "$app/Contents/Resources/Licenses/yt-dlp-LICENSE.txt"
+cp "$media_cache/vendor/FFmpeg-n8.1.2/COPYING.LGPLv2.1" "$app/Contents/Resources/Licenses/FFmpeg-LGPL.txt"
+cp "$media_cache/vendor/lame-3.100/COPYING" "$app/Contents/Resources/Licenses/LAME-LGPL.txt"
+cp "$media_cache/vendor/node-v22.23.4-darwin-arm64/LICENSE" "$app/Contents/Resources/Licenses/Node-LICENSE.txt"
 sparkle=.build/artifacts/sparkle/Sparkle
 ditto "$sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework" "$app/Contents/Frameworks/Sparkle.framework"
 cp "$sparkle/LICENSE" "$app/Contents/Resources/Sparkle-LICENSE.txt"
@@ -76,6 +94,11 @@ codesign "${sign_args[@]}" --preserve-metadata=entitlements "$framework/Versions
 codesign "${sign_args[@]}" "$framework/Versions/B/Autoupdate"
 codesign "${sign_args[@]}" "$framework/Versions/B/Updater.app"
 codesign "${sign_args[@]}" "$framework"
+python3 scripts/sign-media-ytdlp.py "$app/Contents/Resources/bin/yt-dlp-runtime"
+for tool in ffmpeg ffprobe; do
+ codesign "${sign_args[@]}" "$app/Contents/Resources/bin/$tool"
+done
+codesign "${sign_args[@]}" --entitlements scripts/media-node.entitlements "$app/Contents/Resources/bin/node"
 if [[ -n "${CODE_SIGN_IDENTITY:-}" ]]; then
  codesign --force --entitlements scripts/EasyPaste.entitlements --options runtime --timestamp --sign "$CODE_SIGN_IDENTITY" "$app"
 else
@@ -84,4 +107,5 @@ fi
 codesign --verify --deep --strict "$app"
 lipo "$app/Contents/MacOS/EasyPaste" -verify_arch arm64
 lipo "$app/Contents/MacOS/EasyPaste" -verify_arch x86_64
+python3 scripts/verify-media-runtime.py "$app"
 print "Application : $PWD/$app"

@@ -76,7 +76,7 @@ La détection couvre les éléments vidéo/audio, leurs sources et les médias d
 
 ### Moteurs nécessaires sur le Mac
 
-EasyPaste cherche yt-dlp, FFmpeg et Node dans ses ressources, puis réutilise ceux d’**EasyMusic** installé dans `/Applications` ou `~/Applications`. Il peut aussi utiliser les exécutables de `/opt/homebrew/bin` ou `/usr/local/bin`. yt-dlp et FFmpeg sont requis ; Node est recommandé pour YouTube. Cette version ne télécharge ni n’installe automatiquement ces moteurs.
+À partir de la version 0.3.15, EasyPaste embarque directement yt-dlp, FFmpeg, ffprobe et Node, signés avec l’application, pour Mac Intel et Apple Silicon. Aucun EasyMusic, Homebrew, Python ou outil séparé à installer : le téléchargement démarre depuis l’extension. Les moteurs sont mis à jour avec EasyPaste et seuls ceux de son paquet sont utilisés. La version publique 0.3.14 nécessite encore les composants externes ; cette intégration sera distribuée dans la prochaine mise à jour.
 
 Le menu transmet l’URL choisie, le format et la qualité à l’app. L’app lance les exécutables avec des arguments séparés, ignore les configurations personnelles yt-dlp et ne lit pas les cookies du navigateur. Les fichiers temporaires d’une tâche annulée ou échouée sont supprimés dans son propre dossier.
 

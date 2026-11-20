@@ -78,24 +78,25 @@ struct BrowserMediaStatus: Codable {
     }
 }
 
-// The same yt-dlp / FFmpeg / Node tools used by EasyMusic, without shell commands,
-// account-cookie imports, user yt-dlp configuration, or arbitrary executable paths.
+// Private bundled tools only: a downloaded file must not depend on another app,
+// Homebrew, or the user's PATH. These helpers are signed with EasyPaste.
 enum BrowserMediaEngine {
     static func executable(_ name: String, bundle: Bundle = .main) -> URL? {
+        guard ["yt-dlp", "ffmpeg", "ffprobe", "node"].contains(name),
+              let resources = bundle.resourceURL else { return nil }
         let nested = name == "yt-dlp" ? "yt-dlp-runtime/yt-dlp_macos" : name
-        let resources = [bundle.resourceURL,
-                         URL(fileURLWithPath: "/Applications/EasyMusic.app/Contents/Resources"),
-                         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications/EasyMusic.app/Contents/Resources")]
-        let paths = resources.compactMap { $0?.appendingPathComponent("bin/" + nested) }
-            + ["/opt/homebrew/bin/", "/usr/local/bin/"].map { URL(fileURLWithPath: $0 + name) }
-        return paths.first { FileManager.default.isExecutableFile(atPath: $0.path) }
+        let url = resources.appendingPathComponent("bin/" + nested)
+        return FileManager.default.isExecutableFile(atPath: url.path) ? url : nil
     }
-    static var available: Bool { executable("yt-dlp") != nil && executable("ffmpeg") != nil }
-    static func arguments(url: String, mode: String?, output: URL? = nil, quality: String? = nil) throws -> [String] {
+    static func isAvailable(bundle: Bundle = .main) -> Bool {
+        ["yt-dlp", "ffmpeg", "ffprobe", "node"].allSatisfy { executable($0, bundle: bundle) != nil }
+    }
+    static var available: Bool { isAvailable() }
+    static func arguments(url: String, mode: String?, output: URL? = nil, quality: String? = nil, bundle: Bundle = .main) throws -> [String] {
         guard BrowserMediaRequest.webURL(url) != nil else { throw TextIssue(message: "Cette adresse de média n’est pas prise en charge.") }
-        var args = ["--ignore-config", "--no-playlist", "--playlist-items", "1", "--no-colors", "--socket-timeout", "15", "--retries", "1", "--fragment-retries", "1", "--no-cache-dir", "--no-overwrites", "--newline", "--no-progress"]
-        if let node = executable("node") { args += ["--js-runtimes", "node:" + node.path] }
-        if let ffmpeg = executable("ffmpeg") { args += ["--ffmpeg-location", ffmpeg.deletingLastPathComponent().path] }
+        var args = ["--ignore-config", "--no-plugin-dirs", "--no-js-runtimes", "--no-playlist", "--playlist-items", "1", "--no-colors", "--socket-timeout", "15", "--retries", "1", "--fragment-retries", "1", "--no-cache-dir", "--no-overwrites", "--newline", "--no-progress"]
+        if let node = executable("node", bundle: bundle) { args += ["--js-runtimes", "node:" + node.path] }
+        if let ffmpeg = executable("ffmpeg", bundle: bundle) { args += ["--ffmpeg-location", ffmpeg.deletingLastPathComponent().path] }
         if let mode, let output {
             guard ["video", "audio"].contains(mode) else { throw TextIssue(message: "Format de téléchargement inconnu.") }
             args += ["--max-filesize", "2G", "--no-simulate", "--restrict-filenames", "-o", output.appendingPathComponent("media.%(ext)s").path]
@@ -127,7 +128,7 @@ enum BrowserMediaEngine {
         return String((info["title"] as? String ?? "Média web").prefix(180))
     }
     static func run(_ args: [String], timeout: TimeInterval, executable: URL? = nil) async throws -> String {
-        guard let executable = executable ?? self.executable("yt-dlp") else { throw TextIssue(message: "Le moteur yt-dlp est absent. Installe EasyMusic ou yt-dlp avec FFmpeg sur ce Mac.") }
+        guard let executable = executable ?? self.executable("yt-dlp") else { throw TextIssue(message: "Les composants de téléchargement sont incomplets. Réinstalle EasyPaste pour les restaurer.") }
         let runner = BrowserMediaProcess()
         let worker = Task.detached(priority: .utility) { try runner.run(executable: executable, args: args, timeout: timeout) }
         return try await withTaskCancellationHandler(operation: { try await worker.value }, onCancel: { runner.stop(); worker.cancel() })
@@ -154,7 +155,8 @@ private final class BrowserMediaProcess: @unchecked Sendable {
         process.executableURL = executable; process.arguments = args
         process.standardInput = FileHandle.nullDevice; process.standardOutput = handle; process.standardError = handle
         var env = ProcessInfo.processInfo.environment
-        env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+        env["PATH"] = "/usr/bin:/bin"
+        for key in ["PYTHONHOME", "PYTHONPATH", "NODE_OPTIONS", "NODE_PATH"] { env.removeValue(forKey: key) }
         process.environment = env
         lock.lock()
         if cancelled || Task.isCancelled { lock.unlock(); throw CancellationError() }
@@ -179,7 +181,7 @@ private final class BrowserMediaProcess: @unchecked Sendable {
             if output.localizedCaseInsensitiveContains("requested format is not available") { throw TextIssue(message: "Le format demandé n’est pas disponible pour ce média.") }
             if output.localizedCaseInsensitiveContains("unsupported url") { throw TextIssue(message: "Ce site n’est pas pris en charge. Essaie un flux vidéo ou audio détecté dans l’extension.") }
             if output.localizedCaseInsensitiveContains("sign in") || output.contains("403") || output.contains("401") { throw TextIssue(message: "La source exige une connexion ou refuse l’accès. Les cookies du navigateur ne sont pas transmis.") }
-            throw TextIssue(message: "Le site n’a pas permis le téléchargement. Réessaie avec un flux détecté ou vérifie que le moteur yt-dlp est à jour.")
+            throw TextIssue(message: "Le site n’a pas permis le téléchargement. Réessaie avec un flux détecté ou vérifie qu’EasyPaste est à jour.")
         }
         return output
     }
@@ -248,7 +250,7 @@ private final class BrowserMediaProcess: @unchecked Sendable {
         defer { tasks[request.id] = nil; pump() }
         update(request.id, status: "Analyse de la source…", state: "preparing")
         do {
-            guard toolsAvailable() else { throw TextIssue(message: "Moteur absent : installe EasyMusic, ou yt-dlp et FFmpeg, puis relance le téléchargement.") }
+            guard toolsAvailable() else { throw TextIssue(message: "Les composants de téléchargement sont incomplets. Réinstalle EasyPaste pour les restaurer.") }
             let metadata = try await runner(BrowserMediaEngine.arguments(url: request.url, mode: nil), 90)
             let title = try BrowserMediaEngine.metadata(metadata, mode: request.mode)
             try Task.checkCancellation()
@@ -287,7 +289,7 @@ struct BrowserMediaDownloadsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Téléchargements web").font(.title2.bold())
-            Text("Vidéo MP4 · Audio MP3 · via yt-dlp").font(.callout).foregroundStyle(Theme.muted)
+            Text("Vidéo MP4 · Audio MP3").font(.callout).foregroundStyle(Theme.muted)
             if model.jobs.isEmpty { Text("Lance un téléchargement depuis l’extension EasyPaste · Web.").foregroundStyle(Theme.muted); Spacer() }
             else {
                 ScrollView {
