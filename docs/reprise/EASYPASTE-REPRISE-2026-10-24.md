@@ -1279,3 +1279,12 @@ L’utilisateur a explicitement demandé « tu peu publier », puis le changelog
 - ReleaseGitHub easypaste-v0.3.14 encore absente à la vérification initiale. Aucun flux public avancé.
 
 - Suite Release terminée : **404 tests,2 tests réseau optionnels ignorés,zéro échec**,64,38s. Archives Developer ID préparées sans notarisation tant que l’accord Apple reste en attente ; ne pas les distribuer dans cet état.
+
+### Archives prêtes, publication bloquée par l’accord Apple
+
+- Commit sources `8b63d34` poussé sur `codex/reprise-easypaste-2026-10-24`. Dépôt propre après commit.
+- Archives préparées dans `~/Library/Caches/EasyPaste-web-20261120/app/EasyPaste/dist/` : `EasyPaste-0.3.14.app`, DMG/ZIP universels, ZIP source et SHA256SUMS. Signature Developer ID app et DMG, build43, sommes de contrôle et présence des nouveaux fichiers dans les sources vérifiés. **Non notarisées, non publiées.** Log `release-0314-package.log`.
+- Le flux public vérifié annonce toujours **0.3.13(38)**. Aucune release0.3.14 créée ; ne pas dire aux utilisateurs de mettre à jour pour ce lot avant la suite.
+- Reprise après confirmation utilisateur de l’accord Apple : dans le staging interne, relancer `NOTARY_PROFILE=EasyShoot CODE_SIGN_IDENTITY='Developer ID Application: Les papas du code (WN9MHL56A9)' APP_BUNDLE_PATH=dist/EasyPaste-0.3.14.app ./scripts/package.sh`. Cela reconstruit au besoin, soumet le DMG, agrafe tickets au DMG et à l’app, régénère ZIP et SHA256SUMS. Ne pas garder les archives pré-notarisation avec les empreintes anciennes.
+- Après succès Apple, recopier app/DMG/ZIP/source/SHA256SUMS dans `app/EasyPaste/dist` du vrai dépôt (ROOT du script de publication doit être dans Git). `python3 scripts/publish-update.py --notes docs/RELEASE-0.3.14.md --publish` depuis app/EasyPaste ; il vérifie signature/notarisation, commit distant, téléchargement des assets et avance le flux signé. Vérifier ensuite le flux public octet pour octet et le DMG distant. Ne pas lancer deux builds simultanés sur le cache Swift partagé.
+- Changelog prêt dans `docs/RELEASE-0.3.14.md`. L’extension est embarquée et installable par le parcours guidé de l’app, sans publication Chrome Web Store. Le ZIP source contient aussi les fichiers de l’extension.
