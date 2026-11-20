@@ -6,6 +6,20 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyPaste</title>
         <item>
+            <title>0.3.15</title>
+            <pubDate>Fri, 20 Nov 2026 11:28:25 +0100</pubDate>
+            <sparkle:version>44</sparkle:version>
+            <sparkle:shortVersionString>0.3.15</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.15
+
+- **Téléchargements web prêts à l’emploi.** Les composants nécessaires sont désormais inclus dans EasyPaste. Depuis l’extension, choisissez une vidéo MP4 ou un fichier audio MP3 : aucun EasyMusic, Homebrew ou outil séparé à installer, aucune configuration supplémentaire.
+- Les moteurs sont mis à jour avec EasyPaste et fonctionnent sur Mac Intel et Apple Silicon. L’installation est plus volumineuse car elle les contient directement.
+- Le choix de qualité, le suivi du téléchargement, l’annulation et l’ouverture du fichier restent disponibles. La compatibilité dépend toujours du site et de l’accès au média ; les sources avec DRM, nécessitant des cookies ou les directs en cours restent exclus.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.15/EasyPaste-0.3.15-universal.dmg" length="146962992" type="application/octet-stream" sparkle:edSignature="jrQrysfQdbhqbrAz2TswA6OyufqvGczm5lLzNoxCqKdirWOsCM78PAA/ZzYAraiHCPIOtZEppaK1D29PnLiUAQ=="/>
+        </item>
+        <item>
             <title>0.3.14</title>
             <pubDate>Fri, 20 Nov 2026 11:10:03 +0100</pubDate>
             <sparkle:version>43</sparkle:version>
@@ -46,27 +60,9 @@ Validation : 361 tests automatiques réussis, dont les parcours Bitwarden de rep
 ]]></description>
             <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.13/EasyPaste-0.3.13-universal.dmg" length="12964843" type="application/octet-stream" sparkle:edSignature="arHuvA0D7dcpuBQgKsRW8QG1UUb/PegTUhnUMEEVnydupTLwXH5yZl2lBmecvGsYDs4tJhN84Y18HjjbHXGxBg=="/>
         </item>
-        <item>
-            <title>0.3.12</title>
-            <pubDate>Mon, 09 Nov 2026 15:58:35 +0100</pubDate>
-            <sparkle:version>37</sparkle:version>
-            <sparkle:shortVersionString>0.3.12</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.12
-
-- Le curseur de capture affiche une croix et des coordonnées, et reste visible au passage entre les écrans.
-- Une nouvelle copie ramène l’historique au début, même après une recherche. Une réouverture sans nouvelle copie conserve la sélection.
-- Les copies provenant d’un autre appareil Apple sont attendues lorsqu’elles arrivent avec du retard, sans bloquer l’interface.
-- Les photos reçues sous forme de fichiers peuvent être intégrées comme images, en pleine résolution, avec miniature et aperçu.
-- Si macOS protège le dossier de transfert, une autorisation ciblée est proposée dans Réglages → Confidentialité. Les fichiers d’origine restent conservés ; la récupération crée des copies image dans l’historique.
-
-Validation : 355 tests automatiques réussis, contrôle du retour au début de l’historique et essai réel d’une image copiée depuis la galerie iPhone, avec miniature et aperçu agrandi.
-]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.12/EasyPaste-0.3.12-universal.dmg" length="12978268" type="application/octet-stream" sparkle:edSignature="iI4mECIi/nl0IoeEovOK4eAM5Tsgq69FYtUUxkmwKU4cMLhKomXzc2zsvwE/PP9giRBtJOVHYyshUlF5/QFFDA=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: Q7iTjoatc7GxnBwbFCAtHLTt4yyKguXKvn3ijOtzEFoTgKWfhZT5AzmkPFqIfBrZfY0Y7WrVE6Th8QJ0YspqAw==
-length: 7724
+edSignature: ZNvDBuIqdRi5StARdMWVUI+s5jSwB5hgr/sOrLhPe12OKC0Zdt8IS55FBh5mHjvreEF/ghcJHClvKO85WZNNCQ==
+length: 7512
 -->
