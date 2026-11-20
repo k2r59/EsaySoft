@@ -240,6 +240,53 @@ import XCTest
         XCTAssertEqual(board.string(forType: .string), chosen.text)
     }
 
+
+    func testPastingSearchResultKeepsQueryOrderAndNeighborsWhenReopened() async throws {
+        history.prepareShelf(); try await settle()
+        history.query = "e"; try await settle()
+        let before = history.visible.map(\.id)
+        let chosen = try XCTUnwrap(history.visible.last)
+        history.select(chosen)
+        history.shelfDismissed(); history.surface = "library"
+        history.recordPaste([chosen], preserveShelf: true)
+        try await settle()
+        history.prepareShelf(); try await settle()
+        XCTAssertEqual(history.query, "e")
+        XCTAssertEqual(history.visible.map(\.id), before)
+        XCTAssertEqual(history.selected, chosen.id)
+        if before.count > 1 {
+            history.moveSelection(-1)
+            XCTAssertEqual(history.selected, before[before.count - 2])
+        }
+        history.prepareLibrary(); try await settle()
+        XCTAssertEqual(history.visible.first?.id, chosen.id, "Chronological library promotes the pasted item")
+    }
+    func testNewCopyClearsRememberedSearchEvenWhenPreviousPasteWasPromoted() async throws {
+        history.prepareShelf(); try await settle()
+        history.query = "Un"; try await settle()
+        let chosen = try XCTUnwrap(history.visible.first)
+        history.select(chosen); history.recordPaste([chosen], preserveShelf: true)
+        history.shelfDismissed(); history.surface = "library"
+        let fresh = makeClip("Nouveau contenu extérieur")
+        history.add(fresh); try await settle()
+        history.prepareShelf(); try await settle()
+        XCTAssertEqual(history.query, "")
+        XCTAssertEqual(history.visible.first?.id, fresh.id)
+        XCTAssertEqual(history.selected, fresh.id)
+    }
+    func testDelayedCopyAfterShelfOpensClearsTheOldQuery() async throws {
+        history.prepareShelf(); try await settle()
+        history.query = "Un"; try await settle()
+        history.select(try XCTUnwrap(history.visible.first))
+        history.shelfDismissed(); history.prepareShelf(); try await settle()
+        XCTAssertEqual(history.query, "Un")
+        let fresh = makeClip("Arrivée différée iPhone")
+        history.add(fresh); try await settle()
+        XCTAssertEqual(history.query, "")
+        XCTAssertEqual(history.visible.first?.id, fresh.id)
+        XCTAssertEqual(history.selected, fresh.id)
+    }
+
     private func settle() async throws {
         await history.flush()
         try await Task.sleep(for: .milliseconds(220))

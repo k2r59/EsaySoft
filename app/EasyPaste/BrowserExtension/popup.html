@@ -1,48 +1,44 @@
 <!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>EasyPaste · Web</title>
-  <link rel="stylesheet" href="popup.css">
-</head>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EasyPaste · Web</title><link rel="stylesheet" href="popup.css"></head>
 <body>
-  <header class="glass">
-    <img src="icons/icon48.png" width="36" height="36" alt="">
-    <div><h1>EasyPaste <span>Web</span></h1><p id="domain">Votre page, à emporter.</p></div>
-    <span class="local">Local</span>
-  </header>
-  <main>
-    <details id="page-card" class="card" open>
-      <summary class="section-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v14H5V3zM15 3v5h4M8 12h8M8 16h6"/></svg><h2 id="page-heading">Contenu de la page</h2></summary>
-      <p id="page-title" class="page-title">Lecture de l’onglet…</p>
-      <label class="field" for="scope">À copier</label>
-      <select id="scope" disabled>
-        <option value="page">Contenu principal</option>
-        <option value="selection" id="selection-option" disabled>Texte sélectionné</option>
-      </select>
-      <label class="check"><input id="attribution" type="checkbox" checked><span>Ajouter le lien de la source</span></label>
-      <button id="copy-page" class="primary" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></svg><span>Copier avec la mise en forme</span></button>
-      <p class="hint">Titres, listes, tableaux et liens. Sans scripts ni images distantes.</p>
-    </details>
-    <section id="youtube" class="card" aria-labelledby="youtube-heading" hidden>
-      <div class="section-label"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="4"/><path d="m10 9 5 3-5 3z"/></svg><h2 id="youtube-heading">Sous-titres YouTube</h2><span id="caption-count" class="badge"></span></div>
-      <p id="caption-info" class="hint">Recherche des pistes disponibles…</p>
-      <label class="field" for="track">Piste</label>
-      <select id="track" aria-describedby="caption-info"><option value="dom">Transcription affichée sur la page</option></select>
-      <label class="check"><input id="timestamps" type="checkbox"><span>Inclure les repères de temps</span></label>
-      <button id="copy-captions" class="primary" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M5 10h6m2 0h6M5 14h4m2 0h8"/></svg><span>Copier les sous-titres</span></button>
-      <button id="refresh" class="text-button">Actualiser les pistes</button>
-    </section>
-    <div id="feedback" role="status" aria-live="polite" aria-atomic="true"><span id="feedback-text">Ouvrez EasyPaste pour retrouver vos copies.</span></div>
-    <section id="mac-card" class="card mac-card" aria-labelledby="mac-heading" aria-busy="false">
-      <div class="section-label"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="13" rx="2"/><path d="M8 21h8m-4-5v5"/></svg><h2 id="mac-heading">Application Mac</h2></div>
-      <p id="mac-status" class="hint" role="status" aria-live="polite">Vérifiez le lien avec EasyPaste.</p>
-      <div class="mac-actions"><button id="connect-mac" class="secondary">Connecter</button><button id="disconnect-mac" class="secondary" hidden>Déconnecter</button></div>
-      <p id="mac-last-check" class="hint" hidden></p>
-    </section>
-  </main>
-  <footer>À la demande. Aucun historique de navigation collecté.</footer>
-  <script type="module" src="popup.js"></script>
-</body>
-</html>
+<header><img class="brand" src="icons/ribbon.png" alt="" width="44" height="44"><h1>EasyPaste</h1><button id="settings" class="icon-button" data-screen="settings" aria-label="Réglages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3 1-2h4l1 2 3 2 2-.2 2 3-1 2v4l1 2-2 3-2-.2-3 2-1 2h-4l-1-2-3-2-2 .2-2-3 1-2v-4l-1-2 2-3 2 .2z"/><circle cx="12" cy="12" r="3"/></svg></button></header>
+<main>
+<section id="home" class="screen" aria-label="Accueil">
+<div class="site-context"><span id="site-icon" class="site-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-6 6-6 12 0 18 6-6 6-12 0-18"/></svg></span><div><strong id="domain">Votre page web</strong><p id="page-title">Lecture de l’onglet…</p></div></div>
+<h2 class="home-title">Que voulez-vous récupérer ?</h2>
+<div class="actions">
+<button class="action-row" id="nav-page" data-screen="page" disabled><span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></svg></span><span class="action-copy"><strong>Copier la page</strong><span>Texte, images et mise en forme</span></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+<button class="action-row" id="nav-captions" data-screen="captions" disabled><span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M6 10h5m2 0h5M6 14h3m3 0h6"/></svg></span><span class="action-copy"><strong>Sous-titres</strong><span>Lire et copier la transcription</span><small id="caption-availability" class="badge">Recherche…</small></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+<button class="action-row" id="nav-download" data-screen="download" disabled><span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg></span><span class="action-copy"><strong>Télécharger</strong><span>La vidéo ou seulement l’audio</span></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+</div><p class="context-note">Les actions s’adaptent à la page ouverte.</p>
+</section>
+<section id="page-screen" class="screen" hidden><button class="back" data-screen="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6M8 12h13"/></svg>Retour</button><h2>Copier la page</h2><div id="page-card">
+<p class="hint">Retrouvez le contenu dans votre presse-papiers avec sa mise en forme.</p>
+<label class="field" for="scope">À copier</label><select id="scope" disabled><option value="page">Contenu principal</option><option value="selection" id="selection-option" disabled>Texte sélectionné</option></select>
+<label class="check"><input id="attribution" type="checkbox" checked><span>Ajouter le lien de la source</span></label>
+<p class="hint">Les images intégrées sont conservées. Les images distantes ne sont pas copiées.</p>
+<button id="copy-page" class="primary bottom-action" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></svg>Copier avec la mise en forme</button></div></section>
+<section id="captions-screen" class="screen" hidden><button class="back" data-screen="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6M8 12h13"/></svg>Retour</button><h2>Sous-titres</h2>
+<div id="youtube" hidden><label class="sr-only" for="track">Langue des sous-titres</label><select id="track" aria-describedby="caption-info"><option value="dom">Transcription YouTube</option></select>
+<p id="caption-info" class="hint" hidden></p><span id="caption-count" hidden></span>
+<label class="switch-row" for="timestamps"><span>Afficher les horodatages</span><input id="timestamps" type="checkbox" role="switch"></label>
+<div class="editor"><label for="transcript-text"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6zM13 6l5 5"/></svg>Texte modifiable</label><div id="transcript-preview" hidden><textarea id="transcript-text" maxlength="500000" spellcheck="false" placeholder="Chargement des sous-titres…"></textarea></div><button id="preview-captions" class="secondary">Charger l’aperçu</button></div>
+<p id="transcript-count" class="sr-only" aria-live="polite"></p>
+<button id="copy-captions" class="primary bottom-action" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></svg>Copier les sous-titres</button>
+<button id="refresh" class="text-button">Actualiser les langues</button>
+</div></section>
+<section id="download-screen" class="screen" hidden><button class="back" data-screen="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6M8 12h13"/></svg>Retour</button><h2>Télécharger</h2><div id="media-card" hidden>
+<div class="media-context"><img id="media-thumbnail" alt="" hidden referrerpolicy="no-referrer"><span id="media-placeholder" class="media-placeholder"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 3v18M17 3v18M3 8h4m-4 8h4M17 8h4m-4 8h4M7 12h10"/></svg></span><strong id="media-title">Média de la page</strong></div>
+<h3>Que souhaitez-vous enregistrer ?</h3>
+<div class="format-options" role="group" aria-label="Format du téléchargement"><button id="download-video" class="format" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 3v18M17 3v18M3 8h4m-4 8h4M17 8h4m-4 8h4M7 12h10"/></svg><strong>Vidéo</strong><span>MP4</span><i class="selected-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></i></button><button id="download-audio" class="format" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13M9 9l11-2"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="17" cy="16" rx="3" ry="2"/></svg><strong>Audio</strong><span>MP3</span><i class="selected-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></i></button></div>
+<div id="quality-row" class="quality-row"><label for="media-quality">Qualité</label><select id="media-quality"><option value="best">Meilleure disponible</option><option value="1080">1080p maximum</option><option value="720">720p maximum</option><option value="480">480p maximum</option></select></div>
+
+<div class="destination"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18V6H11L9 3H3zM3 9h18"/></svg><div><strong>Dossier Téléchargements</strong><p>Le téléchargement continue dans EasyPaste.</p></div></div>
+<button id="download-start" class="primary bottom-action" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><span>Télécharger la vidéo</span></button>
+<div id="download-progress" hidden role="status" aria-live="polite"><span class="progress-symbol"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg></span><div><strong id="download-state">Préparation…</strong><p id="media-status"></p></div><div id="progress-track"><span></span></div></div>
+</div></section>
+<section id="settings-screen" class="screen" hidden><button class="back" data-screen="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6M8 12h13"/></svg>Retour</button><h2>Réglages</h2><section id="mac-card" aria-busy="false"><h3>Connexion à EasyPaste</h3><p id="mac-status" class="hint" role="status" aria-live="polite">Vérifiez le lien avec EasyPaste.</p><div class="mac-actions"><button id="connect-mac" class="primary">Connecter</button><button id="disconnect-mac" class="secondary" hidden>Déconnecter</button></div><p id="mac-last-check" class="hint" hidden></p><p class="hint">Pour les téléchargements, préparez la connexion dans EasyPaste → Réglages → Intégrations.</p></section><details id="media-source-options" hidden><summary>Choisir un autre média</summary><label class="sr-only" for="media-source">Source du média</label><select id="media-source"></select></details><p class="privacy-note">À la demande. Aucun historique de navigation collecté.</p></section>
+<div id="feedback" role="status" aria-live="polite" aria-atomic="true" hidden><span id="feedback-text"></span></div>
+</main>
+<footer><button id="connection-status" data-screen="settings"><span class="status-dot"></span><strong id="connection-label">Connecter à EasyPaste</strong></button><span>Sur ce Mac</span></footer>
+<script type="module" src="popup.js"></script></body></html>

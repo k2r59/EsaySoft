@@ -37,6 +37,7 @@ import CryptoKit
     private lazy var previews = PreviewController(history: history)
     private lazy var colorSampler = ColorSamplerController(history: history)
     private lazy var bitwardenWindow = BitwardenWindowController(model: history.bitwarden)
+    private lazy var mediaDownloads = BrowserMediaDownloads()
     private var recordingStatus: NSStatusItem?
     override init() {
         if CommandLine.arguments.contains("--demo") || Bundle.main.object(forInfoDictionaryKey: "EasyPasteDemo") as? Bool == true {
@@ -59,7 +60,7 @@ import CryptoKit
         window.contentView = NSHostingView(rootView: MainView(history: history)); window.isReleasedWhenClosed = false
         window.center(); window.setFrameAutosaveName("EasyPasteLibrary")
         buildMenu(); registerHotkeys()
-        history.updates.busy = { [weak self] in self?.history.updateBusy ?? true }
+        history.updates.busy = { [weak self] in (self?.history.updateBusy ?? true) || (self?.mediaDownloads.active ?? false) }
         if demoDirectory == nil || Bundle.main.object(forInfoDictionaryKey: "EasyPasteUpdateQA") as? Bool == true {
             history.updates.start()
         }
@@ -88,7 +89,8 @@ import CryptoKit
         resignObserver = NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in Task { @MainActor in self?.closeShelf(restore: false) } }
         if demoDirectory != nil { fillDemo() }
         let loginLaunch = NSAppleEventManager.shared().currentAppleEvent?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
-        if !loginLaunch { revealShelf() }
+        if demoDirectory == nil { mediaDownloads.start() }
+        if !loginLaunch && !mediaDownloads.active { revealShelf() }
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
         if (history.captureBusy || history.recording), captures.revealActiveControls() { return false }
@@ -117,16 +119,24 @@ import CryptoKit
         }
         if history.annotating { annotations.requestClose(); if history.annotating { return .terminateCancel } }
         guard previews.requestClose() else { return .terminateCancel }
+        if mediaDownloads.active {
+            let alert = NSAlert(); alert.messageText = "Des téléchargements sont en cours."
+            alert.informativeText = "Quitter EasyPaste annule ces téléchargements. Les fichiers déjà terminés sont conservés."
+            alert.addButton(withTitle: "Continuer les téléchargements"); alert.addButton(withTitle: "Quitter et annuler")
+            if alert.runModal() != .alertSecondButtonReturn { mediaDownloads.show(); return .terminateCancel }
+        }
         history.stopMonitoring()
         // Flush queued atomic writes before exiting, without blocking the interface.
-        Task { await history.bitwarden.shutdown(); await history.flush(); if let demoDirectory { try? FileManager.default.removeItem(at: demoDirectory) }; NSApp.reply(toApplicationShouldTerminate: true) }
+        Task { await mediaDownloads.shutdown(); await history.bitwarden.shutdown(); await history.flush(); if let demoDirectory { try? FileManager.default.removeItem(at: demoDirectory) }; NSApp.reply(toApplicationShouldTerminate: true) }
         return .terminateLater
     }
+    @objc private func showMediaDownloads() { mediaDownloads.show() }
     private func buildMenu() {
         let main = NSMenu(); let root = NSMenuItem(); let appMenu = NSMenu(); root.submenu = appMenu; main.addItem(root)
         appMenu.addItem(withTitle: "À propos d’EasyPaste", action: #selector(about), keyEquivalent: "")
         appMenu.addItem(withTitle: "Réglages…", action: #selector(settings), keyEquivalent: ",")
         appMenu.addItem(withTitle: "Rechercher des mises à jour…", action: #selector(checkUpdates), keyEquivalent: "")
+        appMenu.addItem(withTitle: "Téléchargements web…", action: #selector(showMediaDownloads), keyEquivalent: "")
         appMenu.addItem(withTitle: "Arrêter la vidéo", action: #selector(stopVideo), keyEquivalent: "")
         appMenu.addItem(.separator()); appMenu.addItem(withTitle: "Quitter EasyPaste", action: #selector(quit), keyEquivalent: "q")
         for item in appMenu.items { item.target = self }
@@ -142,6 +152,7 @@ import CryptoKit
         let menu = NSMenu()
         menu.addItem(withTitle: "Barre rapide   ⇧⌘V", action: #selector(toggleShelf), keyEquivalent: "")
         menu.addItem(withTitle: "Ouvrir la bibliothèque…", action: #selector(showMain), keyEquivalent: "")
+        menu.addItem(withTitle: "Téléchargements web…", action: #selector(showMediaDownloads), keyEquivalent: "")
         let quickCapture = NSMenuItem(title: "Capturer une zone   ⌃⌥⌘C", action: #selector(captureFromMenu(_:)), keyEquivalent: "")
         quickCapture.tag = CaptureAction.area.rawValue; quickCapture.target = self
         quickCapture.image = NSImage(systemSymbolName: "viewfinder", accessibilityDescription: "Capturer une zone")
@@ -219,7 +230,7 @@ import CryptoKit
     @objc private func lockBitwarden() { history.bitwarden.lock() }
     @objc func showMain() {
         if (history.captureBusy || history.recording), captures.revealActiveControls() { return }
-        rememberTarget(); closeShelf(restore: false); history.surface = "library"; window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+        rememberTarget(); closeShelf(restore: false); history.surface = "library"; history.prepareLibrary(); window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
     }
     @objc func settings() { history.page = "settings"; showMain() }
     @objc func checkUpdates() {
@@ -312,7 +323,7 @@ import CryptoKit
         shelfSizer.cancel()
         shelf?.orderOut(nil)
         history.shelfPreview = nil
-        history.surface = "library"
+        history.surface = "library"; history.shelfDismissed()
         if restore { target?.activate(options: []) }
     }
     private func paste(_ clips: [Clip], plain: Bool) {
@@ -320,6 +331,7 @@ import CryptoKit
         let destination = target
         let renameContext = pasteRenameContext
         let fromStack = history.collection == "stack"
+        let fromShelf = history.surface == "shelf"
         Task {
             defer { isPasting = false }
             guard await history.copy(clips, plain: plain) else { return }
@@ -357,7 +369,7 @@ import CryptoKit
                 down.flags = flags; up.flags = flags
                 down.postToPid(destination.processIdentifier); up.postToPid(destination.processIdentifier)
             }
-            history.recordPaste(clips, plain: plain)
+            history.recordPaste(clips, plain: plain, preserveShelf: fromShelf)
             if fromStack { history.consumeStack(clips) }
             history.report(compatibility == .sheetsValues ? "Valeurs collées dans Google Sheets." : "Collé dans \(destination.localizedName ?? "l’application").")
         }

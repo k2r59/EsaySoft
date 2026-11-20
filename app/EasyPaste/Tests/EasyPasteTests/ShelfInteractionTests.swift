@@ -140,6 +140,48 @@ import XCTest
         }
     }
 
+    func testPastedSearchResultRetainsRealScrollOffsetAndAdjacentCards() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let suite = UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        let history = History(vault: try ClipVault(directory: directory, key: SymmetricKey(size: .bits256)), monitor: false, defaults: defaults)
+        let panel = ShelfPanel(contentRect: CGRect(x: 50, y: 50, width: 1120, height: 400), styleMask: .borderless, backing: .buffered, defer: false)
+        panel.isReleasedWhenClosed = false
+        defer { history.stopMonitoring(); panel.close(); defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: directory) }
+        for i in 0..<50 { history.add(makeClip("Thierry fixture \(i)")) }
+        history.prepareShelf()
+        try await Task.sleep(for: .milliseconds(200))
+        history.query = "Thierry"; history.surface = "shelf"
+        try await Task.sleep(for: .milliseconds(200))
+        let host = ShelfHosting.make(history: history)
+        panel.contentView = host; host.frame = CGRect(x: 0, y: 0, width: 1120, height: 400)
+        host.layoutSubtreeIfNeeded()
+        try await Task.sleep(for: .milliseconds(150))
+        func descendants(_ v: NSView) -> [NSView] { [v] + v.subviews.flatMap { descendants($0) } }
+        let scroll = try XCTUnwrap(descendants(host).compactMap { $0 as? ShelfWheelRoutingView }.first?.enclosingScrollView)
+        let order = history.visible.map(\.id), chosen = history.visible[20]
+        history.select(chosen)
+        try await Task.sleep(for: .milliseconds(150))
+        let offset = scroll.contentView.bounds.minX, generation = history.shelfScrollGeneration
+        XCTAssertGreaterThan(offset, 1000)
+        history.shelfDismissed(); history.surface = "library"
+        history.recordPaste([chosen], preserveShelf: true)
+        try await Task.sleep(for: .milliseconds(100))
+        history.prepareShelf()
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(history.query, "Thierry")
+        XCTAssertEqual(history.visible.map(\.id), order)
+        XCTAssertEqual(history.shelfScrollGeneration, generation)
+        XCTAssertEqual(scroll.contentView.bounds.minX, offset, accuracy: 1)
+        history.moveSelection(1)
+        XCTAssertEqual(history.selected, order[21])
+        history.add(makeClip("New external copy"))
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(history.query, "")
+        XCTAssertNotEqual(history.shelfScrollGeneration, generation)
+        await history.flush()
+    }
+
     private func checkWheelRouting(compact: Bool, expanded: Bool, units: CGScrollEventUnit = .pixel, yFraction: CGFloat = 0.5, shiftVertical: Bool = false, routeRow: Bool = false, routeShift: Bool = true) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let suite = "EasyPaste.scroll-routing." + UUID().uuidString

@@ -33,7 +33,7 @@ async function popup(content, url = "https://example.test/article", prepareSite 
   return { ui, site, writes };
 }
 async function idle(doc) {
-  for (let i = 0; i < 200 && doc.body.getAttribute("aria-busy") !== "false"; i++) await new Promise(resolve => setTimeout(resolve, 5));
+  for (let i = 0; i < 700 && doc.body.getAttribute("aria-busy") !== "false"; i++) await new Promise(resolve => setTimeout(resolve, 5));
   assert.equal(doc.body.getAttribute("aria-busy"), "false");
 }
 test("manifest has only explicit-invocation permissions, no hosts or background worker", () => {
@@ -94,7 +94,7 @@ test("YouTube without an available track or displayed transcript offers no false
   const { ui } = await popup('<main>Aucune piste</main>', "https://www.youtube.com/watch?v=abcdefghijk");
   assert.equal(ui.document.getElementById("youtube").hidden, false);
   assert.equal(ui.document.getElementById("copy-captions").disabled, true);
-  assert.equal(ui.document.getElementById("page-card").open, false);
+  assert.equal(ui.document.getElementById("captions-screen").hidden, true);
   assert.match(ui.document.getElementById("caption-info").textContent, /Aucune piste/);
 });
 
@@ -108,7 +108,7 @@ test("popup defaults to the native transcript and opens it before copying", asyn
   assert.equal(ui.document.getElementById("feedback").dataset.kind, "success");
 });
 
-test("one empty direct track falls back to native; multiple languages never silently substitute one", async () => {
+test("empty direct tracks never silently substitute the panel language", async () => {
   const content = '<div id="movie_player"></div><ytd-engagement-panel-section-list-renderer><transcript-segment-view-model><div class="ytwTranscriptSegmentViewModelTimestamp">0:02</div><span class="ytAttributedStringHost" role="text">Texte du panneau</span></transcript-segment-view-model></ytd-engagement-panel-section-list-renderer>';
   for (const count of [1, 2]) {
     const { ui, writes } = await popup(content, "https://www.youtube.com/watch?v=abcdefghijk", site => {
@@ -117,9 +117,54 @@ test("one empty direct track falls back to native; multiple languages never sile
     });
     ui.document.getElementById("track").value = "0";
     ui.document.getElementById("copy-captions").click(); await idle(ui.document);
-    assert.equal(writes.length, count === 1 ? 1 : 0);
-    assert.equal(ui.document.getElementById("feedback").dataset.kind, count === 1 ? "success" : "error");
-    if (count === 1) assert.match(await writes[0][0].data["text/plain"].text(), /Texte du panneau/);
-    else assert.match(ui.document.getElementById("feedback-text").textContent, /Transcription YouTube/);
+    assert.equal(writes.length, 0);
+    assert.equal(ui.document.getElementById("feedback").dataset.kind, "error");
+    assert.match(ui.document.getElementById("feedback-text").textContent, /Transcription YouTube/);
   }
+});
+
+test("preview is editable, copies edits, resets on track changes and guards navigation", async () => {
+  const { ui, site, writes } = await popup('<ytd-engagement-panel-section-list-renderer visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED" target-id="engagement-panel-searchable-transcript"></ytd-engagement-panel-section-list-renderer>', "https://www.youtube.com/watch?v=abcdefghijk", site => {
+    site.document.querySelector('ytd-engagement-panel-section-list-renderer').data = { content: [{ transcriptSegmentViewModel: { timestamp: '0:02', simpleText: 'Texte complet du modèle' } }] };
+  });
+  const el = id => ui.document.getElementById(id);
+  el('preview-captions').click(); await idle(ui.document);
+  assert.equal(writes.length, 0); assert.equal(el('transcript-preview').hidden, false);
+  assert.equal(el('transcript-text').value, 'Texte complet du modèle');
+  el('transcript-text').value = 'Mes modifications <script>texte seulement</script>';
+  el('transcript-text').dispatchEvent(new ui.dom.window.Event('input'));
+  el('copy-captions').click(); await idle(ui.document);
+  assert.equal(await writes[0][0].data['text/plain'].text(), 'Mes modifications <script>texte seulement</script>');
+  assert.doesNotMatch(await writes[0][0].data['text/html'].text(), /<script>/);
+  el('timestamps').checked = true; el('timestamps').dispatchEvent(new ui.dom.window.Event('change'));
+  assert.match(el('transcript-text').value, /^\[00:02\]/);
+  site.dom.reconfigure({ url: 'https://www.youtube.com/watch?v=XXXXXXXXXXX' });
+  el('copy-captions').click(); await idle(ui.document);
+  assert.equal(writes.length, 1); assert.equal(el('feedback').dataset.kind, 'error');
+  el('track').dispatchEvent(new ui.dom.window.Event('change'));
+  assert.equal(el('transcript-preview').hidden, true); assert.equal(el('transcript-text').value, '');
+});
+
+test('home opens one screen at a time and settings never hide copy controls permanently', async () => {
+  const { ui } = await popup('<article>Copier cette page</article>');
+  const el = id => ui.document.getElementById(id);
+  assert.equal(el('home').hidden, false);
+  el('nav-page').click();
+  assert.equal(el('home').hidden, true); assert.equal(el('page-screen').hidden, false);
+  el('settings').click(); assert.equal(el('page-screen').hidden, true); assert.equal(el('settings-screen').hidden, false);
+  ui.document.dispatchEvent(new ui.dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(el('home').hidden, false); assert.equal(el('settings-screen').hidden, true);
+  assert.equal(el('copy-page').disabled, false);
+});
+test('entering subtitles loads an editable preview without copying; primary action preserves edits', async () => {
+  const { ui, writes } = await popup('<ytd-engagement-panel-section-list-renderer visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED" target-id="engagement-panel-searchable-transcript"></ytd-engagement-panel-section-list-renderer>', 'https://www.youtube.com/watch?v=abcdefghijk', site => {
+    site.document.querySelector('ytd-engagement-panel-section-list-renderer').data = { content: [{ transcriptSegmentViewModel: { timestamp: '0:02', simpleText: 'Texte à modifier' } }] };
+  });
+  const el = id => ui.document.getElementById(id);
+  el('nav-captions').click(); await idle(ui.document);
+  assert.equal(el('captions-screen').hidden, false); assert.equal(el('transcript-text').value, 'Texte à modifier');
+  assert.equal(writes.length, 0);
+  el('transcript-text').value = 'Texte corrigé'; el('transcript-text').dispatchEvent(new ui.dom.window.Event('input'));
+  el('copy-captions').click(); await idle(ui.document);
+  assert.equal(await writes[0][0].data['text/plain'].text(), 'Texte corrigé');
 });

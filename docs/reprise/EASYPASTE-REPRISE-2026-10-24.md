@@ -1141,3 +1141,141 @@ Demandes : clic droit sur l’icône de barre des menus = ⇧⌘V ; améliorer l
 - Même code que la version locale testée : 361 tests réussis. Le clic physique et l’authentification système réels n’ont pas été contrôlés via l’outil Mac, indisponible ; ne pas prétendre le contraire.
 
 - Vérification finale : le flux public sans paramètre de cache annonce **0.3.13 /38**, correspond octet par octet au flux local signé et sa signature est valide. Le DMG retéléchargé depuis son URL publique a le SHA-256 attendu. Mise à jour publique disponible.
+
+
+## Reprise — 20 novembre 2026 : extension Web0.3.0 et interface validée
+
+### Demandes et limites
+
+Intégrer `/Users/k2r59/Library/Mobile Documents/com~apple~CloudDocs/youtube-sous-titres.zip`, tester, proposer l’installation depuis l’app, ajouter téléchargement vidéo/audio via yt-dlp au-delà deYouTube. L’utilisateur a ensuite rejeté l’ancien menu, validé une maquette imagegen à trois écrans, demandé un agent qualité jusqu’à10/10 et des états visibles pendant/après téléchargement. Travail local autorisé ; aucune nouvelle publication ni push pour ces changements. Version publique reste0.3.13(38), release.json inchangé.
+
+### Livré localement
+
+- `/Applications/EasyPaste.app` :0.3.14(39), binaire universel signé Developer ID Les papas du code(WN9MHL56A9), vérification codesign deep/strict passée. Non notarisation/publication.
+- Build interne : `/Users/k2r59/Library/Caches/EasyPaste-web-20261120/EasyPaste.app` ; staging sources `.../app/EasyPaste` ; cache Swift `/Users/k2r59/Library/Caches/EasyPaste-build` pour éviter les écritures massives sur SSD externe.
+- Sauvegarde avant dernier remplacement : `/Users/k2r59/Library/Caches/EasyPaste-local-install/backup-extension-ui-20261120-090511/EasyPaste.app`. Sauvegarde publique antérieure : `backup-web-20261120-083713/EasyPaste.app` dans le même dossier.
+- Extension0.3.0 chargée et rechargée dans Arc depuis `/Users/k2r59/Library/Application Support/EasyPaste/BrowserExtension/Extension`, ID stable `nmkechbpakkenabambdbpnaahhdlgpej`.
+- ZIP local à récupérer dans Downloads : `EasyPaste-Web-0.3.0.zip`. Décompresser puis charger le dossier contenant manifest.json. Pas de mise à jour automatique/Web Store.
+
+### Sources et comportement
+
+`app/EasyPaste/BrowserExtension/popup.html/css/js` : accueil trois actions, navigation Retour/Échap, sous-titres chargés automatiquement à l’entrée avec texte modifiable, copie de la valeur éditée, formatage horodatages, téléchargement Vidéo/Audio puis action explicite, qualité best/1080/720/480, statut natif réel et reprise du dernier job à la réouverture. Réglages contiennent connexion et sélection de flux alternatif. Le P utilise le logo ruban officiel transparent. Miniature YouTube autorisée uniquement depuis i.ytimg.com sans référent ; CSP sans connexions ni scripts distants. Permissions obligatoires identiques(activeTab/scripting/clipboardWrite), nativeMessaging facultatif.
+
+`src/youtube-archive.js` adapte le ZIP : requêtes anonymes watch/playerVISIONOS/timedtextJSON3, correspondance stricte langue/type, garde vidéo courante, budgets/délais. Lecture du modèle moderne du panneau de transcription avant repli au parcours DOM existant. `src/media.js` détecte éléments vidéo/audio, sources et métadonnées, laisse yt-dlp analyser la page, transmet sans cookies. Suivi `mediaStatus` par nonce/jobUUID, aucun chemin ou historique retourné. localStorage contient seulement id/mode/date24h. Les réglages vérifient automatiquement une autorisation native déjà accordée ; pas de nouvelle permission silencieuse.
+
+`BrowserMediaDownload.swift` : file UUID/génération/expiration, deux tâches simultanées, fenêtre native thémée, annulation, sorties séparées Downloads/EasyPaste, conservation des originaux, nettoyage seulement du dossier créé en cas d’échec. Statuts courts persistés0600 dans MediaStatus avec génération et durée24h. Lancement automatique de la fenêtre sans activation forcée afin de garder le popup ouvert. `BrowserExtensionBridge.swift` accepte media et mediaStatus en plus du hello existant, prépare l’extension et ouvre l’installation guidée. App.swift : démarrage file, menu Téléchargements web, fermeture contrôlée et Sparkle différé pendant une tâche.
+
+Moteurs : réutilise yt-dlp/ffmpeg/node d’EasyMusic installé ou Homebrew. Ils ne sont pas embarqués ni installés automatiquement par cette build EasyPaste. Sur ce Mac, `/Applications/EasyMusic.app/Contents/Resources/bin` fournit les outils. Limites : pas de cookies, DRM/directs/listes refusés,30min par tâche, limite yt-dlp2Go. MP4 remuxé, pas forcément H264 ; essai réel a produit AV1/Opus. Ne pas promettre tous les sites ou toutes les vidéos.
+
+### Validation
+
+81 tests extension réussis ; suite Mac373 tests, zéro échec ;11 tests médias relancés, y compris téléchargements réels MDN MP4 et YouTube MP4/MP3. Navigateur Chrome for Testing profil temporaire : extraction réelle de plusieurs langues, panneau natif, édition/copie et source HTML vérifiées. Test `tests/browser-smoke.mjs` et QA-0.3.0.md détaillent les résultats.
+
+Essai réel Arc → extension → application installée : vidéo courte `jNQXAC9IVRw`, choix format sans lancement intempestif, démarrage explicite, état en cours, terminé, fermeture/réouverture et reprise du suivi. Fichiers vérifiés ffprobe : Downloads/EasyPaste/0DFED04C-EFC5-466F-A944-BC18828CA633/media.mp4(19,014s,475974octets) et1FA309B8-8C52-43D5-A621-10000AF055ED/media.mp3(19,005s,331053octets). Tests laissent ces deux fichiers locaux.
+
+Logs/captures : `/Users/k2r59/Library/Caches/EasyPaste-extension-tests/` : redesign-tests.log, redesign-final-swift.log, redesign-media-final.log, redesign-browser.log, redesign-build-final.log, extension-home.png, extension-captions.png, extension-download.png.
+
+Agent extension_visual_qa :8→9→10/10 pour qualité visuelle/fonctionnelle après correction CTA coupé, fond, coins. Fidélité littérale imagegen9/10, pas pixelidentique. Maquette : `/Users/k2r59/.codex/generated_images/01a14376-9c8b-76c1-99c7-1d0e647b3263/exec-22f81294-fc18-4a1f-8f9e-d8968b689e55.png`. Captures QA : rendu du DOM réel dans une page séparée360×600 pour contourner la surface popupheadless498px ; interactions sur vrai popup. Header/footer répétés sont parfois omis visuellement par le lecteur d’images, mais présents dans les pixels : ne pas déboguer un faux bug.
+
+### Outils utiles pour poursuivre
+
+Contrôle Mac fonctionne via node_repl + @oai/sky. Lire skill computer-use. Cibler `/Applications/EasyPaste.app` (bundleID ambigu à cause des anciennes copies). Quitter via menu réellement ; raccourcis clavier de l’outil parfois erratiques. Arc `company.thebrowser.Browser`, menu Extensions → EasyPaste Web. `get_app_state` peut relancer une app quittée : utiliser pgrep pour vérifier l’arrêt avant remplacement. Ne pas lire/imprimer l’historique utilisateur pour de simples contrôles de fenêtre.
+
+Dépôt `/Volumes/EXT/Dev/EsaySoft-quality`, branche `codex/reprise-easypaste-2026-10-24`. Changements encore non commit/push. Aucune release produite. Pour publier plus tard, obtenir demande explicite, régler la distribution des moteurs sur les Macs sansEasyMusic, puis suivre pipeline signature/notarisation/release existant.
+
+## Reprise — 20 novembre 2026 : demandes de Thierry (travail local)
+
+L’utilisateur a demandé de traiter d’abord deux points : conserver le contexte de navigation après un collage depuis une recherche/une position ancienne, et ajouter la capture défilante au menu Capture. Il a confirmé « go », puis demandé de vérifier la compatibilité avec les demandes précédentes. Règle validée : collage depuis EasyPaste = garder recherche, sélection, voisins et défilement ; nouvelle copie externe, y compris iPhone = effacer les anciens filtres et revenir au plus récent. Pas de publication autorisée pour ce lot, pas de commit/push effectué.
+
+### Navigation / promotion
+
+- `History.prepareShelf()` conserve désormais le contexte, sauf nouvelle copie en attente. `shelfIsPresented` permet aussi de remettre les filtres à zéro lors d’une arrivée différée alors que la barre est déjà ouverte.
+- `App.paste` transmet `preserveShelf` uniquement après livraison réussie. `History.recordPaste` fige l’ordre courant des identifiants pour éviter qu’une promotion déplace les voisins pendant la navigation. Nouvelle copie, recherche/filtres explicitement changés et ouverture de la bibliothèque libèrent cet ordre.
+- Promotion chronologique calculée avec `PasteUsage.lastPasted` dans le petit index chiffré existant. Champ optionnel pour décoder les anciens compteurs. Aucune réécriture des fichiers de clips/images/vidéos lors d’un collage ; date de copie d’origine et empreinte conservées.
+- Ne pas revenir à l’implémentation initiale qui appelait `mutate` sur la date : les tests ont détecté les réécritures inutiles de tous les payloads. Le compteur reste indépendant de son option d’affichage et ne compte ni prévisualisation ni simple copie.
+- Tests ajoutés dans CardInteractionTests, PasteUsageTests et ShelfInteractionTests, dont mesure du vrai NSScrollView après recherche/collage/réouverture, puis nouvelle copie et reset. Les tests du défilement entre tuiles restent inchangés et passent.
+
+### Capture défilante
+
+- `CaptureAction.scrolling` ajouté à la fin de l’énumération, sans changer les anciens tags/raccourcis. Menus de l’application et de la barre rapide partagent cette énumération.
+- `ScrollingCapture.swift` : assemblage vertical local, screenshots ScreenCaptureKit natifs, analyse de luminance réduite horizontalement mais conservant chaque pixel vertical, deux images stables avant ajout, recherche de chevauchement et rejet des raccords ambigus. Les fragments exportés restent à résolution native ; les captures synthétiques sont reconstituées pixel pour pixel.
+- Sélection manuelle du contenu sur un écran/dans une fenêtre, puis défilement manuel vers le bas. Exclure les en-têtes fixes et la barre de défilement. Il faut conserver au moins un quart de chevauchement, avec un minimum de 80 pixels. Si défilement trop rapide, retour vers le haut ou répétition ambiguë : message explicite, aucun ajout erroné volontaire. Revenir au dernier passage puis défiler moins vite pour reprendre.
+- Petit panneau flottant thémé : nombre de passages, dimensions, message, Annuler/Terminer. Panneau placé hors sélection si place disponible ; propre application exclue du filtre. Limites 50 MP, 30 000 pixels de hauteur, 100 fragments, 5 minutes. Aperçu final avant Enregistrer et copier / Annoter. Sauvegarde crée toujours une nouvelle image ; limite habituelle PNG 20 Mo conservée.
+- Deux problèmes découverts en essai installé et corrigés : ne pas reprendre l’ancienne destination de collage pour déterminer l’app à capturer (identifier la fenêtre réellement sous la zone sélectionnée) ; autoriser le défilement d’une fenêtre inactive, y compris lorsque l’utilisateur travaille sur un autre écran. `ScrollCaptureVisibility` inspecte l’ordre des fenêtres : les propres contrôles sont exclus, les fenêtres sur un autre écran ne bloquent pas, une fenêtre tierce opaque recouvrant la zone suspend la capture. Une fenêtre source déplacée suspend également la capture. Changement de configuration d’écran => arrêt avec erreur.
+
+### Validation et builds
+
+- Suite complète : 386 tests, 0 échec, 2 tests médias réseau optionnels ignorés (déjà testés lors du lot extension). Log `~/Library/Caches/EasyPaste-extension-tests/thierry-full.log`.
+- Après corrections du ciblage/focus : 9 tests ScrollingCaptureTests passent, incluant texte Retina, raccords pixel exacts, stabilité, retour en arrière, raccord absent/récupération, images uniformes/répétitives, limite mémoire, tags et focus. Log `thierry-capture-final.log`. La suite complète comptait 8 de ces tests ; le test focus ajouté ensuite porte le total attendu à 387.
+- Build privé universel 0.3.14(40), signé Developer ID, même staging interne que l’extension. Attention : `.build` du staging est un lien vers `/Users/k2r59/Library/Caches/EasyPaste-build`. Ne jamais lancer build release et swift test en parallèle : même base XCBuild ! Une tentative concurrente a échoué proprement (base verrouillée), puis relancée séquentiellement.
+- Sauvegarde avant remplacement : `/Users/k2r59/Library/Caches/EasyPaste-local-install/backup-thierry-20261120-093538/EasyPaste.app` (version privée précédente avec extension).
+- Fixture UI sans données utilisateur : `~/Library/Caches/EasyPaste-extension-tests/scroll-fixture.html`, ouverte dans Arc. Premier essai a créé une capture 780 × 900 px pendant une intervention utilisateur ; ne pas le présenter comme preuve d’assemblage multi-passage. Contrôle final multi-passage à consigner ci-dessous après réussite.
+
+### Incident de test signalé par l’utilisateur
+
+L’utilisateur a signalé un plantage du Mac puis demandé de terminer la validation. Inspection en lecture seule : pas de nouveau rapport EasyPaste/panic ni redémarrage récent ; un rapport ancien WindowServer CPU (08:38–08:41) mentionne Arc et SkyComputerUseService, sans action prise. Il ne prouve pas la cause du blocage récent. Mémoire système libre annoncée 77 %, EasyPaste environ 160–180 Mo RSS et 0–1 % CPU lors des mesures sur petite zone. Ne pas affirmer que la cause du plantage est identifiée.
+
+Point crucial pour les tests CUA : `get_app_state` peut montrer Arc en arrière-plan ; les touches ciblées le font défiler sans le passer au premier plan. Un aperçu a révélé que nous capturions Codex, et ses nouveaux messages faisaient évidemment échouer le raccord. Ce n’était pas une preuve d’échec de l’algorithme sur Arc. Une comparaison de deux screenshots Arc fournis par Sky, rognés au contenu de test dans un script diagnostique, détecte correctement le décalage réel de 40 pixels (score ~0,05).
+
+Méthode CUA validée pour activer réellement Arc : Finder > Aller > Applications, trouver `/Applications/Arc.app/` dans AX et `perform_secondary_action` « Ouvrir un élément du Finder ». Cela appelle LaunchServices et le processus actif devient bien Arc. `Raise` seul ne l’activait pas. Dock via CUA timeout ; ne pas insister. `press_key Down` avec `duration: 0.05` fait un petit cran de 40 pixels ; les touches longues peuvent faire sauter trop loin. Ne jamais réutiliser d’indices AX sans relire l’état.
+
+- Validation finale après politique de visibilité : **388 tests, 2 tests réseau optionnels ignorés, zéro échec**, suite complète `thierry-full-final.log`. La sélection au clavier, le défilement entre les tuiles, la stabilité verticale de la barre, les compteurs et les captures existantes restent couverts.
+
+### Validation reprise après signalement du blocage — 20 novembre, matin
+
+- Suite complète relancée : **389 tests, 2 tests médias réseau optionnels ignorés, zéro échec** (`thierry-validation-final.log`). Cela précède les deux derniers correctifs ci-dessous ; leurs tests ciblés passent également (12 ScrollingCaptureTests, `thierry-controls-tests.log`).
+- Faux obstacle Dock : fenêtre transparente plein écran au niveau dockWindow, alpha déclaré 1. Ignorer uniquement cette fenêtre système identifiée par bundle et géométrie ; les vraies fenêtres recouvrantes suspendent toujours la capture.
+- Repère CUA : une fenêtre « Software Cursor » reste au point de départ du drag. Après sélection, cliquer dans une partie du panneau de commande située hors de la sélection éloigne le repère et permet le premier passage. Ne pas ignorer ce repère dans le code produit : il apparaît réellement dans les pixels capturés.
+- Le menu Capturer de la barre rapide entrait dans une boucle NSMenu synchrone pendant AXPress. Sample du processus montre cette attente, pas une saturation CPU ni une preuve de plantage du Mac. `openMenu` programme désormais la présentation au prochain passage de la file principale, permettant au client d’accessibilité de lire et choisir les éléments. Vérifié via Sky : menu lisible, Capture défilante sélectionnable.
+- **Cause réelle du raccord manqué trouvée dans les pixels ScreenCaptureKit** : le panneau EasyPaste était capturé dans sa propre zone. SCShareableContent interrogé avant sa présentation n’incluait pas toujours l’application LSUIElement masquée : le tableau des apps exclues était vide. En outre, la position était calculée avec la taille initiale nulle de NSHostingView, avant son layout.
+- Correctif : layout + fittingSize du panneau avant positionnement ; message à hauteur stable ; renouveler SCShareableContent après affichage du panneau et exiger la présence de l’application à exclure. Helper de placement testé sur plusieurs coordonnées/écrans. Aucun assouplissement des seuils de raccord pour masquer le problème.
+- Diagnostic temporaire écrit uniquement dans le staging interne, jamais dans le dépôt : deux images de la fixture locale (`scroll-native-a.png`, `scroll-native-b.png`) ont montré le panneau et sa barre de titre en bas à droite. Staging restauré depuis les sources propres avant reconstruction `thierry-clean-build.log`. Aucune collecte diagnostique d’images ne doit rester dans le binaire final.
+- macOS répond toujours ; l’ancienne capture a été annulée. Attendre validation installée multi-passage du build propre pour considérer la capture prête. Pas de publication ni push.
+
+### Résultat final vérifié — 20 novembre, 10 h 30 environ
+
+- Build propre privé **0.3.14 (40)** installé dans `/Applications/EasyPaste.app`, signé universel Developer ID ; vérification profonde stricte réussie. Les diagnostics temporaires sont absents des sources du dépôt et du staging, vérifiés par recherche avant installation. Version publique toujours 0.3.13 (38), release.json inchangé ; aucun push/publication.
+- **Suite complète finale : 390 tests, 2 tests médias réseau optionnels ignorés, zéro échec**, 73,8 s, log `~/Library/Caches/EasyPaste-extension-tests/thierry-final-clean-tests.log`. Ces tests portent sur les sources propres avec exclusion et placement corrigés.
+- **Essai réel réussi dans Arc** : pour empêcher Codex de recouvrir le document entre les appels du contrôleur, déplacer Arc avec Window > Déplacer et redimensionner > Droite (fenêtre x2560,y30,w2560,h1320), puis sélectionner x3612,y230,w620,h670. Le contrôle est réellement hors zone à y912, taille 410×170. Après sélection, clic de test dans la marge gauche du panneau (x10,y110 relatifs) éloigne le Software Cursor de Sky sans action sur les boutons.
+- Progression mesurée : 1 passage 620×670 ; deux déplacements de 40 px => 620×710, 620×750 ; troisième => 620×790 ; deux groupes de quatre Down courts => 620×950, 620×1110. Retour Up40 : aucune image ajoutée, état 6 passages et hauteur1110 conservés. Retour Down80 : reprise correcte, 7 passages, 620×1150. Chaque touche Down/Up utilise duration0.05 ; attendre l’état stable entre groupes.
+- Terminer ouvre l’aperçu, vérifié visuellement. Enregistrer et copier crée une nouvelle tuile et affiche « Capture défilante copiée ». Presse-papiers PNG **620×1150,192976octets**, exporté en preuve locale sans données utilisateur : `~/Library/Caches/EasyPaste-extension-tests/scroll-final-proof.png`. Inspection de l’image entière : passages02,03,04,05 continus, pas de panneau/ombre EasyPaste, pas de ligne doublée/manquante visible.
+- Clic œil sur la nouvelle tuile ouvre l’aperçu avec bonnes dimensions et actions Annoter/Copier/Coller. Capture/annulation/relancement également exercés lors des essais. Arc remis dans sa disposition initiale avec Window > Rétablir la taille précédente.
+- Limites à communiquer : capture verticale manuelle d’une zone d’une seule fenêtre/écran, chevauchement requis, éviter les en-têtes fixes. Ne pas présenter comme test exhaustif de tous sites/écrans. Cause du blocage du Mac signalé par l’utilisateur toujours non démontrée ; les deux bugs locaux établis et corrigés sont le menu AX synchrone et l’auto-capture des commandes.
+
+## Reprise — 20 novembre 2026 : demande OCR de Clotou
+
+L’utilisateur a présenté la capture Slack : extraction d’une liste de fiches qui perd les groupes et déplace des petits libellés (Expedia, Stripe card) sur des lignes indépendantes. Travail local uniquement, sans publication pour ce lot.
+
+- Cause : `ImageText.recognize` concaténait simplement les observations Vision avec `\n`, sans leurs coordonnées. Aucun regroupement des fragments d’une même ligne, aucun saut entre blocs.
+- Ajout `Sources/EasyPaste/RecognizedTextLayout.swift` : coordonnées en pixels, origine basse, regroupement par recouvrement vertical et centres, ordre haut-bas/gauche-droite, tolérance aux petits badges ; taille médiane pour ne pas fusionner deux lignes via un gros titre. Espaces entre voisins proches, tabulations entre cellules éloignées, retraits bornés ; séparation de paragraphes selon les écarts verticaux et l’interligne observé. Ne recrée ni mots absents ni typographie originale.
+- `ImageText.swift` fournit les boîtes Vision à cette reconstruction. Configuration de reconnaissance inchangée (locale Vision français/anglais, accurate, correction linguistique désactivée, orientation et vignette2600px). Cela s’applique à la capture texte et à l’indexation OCR des nouvelles images ; pas de réécriture/réindexation massive de l’ancien historique.
+- 10 tests `ImageTextLayoutTests` : badge/date dans l’ordre, inversion d’observations, séparation des fiches, interligne normal/double, colonnes par tabulations, tailles de police différentes, retraits/listes, grands espaces/boîtes invalides, invariance à l’échelle, **vraie reconnaissance Vision** d’une image générée de trois fiches (quatre lignes par fiche, petits badges correctement réunis aux dates/statuts).
+- Test existant `CaptureHistoryTests.testOCRIsImmediatelySearchableAndCopyable` renforcé : copie exacte des tabulations, lignes vides et retraits dans un presse-papiers isolé, recherche toujours fonctionnelle.
+- Suite complète : **400 tests, 2 tests médias réseau optionnels ignorés, zéro échec** (66,98s), `~/Library/Caches/EasyPaste-extension-tests/clotou-full-tests.log`. Test OCR copie renforcé ensuite relancé seul : succès (`clotou-copy-tests.log`). Tests ciblés : `clotou-ocr-tests.log`.
+- Comparaison complémentaire sur le document de droite de la capture Slack fournie (198×388px) via Vision local : seulement20 fragments reconnus à cette très faible résolution, reconstruction7blocs au lieu des6fiches car une ligne non reconnue laisse un grand blanc. Ne pas prétendre avoir récupéré tous les caractères de cette miniature. Les tests réels haute résolution de trois fiches passent ; l’algorithme n’invente pas les lignes illisibles. Résultats privés dans le cache `clotou-reference-before.txt`/`clotou-reference-after.txt`, ne pas committer ces données.
+- Build privé propre0.3.14(41) en préparation, signature universelle Developer ID, staging/cache interne identiques aux lots précédents. Log `clotou-build.log`. La version publique reste0.3.13(38), release.json inchangé, aucune publication/push.
+
+### Précision utilisateur : texte + HTML par défaut
+
+Après installation locale du premier correctif OCR0.3.14(41), l’utilisateur demande de proposer HTML/texte ou de préparer les deux par défaut. Choix annoncé et implémenté : **deux représentations dans un seul élément du presse-papiers**, sans étape supplémentaire ; les commandes existantes Copier en texte brut / Coller sans mise en forme forcent toujours le texte seul.
+
+- `RecognizedTextLayout.Document` contient `text` et `html`. Le HTML reconstruit une grille de colonnes communes à partir des coordonnées reconnues (table de présentation, colspan, lignes d’espacement entre groupes, retraits). Polices génériques et taille14px ; ce n’est pas le HTML original d’une page web. Aucune URL, image, script ni balise détectée n’est exécutée : tout texte OCR est échappé, le document est autonome. Nombre de colonnes borné64 ; sinon repli pre avec texte échappé. Largeurs bornées1200px/cellule.
+- `ImageText.recognizeDocument` effectue une seule reconnaissance et fournit les deux formats ; `recognize`/indexation d’images garde le texte seul sans fabriquer de HTML inutilement.
+- CaptureController passe le Document à `saveOCR(text,html:sourceURL:)`. Celui-ci stocke UTF8 string + public.html dans le même ClipPayload chiffré ; repli HTMLpre quand appelé uniquement avec du texte ; limite combinée20Mo. Même tuile, même sourceURL, aucun doublon ni hausse du compteur sur simple copie. Les anciennes captures ne sont pas réécrites.
+- Les actions existantes `Copier en texte brut` et `Coller sans mise en forme` restent inchangées. Le choix automatique du format final appartient à l’application de destination ; aucune prétention à forcer le rendu HTML dans un éditeur de texte brut.
+- 16 tests ciblés passent : 13 ImageTextLayoutTests +3 CaptureHistoryTests. Ajouts : grilleHTML/colspan/espacement, échappement de scripts et images, absenceHTML pour indexation, import effectif du HTML via NSAttributedString macOS après vraie OCRVision, coexistence des deux formats dans NSPasteboard, texte seul retireHTML puis copie normale le rétablit, sourceURL et compteur conservés.
+- Logs : `clotou-dual-format-tests.log`, suite complète `clotou-dual-full-tests.log`, build universel signé `clotou-dual-build.log`. Build local0.3.14(42) en préparation ; pas de publication ni push.
+
+- Suite finale HTML+texte terminée : **404 tests,2 tests réseau optionnels ignorés,zéro échec**,69,53s (`clotou-dual-full-tests.log`). Sauvegarde du build local précédent41 : `~/Library/Caches/EasyPaste-local-install/backup-before-ocr-html-20261120/EasyPaste.app`.
+
+- Installation locale finale terminée : **0.3.14(42)** dans `/Applications/EasyPaste.app`, signature profonde stricte vérifiée, relance réussie et commande Extraire le texte visible. Ancienne instance sans fenêtre active arrêtée avant remplacement. Capture texte prépare désormais HTML+texte par défaut ; pas de release/push.
+
+## Publication 0.3.14 demandée — 20 novembre 2026
+
+L’utilisateur a explicitement demandé « tu peu publier », puis le changelog. Préparation de la version stable0.3.14, build43 (supérieur au build local42), incluant l’extension0.3.0, navigation historique, capture défilante, OCRstructuré et double formatHTML/texte. Notes publiques `app/EasyPaste/docs/RELEASE-0.3.14.md`. Dépendances de téléchargement clairement documentées : EasyMusic ou yt-dlp/FFmpeg ; pas d’embarquement automatique des moteurs.
+
+- 81 tests extension réussis (`release-0314-extension-tests.log`). Suite Mac Release demandée par UPDATES.md en cours (`release-0314-tests.log`) ; dernière suite Debug404tests sans échec,2réseau ignorés.
+- **Blocage externe Apple** : `xcrun notarytool history --keychain-profile EasyShoot` renvoie403 « A required agreement is missing or has expired ». Accord du programme développeur à accepter par le titulaire du compte de l’équipe. Question envoyée à l’utilisateur ; ne pas publier ni contourner la notarisation tant que cet accord n’est pas validé. Ce refus vient d’Apple, pas du contrôle d’approbation Codex.
+- ReleaseGitHub easypaste-v0.3.14 encore absente à la vérification initiale. Aucun flux public avancé.
+
+- Suite Release terminée : **404 tests,2 tests réseau optionnels ignorés,zéro échec**,64,38s. Archives Developer ID préparées sans notarisation tant que l’accord Apple reste en attente ; ne pas les distribuer dans cet état.

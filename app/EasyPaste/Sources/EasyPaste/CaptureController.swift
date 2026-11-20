@@ -4,9 +4,9 @@ import ScreenCaptureKit
 import AVFoundation
 
 enum CaptureAction: Int, CaseIterable {
-    case area, window, screen, text, video
-    var title: String { switch self { case .area: "Capturer une zone"; case .window: "Capturer une fenêtre"; case .screen: "Capturer l’écran"; case .text: "Extraire le texte d’une zone"; case .video: "Enregistrer une vidéo…" } }
-    var icon: String { switch self { case .area: "viewfinder"; case .window: "macwindow"; case .screen: "display"; case .text: "text.viewfinder"; case .video: "record.circle" } }
+    case area, window, screen, text, video, scrolling
+    var title: String { switch self { case .area: "Capturer une zone"; case .window: "Capturer une fenêtre"; case .screen: "Capturer l’écran"; case .text: "Extraire le texte d’une zone"; case .video: "Enregistrer une vidéo…"; case .scrolling: "Capture défilante…" } }
+    var icon: String { switch self { case .area: "viewfinder"; case .window: "macwindow"; case .screen: "display"; case .text: "text.viewfinder"; case .video: "record.circle"; case .scrolling: "arrow.down.square" } }
 }
 struct CaptureMenu: View {
     @ThemePalette private var palette
@@ -68,6 +68,11 @@ private struct ShelfCaptureButton: NSViewRepresentable {
             super.draw(dirtyRect)
         }
         @objc func openMenu() {
+            // Return from the accessibility press before entering AppKit's
+            // nested menu loop, so assistive clients can read/select its items.
+            DispatchQueue.main.async { [weak self] in self?.presentCaptureMenu() }
+        }
+        private func presentCaptureMenu() {
             guard let history else { return }
             let menu = NSMenu(); menu.autoenablesItems = false
             for capture in CaptureAction.allCases {
@@ -102,6 +107,7 @@ private struct ShelfCaptureButton: NSViewRepresentable {
     private var task: Task<Void, Never>?
     private var ticker: Timer?
     private var started: Date?
+    private var scrollFinishRequested = false
     private var currentAction: CaptureAction?
     private var operation: UUID?
     var hideApp: (() -> Void)?
@@ -132,6 +138,9 @@ private struct ShelfCaptureButton: NSViewRepresentable {
         if !CGPreflightScreenCaptureAccess() { showPermission(action); return }
         if action == .video {
             present(RecordingSetupView(stopShortcut: history.shortcuts[.stop].display, cancel: { [weak self] in self?.cancel() }, start: { [weak self] options in self?.beginVideo(options) }), title: "Enregistrer une vidéo")
+        } else if action == .scrolling {
+            scrollFinishRequested = false
+            task = Task { [weak self] in await self?.captureScrolling(id: id) }
         } else {
             task = Task { [weak self] in await self?.captureImage(action, id: id) }
         }
@@ -193,7 +202,7 @@ private struct ShelfCaptureButton: NSViewRepresentable {
                         let quartzScreen = Self.quartzRect(screen.frame)
                         return CGRect(x: candidate.frame.minX-screen.frame.minX, y: screen.frame.height-(candidate.frame.maxY-quartzScreen.minY), width: candidate.frame.width, height: candidate.frame.height)
                     }
-                } else { view.instruction = currentAction == .text ? "Encadre le texte à copier · Échap pour annuler" : "Glisse pour sélectionner une zone · Échap pour annuler" }
+                } else { view.instruction = currentAction == .scrolling ? "Encadre le contenu à défiler, sans en-tête fixe ni barre de défilement · Échap pour annuler" : currentAction == .text ? "Encadre le texte à copier · Échap pour annuler" : "Glisse pour sélectionner une zone · Échap pour annuler" }
                 view.done = { [weak self] rect in
                     let result = rect.map { Self.quartzRect($0.offsetBy(dx: screen.frame.minX, dy: screen.frame.minY)) }
                     self?.finishSelection(result)
@@ -256,15 +265,118 @@ private struct ShelfCaptureButton: NSViewRepresentable {
             try Task.checkCancellation()
             let clip: Clip
             if action == .text {
-                let text = try await Task.detached(priority: .userInitiated) { try ImageText.recognize(data) }.value
+                let document = try await Task.detached(priority: .userInitiated) { try ImageText.recognizeDocument(data) }.value
                 try Task.checkCancellation(); guard operation == id else { return }
-                clip = try await history.saveOCR(text, sourceURL: sourceURL)
+                clip = try await history.saveOCR(document.text, html: document.html, sourceURL: sourceURL)
             } else { clip = try await history.saveImage(data, sourceURL: sourceURL) }
             history.sounds.play(.capture)
             let copied = await history.copy([clip], sound: nil); showResult?()
             history.report(copied ? (action == .text ? "Texte copié · ⌘V pour coller" : "Capture copiée · ⌘V pour coller") : "Capture enregistrée dans l’historique.")
         } catch is CancellationError { if operation == id { showResult?() } }
         catch { if operation == id { showResult?(); history.report(error.localizedDescription) } }
+    }
+    private func captureScrolling(id: UUID) async {
+        hideApp?()
+        do {
+            guard let area = await select() else { if operation == id { cancel() }; return }
+            try Task.checkCancellation(); guard operation == id else { return }
+            let content = try await CaptureImage.content()
+            let order = (CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []).compactMap { $0[kCGWindowNumber as String] as? UInt32 }
+            let byID = Dictionary(uniqueKeysWithValues: content.windows.map { ($0.windowID, $0) })
+            guard let window = order.compactMap({ byID[$0] }).first(where: {
+                $0.windowLayer == 0 && $0.owningApplication?.processID != ProcessInfo.processInfo.processIdentifier && $0.frame.contains(area)
+            }), let originPID = window.owningApplication?.processID,
+            let origin = NSRunningApplication(processIdentifier: originPID) else {
+                throw CaptureFailure.message("Sélectionne une zone de contenu à l’intérieur d’une seule fenêtre.")
+            }
+            let assembler = ScrollAssembler()
+            let model = ScrollingCaptureModel()
+            present(ScrollingCaptureControls(model: model, cancel: { [weak self] in self?.cancel() }, finish: { [weak self] in
+                model.finishing = true; model.message = "Assemblage de l’aperçu…"
+                self?.scrollFinishRequested = true
+            }), title: "Capture défilante")
+            // Keep controls outside the selected content whenever there is room.
+            if let panel, let screen = NSScreen.screens.first(where: { Self.quartzRect($0.frame).contains(area) }) {
+                panel.contentView?.layoutSubtreeIfNeeded()
+                if let size = panel.contentView?.fittingSize, size.width > 0, size.height > 0 {
+                    panel.setContentSize(size)
+                }
+                let zone = Self.quartzRect(area), bounds = screen.visibleFrame
+                let size = panel.frame.size
+                panel.setFrameOrigin(ScrollCaptureControlsLayout.frame(zone: zone, bounds: bounds, size: size).origin)
+            }
+            // A hidden LSUIElement may be absent from SCShareableContent.
+            // Refresh after the controls exist, otherwise the exclusion is empty
+            // and their stationary pixels contaminate every scrolling frame.
+            let capture = try ScrollRegionCapture(area: area, content: await CaptureImage.content())
+            try Task.checkCancellation(); guard operation == id else { return }
+            origin.activate(options: [])
+            let deadline = Date().addingTimeInterval(300)
+            while operation == id && !scrollFinishRequested && Date() < deadline {
+                try Task.checkCancellation()
+                let visibleWindows = (CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []).compactMap { entry -> ScrollCaptureVisibility.Window? in
+                    guard let id = entry[kCGWindowNumber as String] as? CGWindowID,
+                          let pid = entry[kCGWindowOwnerPID as String] as? pid_t,
+                          let rawBounds = entry[kCGWindowBounds as String] as? [String: Any],
+                          let bounds = CGRect(dictionaryRepresentation: rawBounds as CFDictionary) else { return nil }
+                    // Dock's desktop overlay has alpha=1 and full-display bounds,
+                    // despite transparent pixels. It does not obscure app content.
+                    let desktopOverlay = (entry[kCGWindowLayer as String] as? Int) == Int(CGWindowLevelForKey(.dockWindow))
+                        && bounds.contains(window.frame)
+                        && NSRunningApplication(processIdentifier: pid)?.bundleIdentifier == "com.apple.dock"
+                    return .init(id: id, pid: pid, bounds: bounds,
+                        alpha: entry[kCGWindowAlpha as String] as? Double ?? 1, desktopOverlay: desktopOverlay)
+                }
+                if visibleWindows.first(where: { $0.id == window.windowID })?.bounds != window.frame {
+                    model.message = "La fenêtre a bougé. Replace-la ou termine avec les passages déjà capturés."
+                } else if !ScrollCaptureVisibility.permits(area: area, source: window.windowID,
+                        own: ProcessInfo.processInfo.processIdentifier, windows: visibleWindows) {
+                    model.message = "La zone est recouverte. Dégage-la pour reprendre la capture."
+                } else {
+                    let image = try await capture.image()
+                    try Task.checkCancellation(); guard operation == id else { return }
+                    let result = try await assembler.consume(image)
+                    model.sections = result.sections
+                    model.dimensions = result.sections == 0 ? "" : "\(result.width) × \(result.height) px"
+                    model.message = result.message
+                    if result.limitReached { scrollFinishRequested = true }
+                }
+                if !scrollFinishRequested { try await Task.sleep(for: .milliseconds(300)) }
+            }
+            try Task.checkCancellation(); guard operation == id else { return }
+            model.finishing = true; model.message = "Assemblage de l’aperçu…"
+            let image = try await assembler.finish()
+            try Task.checkCancellation(); guard operation == id else { return }
+            task = nil
+            present(ScrollingCapturePreview(image: image, cancel: { [weak self] in self?.cancel() }, save: { [weak self] annotate in
+                self?.saveScrolling(image, annotate: annotate, id: id)
+            }), title: "Aperçu de la capture défilante")
+        } catch is CancellationError { }
+        catch {
+            if operation == id { cancel(); history.report(error.localizedDescription) }
+        }
+    }
+    private func saveScrolling(_ image: CGImage, annotate: Bool, id: UUID) {
+        guard operation == id else { return }
+        task = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let data = try await Task.detached(priority: .userInitiated) { try CaptureImage.png(image) }.value
+                try Task.checkCancellation(); guard operation == id else { return }
+                let clip = try await history.saveImage(data)
+                guard operation == id else { return }
+                dismissPanel(); history.captureBusy = false; operation = nil; task = nil
+                history.sounds.play(.capture)
+                if annotate { history.annotate?(clip) }
+                else {
+                    let copied = await history.copy([clip], sound: nil)
+                    showResult?()
+                    history.report(copied ? "Capture défilante copiée · ⌘V pour coller" : "Capture défilante enregistrée dans l’historique.")
+                }
+            } catch {
+                if operation == id { cancel(); history.report(error.localizedDescription) }
+            }
+        }
     }
     private func beginVideo(_ options: RecordingOptions) {
         guard let id = operation else { return }

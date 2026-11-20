@@ -171,11 +171,37 @@ final class AnnotationTests: XCTestCase {
         let vault = try ClipVault(directory: folder,key: SymmetricKey(size: .bits256))
         let history = History(vault: vault,monitor: false,defaults: UserDefaults(suiteName: UUID().uuidString)!)
         defer { history.stopMonitoring(); try? FileManager.default.removeItem(at: folder) }
-        let clip = try await history.saveOCR("Une idée française\nÀ retrouver")
+        let recognized = "Une idée française\nDate\tLibellé\n\n   À retrouver"
+        let clip = try await history.saveOCR(recognized)
+        XCTAssertEqual(clip.text, recognized)
         XCTAssertEqual(ClipQuery(text: "idee retrouver").apply(history.clips).map(\.id),[clip.id])
         let pb = NSPasteboard(name: .init(UUID().uuidString)); defer { pb.releaseGlobally() }
         let copied = await history.copy([clip],to: pb); XCTAssertTrue(copied); XCTAssertEqual(pb.string(forType: .string),clip.text)
+        XCTAssertEqual(pb.string(forType: .html), RecognizedTextLayout.html(forText: recognized))
+        let plainCopied = await history.copy([clip], plain: true, to: pb)
+        XCTAssertTrue(plainCopied); XCTAssertEqual(pb.string(forType: .string), recognized)
+        XCTAssertNil(pb.data(forType: .html))
+        let richCopiedAgain = await history.copy([clip], to: pb)
+        XCTAssertTrue(richCopiedAgain); XCTAssertNotNil(pb.data(forType: .html))
         do { _ = try await history.saveOCR(" \n "); XCTFail("Empty OCR must fail") } catch { }
+    }
+    func testOCRCopiesRecognizedHTMLAlongsidePlainText() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let vault = try ClipVault(directory: folder, key: SymmetricKey(size: .bits256))
+        let history = History(vault: vault, monitor: false, defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        defer { history.stopMonitoring(); try? FileManager.default.removeItem(at: folder) }
+        let document = RecognizedTextLayout.document([
+            .init(text: "Date", bounds: CGRect(x: 0, y: 20, width: 40, height: 12)),
+            .init(text: "Expedia", bounds: CGRect(x: 80, y: 20, width: 50, height: 12))])
+        let clip = try await history.saveOCR(document.text, html: document.html, sourceURL: "https://example.com/source")
+        let pb = NSPasteboard(name: .init(UUID().uuidString)); defer { pb.releaseGlobally() }
+        let copied = await history.copy([clip], to: pb)
+        XCTAssertTrue(copied); XCTAssertEqual(pb.string(forType: .string), "Date\tExpedia")
+        XCTAssertEqual(pb.string(forType: .html), document.html)
+        XCTAssertEqual(clip.sourceURL, "https://example.com/source")
+        XCTAssertEqual(pb.pasteboardItems?.count, 1)
+        XCTAssertEqual(history.pasteUsage.count(for: clip.id), 0)
+        await history.flush()
     }
 }
 

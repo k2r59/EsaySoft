@@ -13,6 +13,11 @@ import CryptoKit
         let view = AnnotationView(model: model, cancel: {}, save: { _, _ in })
         try check(view, size: CGSize(width: 1080, height: 700), name: "annotation-minimum")
     }
+    func testBrowserDownloadsFitsMinimumWindow() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try check(BrowserMediaDownloadsView(model: BrowserMediaDownloads(root: root, revealOnRequest: false)), size: CGSize(width: 500, height: 320), name: "browser-downloads-minimum")
+    }
     func testLibraryFitsMinimumWindow() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

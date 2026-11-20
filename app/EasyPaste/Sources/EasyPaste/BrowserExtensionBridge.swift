@@ -3,7 +3,7 @@ import SwiftUI
 import Darwin
 
 /// Deliberately separate from History/Vault: this bridge can only verify the
-/// application version. Page contents still travel through the clipboard.
+/// application version and queue explicit media requests. Page copies still use the clipboard.
 enum BrowserBridgeProtocol {
     static let host = "app.easypaste.web"
     static let extensionID = "nmkechbpakkenabambdbpnaahhdlgpej"
@@ -156,6 +156,23 @@ enum BrowserBridgeHost {
             let root = BrowserExtensionFiles.root
             let config = BrowserExtensionFiles.read(BrowserBridgeConfiguration.self, from: root.appendingPathComponent("configuration.json"))
             let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "local"
+            if (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["type"] as? String == "mediaStatus" {
+                let reply = try BrowserMediaStatus.reply(data, origin: origin, config: config, root: root)
+                try FileHandle.standardOutput.write(contentsOf: BrowserBridgeProtocol.framed(reply))
+                return true
+            }
+            if (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["type"] as? String == "media" {
+                let reply = try BrowserMediaBridge.accept(data, origin: origin, config: config, root: root) {
+                    let launch = Process(); launch.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                    launch.arguments = ["-g", "-a", Bundle.main.bundleURL.path]
+                    launch.standardInput = FileHandle.nullDevice; launch.standardOutput = FileHandle.nullDevice; launch.standardError = FileHandle.nullDevice
+                    try launch.run(); launch.waitUntilExit()
+                    guard launch.terminationStatus == 0 else { throw TextIssue(message: "Impossible d’ouvrir EasyPaste. Lance l’application puis réessaie.") }
+                    DistributedNotificationCenter.default().postNotificationName(BrowserMediaRequest.notification, object: nil, userInfo: nil, deliverImmediately: true)
+                }
+                try FileHandle.standardOutput.write(contentsOf: BrowserBridgeProtocol.framed(reply))
+                return true
+            }
             let response = try BrowserBridgeProtocol.response(data, origin: origin, enabled: config?.enabled == true, version: version)
             if config?.enabled == true,
                let request = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -187,16 +204,26 @@ enum BrowserBridgeHost {
         exchange = enabled ? BrowserExtensionFiles.read(BrowserBridgeExchange.self, from: root.appendingPathComponent("last-exchange.json")) : nil
         if exchange?.extensionID != BrowserBridgeProtocol.extensionID || exchange?.generation != config?.generation { exchange = nil }
     }
-    func prepare() async {
-        guard !busy else { return }
+    @discardableResult func prepare() async -> Bool {
+        guard !busy else { return false }
         busy = true; message = ""
         defer { busy = false }
-        guard let resources = Bundle.main.url(forResource: "BrowserExtension", withExtension: nil) else { message = "L’extension n’est pas fournie dans cette copie d’EasyPaste."; return }
+        guard let resources = Bundle.main.url(forResource: "BrowserExtension", withExtension: nil) else { message = "L’extension n’est pas fournie dans cette copie d’EasyPaste."; return false }
         let application = Bundle.main.bundleURL, selected = target, root = self.root, home = self.home
         do {
             try await Task.detached(priority: .utility) { try BrowserExtensionFiles.prepare(resources: resources, application: application, target: selected, root: root, home: home) }.value
-            refresh(); message = "Prêt. Charge le dossier dans \(selected.title), puis clique sur Connecter dans l’extension."
-        } catch { message = error.localizedDescription }
+            refresh(); message = "Fichiers prêts. Termine l’installation dans \(selected.title), puis clique sur Connecter dans l’extension."
+            return true
+        } catch { message = error.localizedDescription; return false }
+    }
+    func install() async {
+        guard NSWorkspace.shared.urlForApplication(withBundleIdentifier: target.bundleID) != nil else {
+            message = "\(target.title) n’est pas installé. Choisis un navigateur installé sur ce Mac."
+            return
+        }
+        guard await prepare() else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([folder])
+        openExtensions()
     }
     func disable() {
         do { try BrowserExtensionFiles.disable(root: root, home: home); refresh(); message = "Lien désactivé. Les copies de l’extension restent utilisables." }
@@ -204,7 +231,9 @@ enum BrowserBridgeHost {
     }
     func openExtensions() {
         guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: target.bundleID), let url = URL(string: "chrome://extensions") else { message = "\(target.title) n’est pas installé."; return }
-        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
+        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration()) { [weak self] _, error in
+            if let error { Task { @MainActor in self?.message = "Impossible d’ouvrir les extensions : \(error.localizedDescription)" } }
+        }
     }
 }
 
@@ -212,10 +241,12 @@ struct BrowserExtensionSettings: View {
     @StateObject private var model = BrowserExtensionModel()
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            Text("Copie les pages avec leur mise en forme et récupère les sous-titres YouTube.")
+                .font(.system(size: 12)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
             PreferenceRow("Navigateur") {
                 Picker("Navigateur", selection: $model.target) {
                     ForEach(BrowserExtensionTarget.allCases) { Text($0.title).tag($0) }
-                }.labelsHidden().frame(width: 170)
+                }.labelsHidden().frame(width: 170).disabled(model.busy)
             }
             HStack(spacing: 8) {
                 Image(systemName: model.exchange != nil ? "checkmark.circle.fill" : "puzzlepiece.extension")
@@ -226,7 +257,7 @@ struct BrowserExtensionSettings: View {
                 } else { Text(model.enabled ? "Prête à associer" : "Non configurée") }
             }.font(.system(size: 12, weight: .medium))
             HStack(spacing: 10) {
-                Button(model.busy ? "Préparation…" : "Préparer l’installation") { Task { await model.prepare() } }
+                Button(model.busy ? "Préparation…" : "Installer dans \(model.target.title)") { Task { await model.install() } }
                     .buttonStyle(PasteButtonStyle(primary: true)).disabled(model.busy)
                 if model.enabled {
                     Button("Ouvrir les extensions") { model.openExtensions() }.buttonStyle(PasteButtonStyle())
@@ -234,14 +265,22 @@ struct BrowserExtensionSettings: View {
                 }
             }
             if model.enabled {
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("Terminer dans \(model.target.title)").font(.system(size: 12, weight: .semibold))
+                    Text("1. Active le mode développeur sur la page Extensions.")
+                    Text("2. Clique sur « Charger l’extension non empaquetée ».\nChoisis le dossier Extension affiché dans le Finder.")
+                    Text("3. Ouvre EasyPaste · Web, puis clique sur « Connecter ».\nValide l’accès local demandé pour vérifier le lien avec le Mac.")
+                    Text("Déjà installée ? Après la préparation, clique sur Recharger\nsur sa fiche dans le navigateur.")
+                        .foregroundStyle(Theme.muted)
+                }.font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
                 HStack {
                     Button("Actualiser l’état") { model.refresh() }.buttonStyle(FullAreaButtonStyle(minimumSize: 28))
                     Spacer()
                     Button("Désactiver le lien") { model.disable() }.buttonStyle(FullAreaButtonStyle(minimumSize: 28))
                 }.font(.system(size: 11))
             }
-            Text("Copie mise en forme et sous-titres YouTube. Vérification locale à la demande, sans accès à l’historique.").font(.system(size: 11)).foregroundStyle(Theme.muted)
-            if !model.message.isEmpty { Text(model.message).font(.system(size: 11)).foregroundStyle(Theme.muted) }
+            Text("Valide l’installation dans ton navigateur.\nL’extension est fournie avec EasyPaste, sans accès à ton historique de navigation.").font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
+            if !model.message.isEmpty { Text(model.message).font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true) }
         }.onAppear { model.refresh() }
             .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in model.refresh() }
     }

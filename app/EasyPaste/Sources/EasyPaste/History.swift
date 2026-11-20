@@ -10,6 +10,7 @@ struct ClipQuery {
     var kind: ClipKind?
     var todayOnly = false
     var stack: [UUID] = []
+    var lastPasted: [UUID: Date] = [:]
     func apply(_ clips: [Clip]) -> [Clip] {
         let board = UUID(uuidString: collection)
         let positions = Dictionary(uniqueKeysWithValues: stack.enumerated().map { ($1, $0) })
@@ -28,7 +29,7 @@ struct ClipQuery {
         let ids = Set(filtered.map(\.id))
         func family(_ c: Clip) -> UUID { c.parentID.flatMap { ids.contains($0) ? $0 : nil } ?? c.id }
         var dates: [UUID: Date] = [:]
-        for c in filtered { dates[family(c)] = max(dates[family(c)] ?? .distantPast, c.date) }
+        for c in filtered { dates[family(c)] = max(dates[family(c)] ?? .distantPast, max(c.date, lastPasted[c.id] ?? .distantPast)) }
         return filtered.sorted {
             let a = family($0), b = family($1)
             if a != b { let da = dates[a]!, db = dates[b]!; return da == db ? a.uuidString < b.uuidString : da > db }
@@ -53,15 +54,15 @@ struct ClipQuery {
     @Published private(set) var clips: [Clip] = [] { didSet { refresh() } }
     @Published var boards: [Pinboard] = []
     @Published private(set) var visible: [Clip] = []
-    @Published var query = "" { didSet { refresh(debounce: true) } }
-    @Published var filter: ClipKind? { didSet { refresh() } }
-    @Published var collection = "all" { didSet { selectedIDs = []; refresh() } }
+    @Published var query = "" { didSet { if oldValue != query { shelfOrder = nil; resetShelfOnOpen = false }; refresh(debounce: true) } }
+    @Published var filter: ClipKind? { didSet { if oldValue != filter { shelfOrder = nil }; refresh() } }
+    @Published var collection = "all" { didSet { if oldValue != collection { shelfOrder = nil }; selectedIDs = []; refresh() } }
     @Published var selected: UUID?
     @Published var selectedIDs: Set<UUID> = []
     @Published var page = "library"
     @Published var surface = "library"
-    @Published var sourceFilter = "" { didSet { refresh() } }
-    @Published var todayOnly = false { didSet { refresh() } }
+    @Published var sourceFilter = "" { didSet { if oldValue != sourceFilter { shelfOrder = nil }; refresh() } }
+    @Published var todayOnly = false { didSet { if oldValue != todayOnly { shelfOrder = nil }; refresh() } }
     @Published var enabled: Bool { didSet { defaults.set(enabled, forKey: "monitoring"); changeCount = NSPasteboard.general.changeCount; clipboardRetry.clear(); monitoringGeneration &+= 1 } }
     @Published var retention: Int { didSet { defaults.set(retention, forKey: "retention"); prune() } }
     @Published var exclusions: [String] { didSet { defaults.set(exclusions, forKey: "exclusions") } }
@@ -129,6 +130,19 @@ struct ClipQuery {
     private var importInFlight = false
     // Keep a new copy pending when the current search/collection hides it.
     private var pendingClipboardSelection: UUID?
+    private var resetShelfOnOpen = false
+    private var shelfOrder: [UUID]?
+    private(set) var shelfIsPresented = false
+    func shelfDismissed() { shelfIsPresented = false }
+    func prepareLibrary() { shelfIsPresented = false; shelfOrder = nil; refresh() }
+    private func resetShelfFilters() {
+        if collection != "all" { collection = "all" }
+        if !query.isEmpty { query = "" }
+        if filter != nil { filter = nil }
+        if !sourceFilter.isEmpty { sourceFilter = "" }
+        if todayOnly { todayOnly = false }
+    }
+
     // A new copy gets a fresh scroll view identity. SwiftUI cannot restore an
     // old LazyHStack offset after an asynchronous filter/layout update.
     @Published private(set) var shelfScrollGeneration = UUID()
@@ -195,7 +209,7 @@ struct ClipQuery {
     func refresh(debounce: Bool = false) {
         searchTask?.cancel()
         let snapshot = clips
-        let request = ClipQuery(text: query, collection: collection, source: sourceFilter, kind: filter, todayOnly: todayOnly, stack: stack)
+        let request = ClipQuery(text: query, collection: collection, source: sourceFilter, kind: filter, todayOnly: todayOnly, stack: stack, lastPasted: pasteUsage.lastPasted ?? [:])
         searchTask = Task { [weak self] in
             do { try await Task.sleep(nanoseconds: debounce ? 140_000_000 : 10_000_000) } catch { return }
             let worker = Task.detached(priority: .userInitiated) { () -> ([Clip], [String], Int, Int) in
@@ -205,7 +219,11 @@ struct ClipQuery {
             let result = await withTaskCancellationHandler(operation: { await worker.value }, onCancel: { worker.cancel() })
             guard !Task.isCancelled, let self else { return }
             originalIDs = Set(snapshot.filter { $0.trashedAt == nil }.compactMap(\.parentID))
-            visible = result.0; sources = result.1; total = result.2; totalBytes = result.3
+            if let order = shelfOrder {
+                let rank = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($0.element, $0.offset) })
+                visible = result.0.sorted { (rank[$0.id] ?? Int.max) < (rank[$1.id] ?? Int.max) }
+            } else { visible = result.0 }
+            sources = result.1; total = result.2; totalBytes = result.3
             if let pending = pendingClipboardSelection, result.0.contains(where: { $0.id == pending }) {
                 selected = pending; selectedIDs = [pending]; pendingClipboardSelection = nil
                 shelfScrollGeneration = UUID()
@@ -214,20 +232,18 @@ struct ClipQuery {
         }
     }
     func prepareShelf() {
-        // Read a copy made immediately before the shortcut, without waiting for
-        // the polling timer. Processing stays asynchronous.
+        shelfIsPresented = true
+        // A delayed clipboard import will reset the filters in add(), too.
         poll()
         surface = "shelf"
-        if collection != "all" { collection = "all" }
-        if !query.isEmpty { query = "" }
-        if filter != nil { filter = nil }
-        if !sourceFilter.isEmpty { sourceFilter = "" }
-        if todayOnly { todayOnly = false }
+        if resetShelfOnOpen || pendingClipboardSelection != nil {
+            shelfOrder = nil; resetShelfFilters(); resetShelfOnOpen = false
+        }
         if let pending = pendingClipboardSelection { selected = pending; selectedIDs = [pending] }
         refresh()
     }
     func select(_ clip: Clip, modifiers: NSEvent.ModifierFlags = []) {
-        pendingClipboardSelection = nil
+        pendingClipboardSelection = nil; resetShelfOnOpen = false
         if modifiers.contains(.shift), let start = visible.firstIndex(where: { $0.id == self.selected }), let end = visible.firstIndex(where: { $0.id == clip.id }) {
             selectedIDs.formUnion(visible[min(start,end)...max(start,end)].map(\.id))
         } else if modifiers.contains(.command) {
@@ -382,7 +398,9 @@ struct ClipQuery {
             value.boards = clips[i].boards; value.title = clips[i].title; value.ocr = clips[i].ocr; value.parentID = clips[i].parentID
             clips[i] = value.metadata()
         } else { clips.insert(value.metadata(), at: 0) }
+        shelfOrder = nil; resetShelfOnOpen = true
         pendingClipboardSelection = value.id
+        if shelfIsPresented { resetShelfFilters(); resetShelfOnOpen = false }
         selected = value.id; selectedIDs = [value.id]
         persist(value)
         if stackRecording, !stack.contains(value.id) { stack.append(value.id) }
@@ -418,7 +436,7 @@ struct ClipQuery {
     }
     /// Called only after the paste command has been dispatched to its destination.
     /// Copying, previewing and failed/cancelled delivery do not call this method.
-    func recordPaste(_ pasted: [Clip], plain: Bool = false) {
+    func recordPaste(_ pasted: [Clip], plain: Bool = false, preserveShelf: Bool = false) {
         guard vault != nil, pasteUsageAvailable, !fault, !stopping else { return }
         let current = Dictionary(uniqueKeysWithValues: clips.map { ($0.id, $0) })
         let textBatch = plain || (pasted.count > 1 && pasted.allSatisfy { [.text, .link, .color].contains($0.kind) })
@@ -428,7 +446,9 @@ struct ClipQuery {
             return value.id
         })
         guard !ids.isEmpty else { return }
-        pasteUsage.record(ids); savePasteUsage()
+        if preserveShelf, shelfOrder == nil { shelfOrder = visible.map(\.id) }
+        // Promotion changes chronological history, but never the shelf's browsing order.
+        pasteUsage.record(ids); savePasteUsage(); refresh()
     }
     private func savePasteUsage() {
         guard let vault, pasteUsageAvailable else { return }
@@ -650,6 +670,7 @@ extension History {
                 } catch { continuation.resume(throwing: error) }
             }
         }
+        shelfOrder = nil; resetShelfOnOpen = true; shelfScrollGeneration = UUID()
         clips.insert(value.metadata(), at: 0)
         if stackRecording { stack.append(value.id) }
         collection = "all"; query = ""; filter = nil; sourceFilter = ""; todayOnly = false
@@ -684,9 +705,14 @@ extension History {
         if !stack.contains(saved.id) { stack.append(saved.id) }
         return saved
     }
-    func saveOCR(_ text: String, sourceURL: String? = nil) async throws -> Clip {
+    func saveOCR(_ text: String, html: String? = nil, sourceURL: String? = nil) async throws -> Clip {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw CaptureFailure.message("Aucun texte détecté. Essaie une zone plus nette ou plus grande.") }
-        let payload = ClipPayload(representations: [[.init(type: NSPasteboard.PasteboardType.string.rawValue, data: Data(text.utf8))]])
+        let rich = html ?? RecognizedTextLayout.html(forText: text)
+        guard text.utf8.count + rich.utf8.count <= ClipboardReader.limit else { throw CaptureFailure.message("Le texte extrait dépasse la limite de 20 Mo.") }
+        let payload = ClipPayload(representations: [[
+            .init(type: NSPasteboard.PasteboardType.string.rawValue, data: Data(text.utf8)),
+            .init(type: NSPasteboard.PasteboardType.html.rawValue, data: Data(rich.utf8))
+        ]])
         var clip = Clip(title: String(text.prefix(90)), text: text, source: "Capture de texte", sourceID: "app.easypaste.mac", kind: .text, fingerprint: Clip.fingerprint(payload), payload: payload)
         clip.sourceURL = BrowserOrigin.url(sourceURL)?.absoluteString
         return try await insertCapture(clip)

@@ -11,6 +11,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--output", type=Path, default=Path.home() / "Library/Caches/EasyPaste-extension-tests" / f"EasyPaste-Web-{version}.zip")
 args = parser.parse_args()
 files = [root / name for name in ("manifest.json", "popup.html", "popup.css", "popup.js", "README.md", "QA.md", "LICENSE")]
+files += sorted(root.glob("QA-*.md"))
 files += sorted((root / "src").glob("*.js")) + sorted((root / "icons").glob("*.png"))
 args.output.parent.mkdir(parents=True, exist_ok=True)
 with ZipFile(args.output, "w", compression=ZIP_DEFLATED) as archive:

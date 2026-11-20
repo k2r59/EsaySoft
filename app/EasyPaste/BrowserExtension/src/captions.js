@@ -1,12 +1,12 @@
 const MAX_BODY = 2000000, MAX_TEXT = 500000, MAX_CUES = 12000;
 
 function cleanText(value) {
-  return String(value).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").replace(/\s+/g, " ").trim();
+  return String(value).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u200B\uFEFF]/g, "").replace(/\s+/g, " ").trim();
 }
 
 export function normalizeCues(cues) {
   if (!Array.isArray(cues) || cues.length > MAX_CUES) throw new Error("Cette transcription est trop longue.");
-  const result = [];
+  const result = [], seen = new Set();
   let length = 0;
   for (const cue of cues) {
     const start = Number(cue?.start);
@@ -16,7 +16,9 @@ export function normalizeCues(cues) {
     length += text.length;
     if (length > MAX_TEXT) throw new Error("Cette transcription est trop longue.");
     // Preserve repeated spoken words; remove only identical duplicate events at the same time.
-    if (result.at(-1)?.start === start && result.at(-1)?.text === text) continue;
+    const key = JSON.stringify([start, text]);
+    if (seen.has(key)) continue;
+    seen.add(key);
     result.push({ start, text });
   }
   if (!result.length) throw new Error("YouTube n’a renvoyé aucun sous-titre lisible. Essayez la transcription affichée sur la page.");

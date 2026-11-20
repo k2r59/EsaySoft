@@ -31,7 +31,7 @@ async function settle(doc) {
 test("extension identity is stable and native access stays optional", () => {
   const hash = createHash("sha256").update(Buffer.from(manifest.key, "base64")).digest("hex").slice(0, 32);
   assert.equal(hash.replace(/[0-9a-f]/g, c => String.fromCharCode(97 + parseInt(c, 16))), "nmkechbpakkenabambdbpnaahhdlgpej");
-  assert.equal(manifest.version, "0.2.0");
+  assert.equal(manifest.version, "0.3.0");
   assert.deepEqual(manifest.optional_permissions, ["nativeMessaging"]);
   assert.deepEqual(manifest.permissions, ["activeTab", "scripting", "clipboardWrite"]);
   assert.equal(manifest.background, undefined); assert.equal(manifest.externally_connectable, undefined);

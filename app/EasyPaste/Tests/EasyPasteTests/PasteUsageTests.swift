@@ -29,6 +29,20 @@ import XCTest
         history = nil; vault = nil; links = []
     }
 
+    func testLegacyCounterIndexDecodesAndPastePromotionSurvivesRestart() async throws {
+        struct LegacyUsage: Encodable { var counts: [UUID: Int] }
+        let legacy = try JSONDecoder().decode(PasteUsage.self, from: JSONEncoder().encode(LegacyUsage(counts: [links[0].id: 3])))
+        XCTAssertEqual(legacy.count(for: links[0].id), 3)
+        XCTAssertNil(legacy.lastPasted)
+        history.recordPaste([links[0]])
+        await history.flush()
+        let reloaded = History(vault: vault, monitor: false, defaults: defaults)
+        reloaded.refresh()
+        try await Task.sleep(for: .milliseconds(150))
+        XCTAssertEqual(reloaded.visible.first?.id, links[0].id)
+        XCTAssertEqual(reloaded.clips.first(where: { $0.id == links[0].id })?.date, history.clips.first(where: { $0.id == links[0].id })?.date)
+    }
+
     func testDefaultEnabledAndPreferenceSurvivesRestartWithoutErasingCounts() async {
         XCTAssertTrue(history.showPasteCounts)
         history.recordPaste([links[0]])

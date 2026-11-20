@@ -54,7 +54,11 @@ export function mountNativeCard(doc = document, api = chrome, options = {}) {
     connect.textContent = checking ? "Vérification…" : granted ? "Vérifier" : "Connecter";
     disconnect.hidden = !granted;
   }
-  function report(text, kind = "info") { status.textContent = text; status.dataset.kind = kind; }
+  function report(text, kind = "info") {
+    status.textContent = text; status.dataset.kind = kind;
+    doc.querySelector('footer').dataset.state = kind;
+    doc.getElementById('connection-label').textContent = kind === 'success' ? 'Connecté à EasyPaste' : kind === 'error' ? 'Vérifier la connexion' : granted ? 'Connexion à vérifier' : 'Connecter à EasyPaste';
+  }
   // Chromium can hide sendNativeMessage until optional nativeMessaging is granted.
   if (typeof api.permissions?.request !== "function") {
     connect.disabled = true; disconnect.hidden = true;
@@ -95,8 +99,11 @@ export function mountNativeCard(doc = document, api = chrome, options = {}) {
     finally { checking = false; render(); }
   });
   checking = true; render();
-  Promise.resolve().then(() => api.permissions.contains(OPTIONAL_ACCESS)).then(value => {
+  Promise.resolve().then(() => api.permissions.contains(OPTIONAL_ACCESS)).then(async value => {
     granted = value === true;
-    report(granted ? "Accès local autorisé. Vérifiez quand vous en avez besoin." : "Vérifiez le lien avec l’app. La copie fonctionne aussi sans connexion.");
+    if (granted) {
+      try { await verifyNative(api, options); report("Connexion locale vérifiée.", "success"); }
+      catch (error) { report(error.message, "error"); }
+    } else report("Vérifiez le lien avec l’app. La copie fonctionne aussi sans connexion.");
   }).catch(() => report("Vérifiez le lien avec l’app. La copie fonctionne aussi sans connexion.")).finally(() => { checking = false; render(); });
 }

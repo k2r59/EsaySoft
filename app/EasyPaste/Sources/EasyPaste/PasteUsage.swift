@@ -5,11 +5,16 @@ import SwiftUI
 /// never decrypts or rewrites a large image or video record.
 struct PasteUsage: Codable, Equatable {
     private(set) var counts: [UUID: Int] = [:]
+    // Optional for backward-compatible decoding of existing encrypted indexes.
+    private(set) var lastPasted: [UUID: Date]?
 
     func count(for id: UUID) -> Int { max(0, counts[id] ?? 0) }
 
     mutating func record(_ ids: Set<UUID>) {
+        let date = Date()
+        if lastPasted == nil { lastPasted = [:] }
         for id in ids {
+            lastPasted?[id] = date
             let previous = count(for: id)
             counts[id] = previous == Int.max ? previous : previous + 1
         }
@@ -17,6 +22,7 @@ struct PasteUsage: Codable, Equatable {
 
     mutating func retain(_ ids: Set<UUID>) {
         counts = counts.filter { ids.contains($0.key) && $0.value > 0 }
+        lastPasted = lastPasted?.filter { ids.contains($0.key) }
     }
 }
 
