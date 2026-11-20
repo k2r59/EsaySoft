@@ -6,6 +6,28 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyPaste</title>
         <item>
+            <title>0.3.14</title>
+            <pubDate>Fri, 20 Nov 2026 11:10:03 +0100</pubDate>
+            <sparkle:version>43</sparkle:version>
+            <sparkle:shortVersionString>0.3.14</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.14
+
+- **Historique : retrouvez votre emplacement après un collage.** La recherche, la sélection et le défilement sont conservés pour retrouver facilement les éléments voisins. L’élément collé remonte dans l’ordre chronologique de la bibliothèque. Une nouvelle copie externe, y compris depuis un iPhone, remet la barre sur le contenu le plus récent et efface les anciens filtres.
+- **Nouvelle capture défilante.** Dans le menu Capture, choisissez « Capture défilante… », sélectionnez une zone puis faites défiler doucement vers le bas. Vérifiez l’image longue dans l’aperçu avant de l’enregistrer, de la copier ou de l’annoter. La capture porte sur une zone d’une fenêtre et d’un écran ; évitez les en-têtes fixes et conservez du contenu commun entre deux passages.
+- **Capture texte mieux structurée.** Les fragments situés sur la même ligne sont réunis, les blocs séparés et les retraits conservés. Les colonnes espacées restent sur leur ligne.
+- **HTML et texte copiés ensemble par défaut.** La capture texte fournit une version HTML reconstruite pour les applications compatibles, ainsi qu’une version texte. « Copier en texte brut » et « Coller sans mise en forme » restent disponibles. Le HTML est reconstruit à partir du texte reconnu ; il ne provient pas du code original de la page.
+- **EasyPaste Web 0.3.0.** Interface de l’extension revue, copie de page avec mise en forme, récupération des sous-titres YouTube avec choix de langue, aperçu modifiable et horodatages facultatifs. Parcours d’installation et de connexion proposé dans EasyPaste pour Chrome et les navigateurs Chromium compatibles, dont Arc.
+- **Téléchargements web depuis l’extension.** Choix vidéo MP4 ou audio MP3, qualité vidéo et suivi pendant et après le téléchargement. Fonctionne avec les sites et médias compatibles avec le moteur disponible. Nécessite EasyMusic ou yt-dlp et FFmpeg installés sur le Mac ; Node est recommandé pour YouTube. Les moteurs ne sont pas installés automatiquement. Les sources nécessitant des cookies, les DRM et les directs en cours ne sont pas pris en charge.
+- Correction du menu de capture pour les outils d’accessibilité, et exclusion des commandes EasyPaste de la capture défilante.
+
+L’extension reste une installation locale guidée ; cette mise à jour n’est pas une publication sur le Chrome Web Store.
+
+Validation : 404 tests Mac en mode Release sans échec (2 tests réseau optionnels ignorés) et 81 tests de l’extension réussis, reconnaissance OCR réelle et import HTML macOS. Capture défilante vérifiée dans Arc sur 7 passages, avec aperçu, enregistrement et copie PNG. Les téléchargements MP4/MP3 et sous-titres ont également fait l’objet d’essais réels pendant la préparation. Aucun test ne garantit la reconnaissance de tous les caractères d’une image peu lisible ni la compatibilité de tous les sites.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.14/EasyPaste-0.3.14-universal.dmg" length="14045853" type="application/octet-stream" sparkle:edSignature="dlaNRe6PaH+qmHYDepdGCRUYJsWfWomTMrUrc369pUQP+H0eWEhS7wd8p0xZ8180sbB4wMhlWLzuyMLCHgioDg=="/>
+        </item>
+        <item>
             <title>0.3.13</title>
             <pubDate>Fri, 13 Nov 2026 08:40:08 +0100</pubDate>
             <sparkle:version>38</sparkle:version>
@@ -42,27 +64,9 @@ Validation : 355 tests automatiques réussis, contrôle du retour au début de l
 ]]></description>
             <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.12/EasyPaste-0.3.12-universal.dmg" length="12978268" type="application/octet-stream" sparkle:edSignature="iI4mECIi/nl0IoeEovOK4eAM5Tsgq69FYtUUxkmwKU4cMLhKomXzc2zsvwE/PP9giRBtJOVHYyshUlF5/QFFDA=="/>
         </item>
-        <item>
-            <title>0.3.11</title>
-            <pubDate>Tue, 03 Nov 2026 16:12:50 +0100</pubDate>
-            <sparkle:version>32</sparkle:version>
-            <sparkle:shortVersionString>0.3.11</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.11
-
-- **Extraction de texte en accès direct** : l’OCR est maintenant accessible dans le menu principal de la barre des menus, sous « Capturer une zone ».
-- **Une icône OCR dans la barre rapide** : lancez l’extraction du texte d’une zone depuis le bouton situé entre Capture et Réglages, sans ouvrir de sous-menu.
-- Le bouton suit le thème et la transparence de la barre. Son infobulle affiche votre raccourci clavier personnalisé.
-
-Cette version conserve le correctif de défilement entre les tuiles de la 0.3.10.2.
-
-macOS 15 ou ultérieur, Intel et Apple Silicon.
-]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.11/EasyPaste-0.3.11-universal.dmg" length="13262551" type="application/octet-stream" sparkle:edSignature="SH6Lw7e8yEyhKQ1Sh4pE25L7eFCTmykTDWI22ZHwr/DfwIz28Ivm8UA89sKTqlfa9jydbThkU5HxPZoEM+sUBQ=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: zdLEfQCWehik0tre/AXkfcoWyg5rnmivB1P60D3LTpQ7M46ZcWv6/h6imPHLpGpgqwEQRJHJGG+clyp1erDXAA==
-length: 5364
+edSignature: Q7iTjoatc7GxnBwbFCAtHLTt4yyKguXKvn3ijOtzEFoTgKWfhZT5AzmkPFqIfBrZfY0Y7WrVE6Th8QJ0YspqAw==
+length: 7724
 -->
