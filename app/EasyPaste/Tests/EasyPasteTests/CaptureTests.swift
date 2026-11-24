@@ -177,32 +177,44 @@ final class AnnotationTests: XCTestCase {
         XCTAssertEqual(ClipQuery(text: "idee retrouver").apply(history.clips).map(\.id),[clip.id])
         let pb = NSPasteboard(name: .init(UUID().uuidString)); defer { pb.releaseGlobally() }
         let copied = await history.copy([clip],to: pb); XCTAssertTrue(copied); XCTAssertEqual(pb.string(forType: .string),clip.text)
-        XCTAssertEqual(pb.string(forType: .html), RecognizedTextLayout.html(forText: recognized))
+        XCTAssertEqual(pb.pasteboardItems?.first?.types, [.string])
         let plainCopied = await history.copy([clip], plain: true, to: pb)
         XCTAssertTrue(plainCopied); XCTAssertEqual(pb.string(forType: .string), recognized)
         XCTAssertNil(pb.data(forType: .html))
-        let richCopiedAgain = await history.copy([clip], to: pb)
-        XCTAssertTrue(richCopiedAgain); XCTAssertNotNil(pb.data(forType: .html))
+        let copiedAgain = await history.copy([clip], to: pb)
+        XCTAssertTrue(copiedAgain); XCTAssertEqual(pb.pasteboardItems?.first?.types, [.string])
         do { _ = try await history.saveOCR(" \n "); XCTFail("Empty OCR must fail") } catch { }
     }
-    func testOCRCopiesRecognizedHTMLAlongsidePlainText() async throws {
+    func testOCRReplacesStaleRichClipboardWithOnlyOrderedText() async throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let vault = try ClipVault(directory: folder, key: SymmetricKey(size: .bits256))
-        let history = History(vault: vault, monitor: false, defaults: UserDefaults(suiteName: UUID().uuidString)!)
-        defer { history.stopMonitoring(); try? FileManager.default.removeItem(at: folder) }
-        let document = RecognizedTextLayout.document([
-            .init(text: "Date", bounds: CGRect(x: 0, y: 20, width: 40, height: 12)),
-            .init(text: "Expedia", bounds: CGRect(x: 80, y: 20, width: 50, height: 12))])
-        let clip = try await history.saveOCR(document.text, html: document.html, sourceURL: "https://example.com/source")
+        let suite = "EasyPaste.test.ocr." + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let history = History(vault: vault, monitor: false, defaults: defaults)
+        defer { history.stopMonitoring(); defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: folder) }
+        let text = RecognizedTextLayout.render([
+            .init(text: "Service", bounds: CGRect(x: 0, y: 40, width: 50, height: 12)),
+            .init(text: "Statut", bounds: CGRect(x: 180, y: 40, width: 50, height: 12)),
+            .init(text: "Livraison", bounds: CGRect(x: 0, y: 20, width: 60, height: 12)),
+            .init(text: "Prévue", bounds: CGRect(x: 180, y: 20, width: 50, height: 12))])
+        let clip = try await history.saveOCR(text, sourceURL: "https://example.com/source")
         let pb = NSPasteboard(name: .init(UUID().uuidString)); defer { pb.releaseGlobally() }
+        let stale = NSPasteboardItem()
+        stale.setString("<table><tr><td>Ancien tableau</td></tr></table>", forType: .html)
+        stale.setString("Ancien tableau", forType: .string)
+        XCTAssertTrue(pb.writeObjects([stale]))
         let copied = await history.copy([clip], to: pb)
-        XCTAssertTrue(copied); XCTAssertEqual(pb.string(forType: .string), "Date\tExpedia")
-        XCTAssertEqual(pb.string(forType: .html), document.html)
+        XCTAssertTrue(copied); XCTAssertEqual(pb.string(forType: .string), "Service | Statut\nLivraison | Prévue")
+        XCTAssertEqual(pb.pasteboardItems?.first?.types, [.string])
+        XCTAssertNil(pb.data(forType: .html)); XCTAssertNil(pb.data(forType: .rtf))
+        let stored = try vault.read(Clip.self, name: clip.id.uuidString + ".clip")
+        XCTAssertEqual(stored.payload.representations.flatMap { $0 }.map(\.type), [NSPasteboard.PasteboardType.string.rawValue])
         XCTAssertEqual(clip.sourceURL, "https://example.com/source")
         XCTAssertEqual(pb.pasteboardItems?.count, 1)
         XCTAssertEqual(history.pasteUsage.count(for: clip.id), 0)
         await history.flush()
     }
+
 }
 
 import AVFoundation

@@ -118,7 +118,7 @@ Le menu près de l’heure propose **Capturer une zone** directement. Le sous-me
 
 Les captures sont enregistrées en PNG sans perte, à la densité native de l’écran. Une zone de 600 × 400 points sur un écran Retina produit 1 200 × 800 pixels. Les miniatures servent à l’affichage ; la copie conserve tous les pixels de l’original. Dans **Aperçu**, **100 %** affiche un pixel de l’image pour un pixel de l’écran, avec défilement si nécessaire. **Ajuster** montre l’ensemble sans agrandir artificiellement une petite image. Les images sont limitées à 50 mégapixels et à 20 Mo encodés.
 
-Pour extraire du texte visible, choisir **Extraire le texte d’une zone**, puis encadrer les lignes voulues. Le texte reconnu est enregistré et copié. La reconnaissance utilise Vision sur le Mac.
+Pour extraire du texte visible, choisir **Extraire le texte d’une zone**, puis encadrer les lignes voulues. Le résultat est enregistré et copié uniquement en texte brut, sans HTML ni tableau enrichi. Les fragments reconnus sont remis dans l’ordre visuel : lignes de haut en bas, puis contenu de gauche à droite. Les colonnes nettement espacées sont séparées par ` | `, et les séparations entre blocs sont conservées. La reconnaissance utilise Vision sur le Mac ; les caractères peu lisibles ou les tableaux complexes peuvent nécessiter une correction manuelle.
 
 ## Enregistrer une vidéo
 

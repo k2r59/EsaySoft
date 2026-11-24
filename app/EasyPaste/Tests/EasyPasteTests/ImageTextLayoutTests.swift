@@ -1,4 +1,5 @@
 import AppKit
+import CryptoKit
 import XCTest
 @testable import EasyPaste
 
@@ -25,11 +26,11 @@ final class ImageTextLayoutTests: XCTestCase {
             XCTAssertEqual(RecognizedTextLayout.render(lines), (0..<5).map { "Ligne \($0)" }.joined(separator: "\n"))
         }
     }
-    func testKeepsColumnsOnTheSameRowWithTabs() {
+    func testKeepsColumnsOnTheSameRowWithTextSeparators() {
         let cells = [fragment("Nom", 20, 200, 40), fragment("Total", 220, 200, 40),
                      fragment("Alice", 20, 180, 40), fragment("25,00 €", 220, 180, 50),
                      fragment("Bruno", 20, 160, 40), fragment("8,50 €", 220, 160, 50)]
-        XCTAssertEqual(RecognizedTextLayout.render(cells), "Nom\tTotal\nAlice\t25,00 €\nBruno\t8,50 €")
+        XCTAssertEqual(RecognizedTextLayout.render(cells), "Nom | Total\nAlice | 25,00 €\nBruno | 8,50 €")
     }
     func testAdjacentLinesAreNotMergedBySlightlyDifferentFontSizes() {
         let lines = [fragment("Titre", 20, 200, 100, 26), fragment("Sous-titre", 20, 177, 100, 16),
@@ -55,28 +56,49 @@ final class ImageTextLayoutTests: XCTestCase {
         let scaled = fragments.map { RecognizedTextLayout.Fragment(text: $0.text, bounds: $0.bounds.applying(.init(scaleX: 2, y: 2))) }
         XCTAssertEqual(RecognizedTextLayout.render(fragments), RecognizedTextLayout.render(scaled))
     }
-    func testHTMLKeepsSharedColumnsAndBlockSeparators() throws {
-        let document = RecognizedTextLayout.document([fragment("Nom", 20, 200, 60), fragment("Total", 220, 200, 50),
-            fragment("Alice", 20, 180, 60), fragment("25 €", 220, 180, 50), fragment("Suite", 20, 100, 60)])
-        let html = try XCTUnwrap(document.html)
-        XCTAssertEqual(document.text, "Nom\tTotal\nAlice\t25 €\n\nSuite")
-        XCTAssertEqual(html.components(separatedBy: "<col width=").count - 1, 2)
-        XCTAssertTrue(html.contains("colspan=\"2\""))
-        XCTAssertTrue(html.contains("height:14px;line-height:14px"))
-        XCTAssertLessThan(try XCTUnwrap(html.range(of: ">Nom<")).lowerBound, try XCTUnwrap(html.range(of: ">Total<")).lowerBound)
+    func testThreeColumnsKeepVisualOrderDespiteShuffledObservations() {
+        let cells = [fragment("Produit", 20, 200, 70), fragment("Quantité", 220, 200, 70), fragment("Prix", 420, 200, 50),
+            fragment("Clavier", 20, 180, 60), fragment("USB", 85, 181, 25), fragment("2", 220, 180, 15), fragment("40 €", 420, 180, 50),
+            fragment("Souris", 20, 160, 60), fragment("1", 220, 160, 15), fragment("15 €", 420, 160, 50)]
+        let expected = "Produit | Quantité | Prix\nClavier USB | 2 | 40 €\nSouris | 1 | 15 €"
+        XCTAssertEqual(RecognizedTextLayout.render(cells), expected)
+        XCTAssertEqual(RecognizedTextLayout.render(cells.reversed()), expected)
+        let columnMajor = cells.sorted { $0.bounds.minX < $1.bounds.minX }
+        XCTAssertEqual(RecognizedTextLayout.render(columnMajor), expected)
     }
-    func testHTMLTreatsRecognizedMarkupAsTextWithoutActiveContent() throws {
+    func testRecognizedMarkupRemainsLiteralText() {
         let source = "<script>alert('x')</script> & <img src=\"https://example.invalid/pixel\">"
-        let document = RecognizedTextLayout.document([fragment(source, 0, 0, 500)])
-        let html = try XCTUnwrap(document.html)
-        XCTAssertEqual(document.text, source)
-        XCTAssertFalse(html.contains("<script>")); XCTAssertFalse(html.contains("<img "))
-        XCTAssertTrue(html.contains("&lt;script&gt;")); XCTAssertTrue(html.contains("&amp;")); XCTAssertTrue(html.contains("&quot;"))
+        XCTAssertEqual(RecognizedTextLayout.render([fragment(source, 0, 0, 500)]), source)
     }
-    func testPlainIndexingDoesNotBuildRichRepresentation() {
-        let document = RecognizedTextLayout.document([fragment("Texte", 0, 0)], includeHTML: false)
-        XCTAssertEqual(document.text, "Texte"); XCTAssertNil(document.html)
-        XCTAssertTrue(RecognizedTextLayout.html(forText: "A\tB\n\n<x>").contains("A\tB\n\n&lt;x&gt;"))
+    @MainActor func testRealTableImageIsCopiedInRowOrderAsPlainText() async throws {
+        let context = try XCTUnwrap(CGContext(data: nil, width: 1200, height: 420, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        context.setFillColor(NSColor.white.cgColor); context.fill(CGRect(x: 0, y: 0, width: 1200, height: 420))
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+        let rows = [["Produit", "Stock", "Rayon"], ["Clavier", "12", "Bureau"], ["Souris", "18", "Atelier"]]
+        for (row, cells) in rows.enumerated() {
+            for (column, text) in cells.enumerated() {
+                (text as NSString).draw(at: CGPoint(x: 40 + column * 400, y: 320 - row * 100),
+                    withAttributes: [.font: NSFont.systemFont(ofSize: 32), .foregroundColor: NSColor.black])
+            }
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        let png = try CaptureImage.png(XCTUnwrap(context.makeImage()))
+        let recognized = try ImageText.recognize(png)
+        XCTAssertEqual(recognized, rows.map { $0.joined(separator: " | ") }.joined(separator: "\n"))
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let suite = "EasyPaste.test.table." + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let history = History(vault: try ClipVault(directory: folder, key: SymmetricKey(size: .bits256)), monitor: false, defaults: defaults)
+        defer { history.stopMonitoring(); defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: folder) }
+        let clip = try await history.saveOCR(recognized)
+        let pb = NSPasteboard(name: .init(UUID().uuidString)); defer { pb.releaseGlobally() }
+        let copied = await history.copy([clip], to: pb)
+        XCTAssertTrue(copied)
+        XCTAssertEqual(pb.string(forType: .string), recognized)
+        XCTAssertEqual(pb.pasteboardItems?.first?.types, [.string])
+        await history.flush()
     }
     @MainActor func testRealVisionRestoresCardRowsAndSeparators() throws {
         let context = try XCTUnwrap(CGContext(data: nil, width: 900, height: 850, bitsPerComponent: 8, bytesPerRow: 0,
@@ -98,14 +120,7 @@ final class ImageTextLayoutTests: XCTestCase {
         }
         NSGraphicsContext.restoreGraphicsState()
         let png = try CaptureImage.png(XCTUnwrap(context.makeImage()))
-        let document = try ImageText.recognizeDocument(png)
-        let text = document.text
-        // Exercise a real macOS rich-text importer, not just string matching.
-        let html = try XCTUnwrap(document.html)
-        let rich = try NSAttributedString(data: Data(html.utf8), options: [.documentType: NSAttributedString.DocumentType.html,
-            .characterEncoding: String.Encoding.utf8.rawValue], documentAttributes: nil)
-        for name in ["ALICE MARTIN", "BRUNO DURAND", "CLAIRE ROBERT"] { XCTAssertTrue(rich.string.contains(name), rich.string) }
-        XCTAssertTrue(rich.string.contains("Expedia")); XCTAssertTrue(rich.string.contains("Stripe card"))
+        let text = try ImageText.recognize(png)
         let blocks = text.components(separatedBy: "\n\n")
         XCTAssertEqual(blocks.count, 3, text)
         for (index, name) in ["ALICE MARTIN", "BRUNO DURAND", "CLAIRE ROBERT"].enumerated() {
@@ -113,8 +128,13 @@ final class ImageTextLayoutTests: XCTestCase {
             let lines = blocks[index].components(separatedBy: "\n")
             XCTAssertEqual(lines.count, 4, blocks[index])
             XCTAssertTrue(lines.first?.contains(name) == true, blocks[index])
-            XCTAssertTrue(lines.contains { $0.contains("2026") && $0.contains("Expedia") }, blocks[index])
-            XCTAssertTrue(lines.contains { $0.contains("Card not debited") && $0.contains("Stripe card") }, blocks[index])
+            guard lines.count == 4 else { continue }
+            XCTAssertTrue(lines[1].hasPrefix("ID"), "The ID must stay immediately below the name: \(blocks[index])")
+            XCTAssertTrue(lines[2].contains("2026") && lines[2].contains("Expedia"), blocks[index])
+            XCTAssertTrue(lines[3].contains("Card not debited") && lines[3].contains("Stripe card"), blocks[index])
+            if let status = lines[3].range(of: "Card not debited"), let badge = lines[3].range(of: "Stripe card") {
+                XCTAssertLessThan(status.lowerBound, badge.lowerBound)
+            }
         }
     }
 }

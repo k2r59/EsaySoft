@@ -705,13 +705,11 @@ extension History {
         if !stack.contains(saved.id) { stack.append(saved.id) }
         return saved
     }
-    func saveOCR(_ text: String, html: String? = nil, sourceURL: String? = nil) async throws -> Clip {
+    func saveOCR(_ text: String, sourceURL: String? = nil) async throws -> Clip {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw CaptureFailure.message("Aucun texte détecté. Essaie une zone plus nette ou plus grande.") }
-        let rich = html ?? RecognizedTextLayout.html(forText: text)
-        guard text.utf8.count + rich.utf8.count <= ClipboardReader.limit else { throw CaptureFailure.message("Le texte extrait dépasse la limite de 20 Mo.") }
+        guard text.utf8.count <= ClipboardReader.limit else { throw CaptureFailure.message("Le texte extrait dépasse la limite de 20 Mo.") }
         let payload = ClipPayload(representations: [[
-            .init(type: NSPasteboard.PasteboardType.string.rawValue, data: Data(text.utf8)),
-            .init(type: NSPasteboard.PasteboardType.html.rawValue, data: Data(rich.utf8))
+            .init(type: NSPasteboard.PasteboardType.string.rawValue, data: Data(text.utf8))
         ]])
         var clip = Clip(title: String(text.prefix(90)), text: text, source: "Capture de texte", sourceID: "app.easypaste.mac", kind: .text, fingerprint: Clip.fingerprint(payload), payload: payload)
         clip.sourceURL = BrowserOrigin.url(sourceURL)?.absoluteString

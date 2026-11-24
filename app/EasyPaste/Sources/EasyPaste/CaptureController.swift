@@ -265,9 +265,9 @@ private struct ShelfCaptureButton: NSViewRepresentable {
             try Task.checkCancellation()
             let clip: Clip
             if action == .text {
-                let document = try await Task.detached(priority: .userInitiated) { try ImageText.recognizeDocument(data) }.value
+                let text = try await Task.detached(priority: .userInitiated) { try ImageText.recognize(data) }.value
                 try Task.checkCancellation(); guard operation == id else { return }
-                clip = try await history.saveOCR(document.text, html: document.html, sourceURL: sourceURL)
+                clip = try await history.saveOCR(text, sourceURL: sourceURL)
             } else { clip = try await history.saveImage(data, sourceURL: sourceURL) }
             history.sounds.play(.capture)
             let copied = await history.copy([clip], sound: nil); showResult?()
