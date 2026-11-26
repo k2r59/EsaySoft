@@ -6,6 +6,22 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>EasyPaste</title>
         <item>
+            <title>0.3.16</title>
+            <pubDate>Thu, 26 Nov 2026 15:29:34 +0100</pubDate>
+            <sparkle:version>45</sparkle:version>
+            <sparkle:shortVersionString>0.3.16</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.16
+
+- **Extraction en texte brut.** « Extraire le texte d’une zone » copie uniquement du texte, sans HTML ni tableau enrichi.
+- **Ordre visuel conservé.** Les lignes sont lues de haut en bas et leur contenu de gauche à droite. L’ID reste sous le nom ; les petits libellés voisins restent sur la même ligne. Les blocs sont séparés par une ligne vide.
+- **Colonnes lisibles.** Les fragments nettement espacés sur une même ligne sont séparés par ` | ` dans le texte extrait.
+
+Ce changement concerne les nouvelles extractions. Les anciennes entrées de l’historique conservent leur contenu ; utiliser « Copier en texte brut » pour les recopier sans mise en forme. La qualité de reconnaissance dépend de la lisibilité de l’image ; les tableaux complexes peuvent nécessiter une vérification.
+]]></description>
+            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.16/EasyPaste-0.3.16-universal.dmg" length="146956119" type="application/octet-stream" sparkle:edSignature="/JwLD0IOuPupSzzElgeW+HDvs7iOfnnLp3ZP/IynWxiKNk6QSaOw9/AaC6z02CFaUeV8NrYKo9aFG3skZyXmBA=="/>
+        </item>
+        <item>
             <title>0.3.15</title>
             <pubDate>Fri, 20 Nov 2026 11:28:25 +0100</pubDate>
             <sparkle:version>44</sparkle:version>
@@ -41,28 +57,9 @@ Validation : 404 tests Mac en mode Release sans échec (2 tests réseau optionne
 ]]></description>
             <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.14/EasyPaste-0.3.14-universal.dmg" length="14045853" type="application/octet-stream" sparkle:edSignature="dlaNRe6PaH+qmHYDepdGCRUYJsWfWomTMrUrc369pUQP+H0eWEhS7wd8p0xZ8180sbB4wMhlWLzuyMLCHgioDg=="/>
         </item>
-        <item>
-            <title>0.3.13</title>
-            <pubDate>Fri, 13 Nov 2026 08:40:08 +0100</pubDate>
-            <sparkle:version>38</sparkle:version>
-            <sparkle:shortVersionString>0.3.13</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# EasyPaste 0.3.13
-
-- Clic droit sur l’icône EasyPaste dans la barre des menus : ouvre ou ferme la barre rapide, comme ⇧⌘V. Le clic gauche conserve le menu habituel.
-- Bitwarden : le partage d’un élément lance directement le déverrouillage local si nécessaire, puis reprend le contenu choisi sans repasser par le menu.
-- Après authentification, le partage rapide conserve la confirmation « Lien copié » à l’écran. Le lien rejoint le presse-papiers, l’historique et la pile.
-- Les partages avec options retrouvent leur formulaire après déverrouillage, sans envoi automatique.
-- Nouveau réglage Bitwarden : verrouillage après 15 minutes, 1 heure ou 4 heures d’inactivité. La valeur par défaut reste 15 minutes ; la veille et le verrouillage du Mac verrouillent toujours la connexion immédiatement.
-- Une session expirée permet de se reconnecter sans perdre l’élément à partager. Le minuteur d’inactivité est suspendu pendant une opération pour éviter une fermeture en cours d’authentification ou d’envoi.
-
-Validation : 361 tests automatiques réussis, dont les parcours Bitwarden de reprise, d’annulation et de session expirée. Les tests Bitwarden utilisent un serveur simulé ; ils ne créent aucun partage réel.
-]]></description>
-            <enclosure url="https://github.com/k2r59/EsaySoft/releases/download/easypaste-v0.3.13/EasyPaste-0.3.13-universal.dmg" length="12964843" type="application/octet-stream" sparkle:edSignature="arHuvA0D7dcpuBQgKsRW8QG1UUb/PegTUhnUMEEVnydupTLwXH5yZl2lBmecvGsYDs4tJhN84Y18HjjbHXGxBg=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: ZNvDBuIqdRi5StARdMWVUI+s5jSwB5hgr/sOrLhPe12OKC0Zdt8IS55FBh5mHjvreEF/ghcJHClvKO85WZNNCQ==
-length: 7512
+edSignature: Gl3qa/CYiSvvF3xChGXD7cjJjF+qI6AdctfFyaIsGFx/Roksy9XQxlVmxkubhWLpEKpa47JWT3Eq4hbbf2pDDA==
+length: 7079
 -->
