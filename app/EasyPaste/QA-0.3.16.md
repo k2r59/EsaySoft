@@ -1,4 +1,4 @@
-# EasyPaste 0.3.16 — préparation du 24 novembre 2026
+# EasyPaste 0.3.16 — validation du 26 novembre 2026
 
 ## Correctif OCR
 
@@ -13,11 +13,17 @@ Les anciennes entrées enrichies ne sont pas migrées : elles restent accessible
 - Suite complète `swift test -j 2 -c release` : 406 tests exécutés, 403 réussis, 3 ignorés, aucun échec. Les tests ignorés nécessitent les moteurs packagés ou le mode réseau optionnel.
 - Le test OCR réel des cartes vérifie explicitement le nom en première ligne, l’ID immédiatement dessous, la date et son badge en troisième ligne, puis le statut et Stripe card sur la même quatrième ligne, dans cet ordre.
 - Une première image synthétique de tableau a révélé que Vision omettait un chiffre isolé ; le test stable utilise une valeur à deux chiffres. Ce correctif ordonne les fragments reconnus, il ne garantit pas la reconnaissance de tous les caractères ni la restitution des cellules vides ou fusionnées.
-- Compilation universelle arm64/x86_64, cible minimale macOS 15.0, SDK 27.2 ; signature locale ad hoc vérifiée.
+- Compilation universelle arm64/x86_64, cible minimale macOS 15.0, SDK 27.2 ; signature Developer ID de l’équipe WN9MHL56A9 vérifiée.
 - Les ressources et moteurs inchangés du paquet local préparatoire proviennent de l’application 0.3.15 installée, dont la signature profonde a été vérifiée avant copie. Vérification des 107 composants natifs universels et des quatre moteurs réussie.
 
 ## État de livraison
 
-Version 0.3.16, build 45 préparés. Le paquet local n’est pas un paquet de distribution : signature ad hoc uniquement. Aucun remplacement de /Applications/EasyPaste.app, aucune notarisation, aucune release ni modification du flux public à ce stade.
+Version 0.3.16, build 45 signés avec Developer ID Application et acceptés par Apple le 26 novembre 2026 (soumission abb72b85-d9e4-46a0-99f3-ea22b767f2e8). Tickets attachés à l’application et au DMG ; validations stapler et Gatekeeper réussies.
 
-Configuration encore nécessaire sur le Mac de préparation : identité Developer ID Application de l’équipe WN9MHL56A9, profil de notarisation EasyShoot et clé Sparkle du compte app.easypaste.mac. L’utilisateur a accès à l’ancien Mac et demande une assistance pour transférer cette configuration. Les secrets ne doivent pas être ajoutés au dépôt.
+Installation locale dans /Applications/EasyPaste.app, redémarrage et affichage de « Version 0.3.16 » vérifiés. L’historique existant reste visible et la collecte reste en pause comme avant l’installation. L’ancienne application est conservée hors du dépôt pour permettre un retour arrière.
+
+Le paquet réutilise les moteurs inchangés et vérifiés de 0.3.15. Les sept archives et licences tierces sont reprises de l’archive source publiée de 0.3.15, après vérification de son SHA-256. Le code OCR et l’exécutable principal correspondent au correctif testé de cette version.
+
+La publication utilise le profil de notarisation EasyPaste et la clé Sparkle du compte app.easypaste.mac, dans le trousseau local. Aucun secret ne figure dans les sources ni les archives. Le script de publication vérifie le flux et le DMG signés, puis contrôle les archives retéléchargées avant d’annoncer la mise à jour.
+
+Limite de validation : installation locale directe effectuée ; une mise à jour Sparkle complète depuis 0.3.15 n’a pas été exécutée sur ce Mac.

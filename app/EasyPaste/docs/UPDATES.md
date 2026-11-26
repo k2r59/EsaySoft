@@ -15,11 +15,11 @@ et espacées de 24 heures. Les téléchargements et installations restent manuel
 ```sh
 APP_BUNDLE_PATH=dist/EasyPaste-0.3.0.app \
 CODE_SIGN_IDENTITY='Developer ID Application: Les papas du code (WN9MHL56A9)' \
-NOTARY_PROFILE=EasyShoot ./scripts/package.sh
+NOTARY_PROFILE=EasyPaste ./scripts/package.sh
 ```
 
-Adapter le numéro de version dans le chemin. `EasyShoot` est le nom historique
-du profil de notarisation stocké dans le trousseau de ce Mac.
+Adapter le numéro de version dans le chemin. `EasyPaste` est le nom du profil
+de notarisation stocké dans le trousseau du Mac de publication.
 
 5. Vérifier l’app, puis commiter et pousser les sources. Aucun identifiant Apple,
 clé privée, historique ou donnée Bitwarden ne doit entrer dans le dépôt.
